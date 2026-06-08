@@ -79,11 +79,10 @@ ServerStory zeigt, was dein Server **tatsächlich protokolliert** hat — das ka
 Cookie-Banner und kein Ad-Blocker verstecken. Am verlässlichsten sind der **Vergleich
 pro Seite** und die **Käufe**: spezifische, sauber gezählte Größen.
 
-Die absolute **Besucherzahl** ist dagegen eine gute Schätzung, keine exakte
-Personenzählung: Aufrufe werden per IP und Browser im 30-Minuten-Fenster zu Besuchen
-zusammengefasst, und mehrere Personen hinter einer IP (Firma, Mobilfunk) zählen als
-eine. Für Entscheidungen verlass dich daher vor allem auf den Seiten-Vergleich und die
-Conversion-Zahlen.
+Die **Besucherzahl** ist dagegen ein guter Richtwert, keine exakte Personenzählung: Sie
+kann etwas abweichen, weil z. B. mehrere Personen aus einer Firma oder im selben
+Mobilfunknetz als ein Besucher zählen. Für Entscheidungen verlass dich daher vor allem
+auf den Vergleich Seite für Seite und die Käufe.
 
 ## Datenschutz
 
