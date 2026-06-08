@@ -1,0 +1,1467 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ServerStory: Was hat deine Website wirklich gesehen?</title>
+    <style>
+      :root {
+        --black: #171717;
+        --red: #f03522;
+        --green: #1f8a4c;
+        --amber: #f5d7a1;
+        --paper: #f7f4ee;
+        --ink: #171717;
+        --muted: #4f5360;
+        --line: rgba(23, 23, 23, 0.12);
+        --white: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        overflow-x: hidden;
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      input,
+      textarea,
+      select {
+        max-width: 100%;
+      }
+
+      .topbar {
+        min-height: 92px;
+        background: var(--black);
+        color: var(--white);
+      }
+
+      .topbar-inner {
+        width: min(1200px, calc(100% - 32px));
+        min-height: 92px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        width: min(430px, 48vw);
+      }
+
+      .logo img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .topnote {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      main {
+        width: min(1200px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 34px 0 52px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+        gap: 40px;
+        align-items: start;
+        margin-bottom: 26px;
+      }
+
+      .hero-action {
+        min-width: 0;
+        border: 1px solid var(--black);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 12px 12px 0 rgba(23, 23, 23, 0.08);
+        padding: 22px;
+      }
+
+      .trust {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .hero-main {
+        min-width: 0;
+      }
+
+      .hero-copy-grid {
+        display: grid;
+        grid-template-columns: minmax(320px, 0.95fr) minmax(420px, 1.05fr);
+        gap: 40px;
+        align-items: stretch;
+      }
+
+      .kicker {
+        display: inline-block;
+        margin-bottom: 18px;
+        padding: 9px 13px;
+        background: var(--red);
+        color: var(--white);
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: none;
+        margin-bottom: 22px;
+        font-size: clamp(36px, 4.6vw, 62px);
+        line-height: 1.05;
+        letter-spacing: 0;
+      }
+
+      h1 span {
+        color: var(--red);
+      }
+
+      .lead {
+        max-width: none;
+        margin: 0;
+        color: #27272a;
+        font-size: 20px;
+        line-height: 1.5;
+      }
+
+      .lead-points {
+        list-style: none;
+        margin: 22px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 12px;
+      }
+
+      .lead-points li {
+        position: relative;
+        padding-left: 30px;
+        color: #27272a;
+        font-size: 18px;
+        line-height: 1.4;
+      }
+
+      .lead-points li::before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        top: 0;
+        color: var(--red);
+        font-weight: 900;
+      }
+
+      .proof {
+        width: 100%;
+        height: 100%;
+        border: 1px solid var(--black);
+        background: rgba(255, 255, 255, 0.72);
+        padding: 22px;
+      }
+
+      .proof h2 {
+        margin-bottom: 14px;
+        font-size: 30px;
+        line-height: 1.08;
+      }
+
+      .proof p {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.45;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 22px;
+        align-items: start;
+        min-width: 0;
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin: 0 0 24px;
+        padding: 0;
+        list-style: none;
+      }
+
+      .flow li {
+        display: grid;
+        gap: 9px;
+        align-content: start;
+        border: 1px solid var(--black);
+        background: rgba(255, 255, 255, 0.72);
+        padding: 16px;
+      }
+
+      .flow-num {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        background: var(--red);
+        color: var(--white);
+        font-size: 18px;
+        font-weight: 900;
+      }
+
+      .flow strong {
+        font-size: 18px;
+      }
+
+      .flow p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.4;
+      }
+
+      .actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .actions button {
+        flex: 1 1 200px;
+        min-width: 0;
+      }
+
+      .choice {
+        display: grid;
+        gap: 9px;
+      }
+
+      .choice p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .choice strong {
+        color: var(--ink);
+      }
+
+      .divider {
+        height: 1px;
+        background: var(--line);
+        margin: 4px 0;
+      }
+
+      .panel,
+      .result {
+        min-width: 0;
+        border: 1px solid var(--black);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 12px 12px 0 rgba(23, 23, 23, 0.08);
+      }
+
+      .panel {
+        padding: 22px;
+      }
+
+      .section-title {
+        margin-bottom: 8px;
+        font-size: 32px;
+        line-height: 1.08;
+      }
+
+      .panel-intro {
+        margin-bottom: 18px;
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.45;
+      }
+
+      .hint {
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.45;
+      }
+
+      .steps {
+        display: grid;
+        gap: 14px;
+      }
+
+      .steps details {
+        margin-top: 0;
+        border: 0;
+        background: transparent;
+        padding: 0;
+      }
+
+      .steps summary {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 54px;
+        padding: 13px 16px;
+        border: 1px solid var(--black);
+        background: var(--white);
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 900;
+        letter-spacing: 0;
+        text-align: center;
+        list-style: none;
+      }
+
+      .steps summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .steps details[open] .ga4-fields {
+        margin-top: 12px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.6);
+      }
+
+      .intro-list {
+        display: grid;
+        gap: 10px;
+        margin: 0 0 18px;
+        padding: 0;
+        list-style: none;
+      }
+
+      .intro-list li {
+        border-left: 5px solid var(--red);
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.72);
+        font-size: 17px;
+        line-height: 1.4;
+      }
+
+      .helper {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      .demo-badge {
+        display: none;
+        width: fit-content;
+        margin-bottom: 12px;
+        border: 1px solid var(--black);
+        padding: 6px 9px;
+        background: var(--amber);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .demo-badge.visible {
+        display: inline-block;
+      }
+
+      .ga4-fields {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .precheck {
+        display: grid;
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .precheck p {
+        margin: 0;
+        border: 1px solid var(--line);
+        padding: 13px;
+        background: rgba(255, 255, 255, 0.75);
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.45;
+      }
+
+      .results-body.hidden {
+        display: none;
+      }
+
+      label {
+        display: grid;
+        gap: 7px;
+        min-width: 0;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        min-width: 0;
+        min-height: 46px;
+        border: 1px solid var(--black);
+        border-radius: 0;
+        padding: 11px 12px;
+        color: var(--ink);
+        background: var(--white);
+        font-size: 17px;
+      }
+
+      textarea {
+        resize: vertical;
+      }
+
+      input:focus,
+      textarea:focus {
+        outline: 3px solid rgba(240, 53, 34, 0.25);
+      }
+
+      .two {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 12px;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      button {
+        min-height: 54px;
+        border: 1px solid var(--black);
+        border-radius: 0;
+        padding: 13px 16px;
+        background: var(--red);
+        color: var(--white);
+        font-size: 15px;
+        font-weight: 900;
+        letter-spacing: 0;
+        cursor: pointer;
+      }
+
+      .secondary {
+        background: var(--white);
+        color: var(--ink);
+      }
+
+      .first-hint {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      .message {
+        min-height: 22px;
+        color: var(--red);
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .message:empty {
+        display: none;
+      }
+
+      .result {
+        padding: 28px;
+      }
+
+      .verdict {
+        display: grid;
+        grid-template-columns: 108px minmax(0, 1fr);
+        gap: 22px;
+        align-items: center;
+      }
+
+      .signal {
+        width: 108px;
+        height: 108px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--black);
+        background: var(--white);
+        color: var(--black);
+        font-size: 68px;
+        line-height: 1;
+      }
+
+      .signal.warn {
+        background: var(--red);
+        color: var(--white);
+      }
+
+      .signal.medium {
+        background: var(--amber);
+        color: var(--black);
+      }
+
+      .signal.good {
+        background: var(--green);
+        color: var(--white);
+      }
+
+      .signal-label {
+        display: inline-block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .verdict h2 {
+        margin-bottom: 10px;
+        font-size: clamp(30px, 4.2vw, 50px);
+        line-height: 1.04;
+        overflow-wrap: anywhere;
+      }
+
+      .verdict p {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 20px;
+        line-height: 1.45;
+      }
+
+      .numbers {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 24px;
+      }
+
+      .number {
+        border: 1px solid var(--black);
+        background: var(--white);
+        padding: 17px;
+      }
+
+      .number span {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 10px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+      }
+
+      .number strong {
+        font-size: 42px;
+        line-height: 0.95;
+      }
+
+      .number .helper {
+        margin: 10px 0 0;
+      }
+
+      .action {
+        margin-top: 18px;
+        border-left: 8px solid var(--red);
+        padding: 16px 18px;
+        background: var(--paper);
+        font-size: 19px;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+
+      .purchase-box {
+        margin-top: 18px;
+        border: 1px solid var(--black);
+        border-left: 8px solid var(--red);
+        background: var(--white);
+        padding: 16px 18px;
+      }
+
+      .purchase-box > span {
+        display: block;
+        margin-bottom: 12px;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        color: var(--muted);
+      }
+
+      .purchase-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .purchase-grid strong {
+        display: block;
+        font-size: 34px;
+        line-height: 0.95;
+      }
+
+      .purchase-grid p {
+        margin: 7px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .compare-block {
+        margin-top: 24px;
+      }
+
+      .compare-block h3 {
+        margin-bottom: 4px;
+        font-size: 22px;
+        line-height: 1.15;
+      }
+
+      .caption {
+        margin: 0 0 6px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      .compare-block.no-ga4 .ga4-col {
+        display: none;
+      }
+
+      .mini-table {
+        width: 100%;
+        margin-top: 6px;
+        border-collapse: collapse;
+        font-size: 16px;
+      }
+
+      .mini-table th,
+      .mini-table td {
+        border-bottom: 1px solid var(--line);
+        padding: 9px 0;
+        text-align: left;
+        overflow-wrap: anywhere;
+      }
+
+      .mini-table th:last-child,
+      .mini-table td:last-child {
+        text-align: right;
+        font-weight: 900;
+      }
+
+      .table-wrap {
+        width: 100%;
+        overflow-x: auto;
+      }
+
+      details {
+        margin-top: 16px;
+        border: 1px solid var(--black);
+        background: var(--white);
+        padding: 15px;
+      }
+
+      summary {
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+      }
+
+      dl {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px 18px;
+        margin: 16px 0 0;
+      }
+
+      dl div {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 8px;
+      }
+
+      dt {
+        color: var(--muted);
+      }
+
+      dd {
+        margin: 0;
+        font-weight: 900;
+      }
+
+      .server-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 6px;
+      }
+
+      .server-card {
+        border: 1px solid var(--line);
+        background: var(--white);
+        padding: 12px;
+      }
+
+      .server-card span {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+      }
+
+      .server-card strong {
+        font-size: 28px;
+        line-height: 0.95;
+      }
+
+      .server-card .helper {
+        margin: 6px 0 0;
+      }
+
+      .cta {
+        margin-top: 40px;
+        border: 1px solid var(--black);
+        background: var(--black);
+        color: var(--white);
+        box-shadow: 12px 12px 0 rgba(23, 23, 23, 0.08);
+        padding: 48px 40px;
+        text-align: center;
+      }
+
+      .cta-kicker {
+        display: inline-block;
+        margin-bottom: 16px;
+        padding: 7px 12px;
+        background: var(--red);
+        color: var(--white);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .cta h2 {
+        margin: 0 auto 16px;
+        max-width: 740px;
+        font-size: clamp(26px, 3.2vw, 40px);
+        line-height: 1.12;
+      }
+
+      .cta-text {
+        margin: 0 auto 28px;
+        max-width: 620px;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 19px;
+        line-height: 1.5;
+      }
+
+      .cta-btn {
+        display: inline-block;
+        padding: 16px 30px;
+        border: 0;
+        background: var(--red);
+        color: var(--white);
+        font-size: 16px;
+        font-weight: 900;
+        text-decoration: none;
+      }
+
+      .cta-btn:hover {
+        background: var(--white);
+        color: var(--ink);
+      }
+
+      @media (max-width: 1000px) {
+        .cta {
+          padding: 32px 22px;
+        }
+
+        .topbar-inner,
+        .hero,
+        .hero-copy-grid,
+        .workspace,
+        .flow,
+        .numbers,
+        .purchase-grid,
+        .server-grid,
+        dl,
+        .two {
+          grid-template-columns: 1fr;
+        }
+
+        .topbar-inner {
+          display: grid;
+          padding: 16px 0;
+        }
+
+        .logo {
+          width: min(360px, 86vw);
+        }
+
+        .topnote {
+          font-size: 13px;
+        }
+
+        h1 {
+          font-size: clamp(29px, 8.2vw, 50px);
+        }
+
+        .verdict {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="logo"><img src="serverstory-logo.svg" alt="ServerStory"></div>
+        <div class="topnote">Läuft nur in deinem Browser — deine Datei wird nirgendwohin hochgeladen</div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-main">
+          <div class="kicker">3-Minuten-Check</div>
+          <h1>Was hat deine Website <span>wirklich gesehen?</span></h1>
+          <p class="lead">ServerStory liest die Besuchsliste deines Webservers (der Computer, auf dem deine Website läuft) und zeigt dir schwarz auf weiß, wie viele Besucher und Seitenaufrufe du in einem Zeitraum wirklich hattest — direkt von der Quelle, ohne Cookies und ohne Tracking-Tool.</p>
+          <ul class="lead-points">
+            <li>Echte Besucher- und Seitenaufrufe pro Adresse</li>
+            <li>Deine meistbesuchten Seiten sofort auf einen Blick</li>
+            <li>Optional: die Lücke zu Google Analytics sichtbar machen</li>
+          </ul>
+        </div>
+
+        <aside class="hero-action">
+          <h2 class="section-title">Datei prüfen</h2>
+
+          <div class="steps">
+            <label>
+              Besuchsliste vom Webserver hochladen
+              <input id="log-file" type="file" accept=".log,.txt">
+              <span class="helper">Datei-Endung meist .log oder .txt.</span>
+            </label>
+            <button id="run" type="button">Jetzt auswerten</button>
+
+            <div class="divider"></div>
+
+            <button id="copy-it" class="secondary" type="button">Noch keine Datei? Kopier den fertigen Text hier.</button>
+            <button id="sample" class="secondary" type="button">Demo mit Beispieldaten starten</button>
+
+            <details>
+              <summary>Optional: Zeitraum &amp; Seiten eingrenzen</summary>
+              <div class="ga4-fields">
+                <div class="two">
+                  <label>
+                    Von
+                    <input id="date-from" type="date">
+                  </label>
+                  <label>
+                    Bis
+                    <input id="date-to" type="date">
+                  </label>
+                </div>
+                <label>
+                  Bestimmte Seiten ansehen
+                  <textarea id="compare-urls" rows="3" placeholder="/preise&#10;/warenkorb&#10;/bestellung/danke"></textarea>
+                  <span class="helper">Eine Web-Adresse pro Zeile. Leer lassen — dann zeigt ServerStory automatisch deine meistbesuchten Seiten.</span>
+                </label>
+              </div>
+            </details>
+
+            <details id="ga4-toggle">
+              <summary>Optional: Mit Google Analytics vergleichen</summary>
+              <div class="ga4-fields">
+                <p class="helper">Nur ausfüllen, wenn du die Server-Zahlen direkt deinen Google-Analytics-Zahlen gegenüberstellen willst. Sonst einfach zuklappen lassen.</p>
+                <label>
+                  Google-Analytics-Zahlen pro Seite
+                  <textarea id="ga4-url-views" rows="3" placeholder="/preise,840&#10;/warenkorb,290&#10;/bestellung/danke,120"></textarea>
+                  <span class="helper">Format: Adresse,Zahl — also die Aufrufe, die Google Analytics für dieselbe Seite meldet. Eine pro Zeile.</span>
+                </label>
+                <label>
+                  Danke-Seite nach dem Kauf
+                  <input id="success-url" placeholder="/bestellung/danke">
+                  <span class="helper">Die Seite, die nur nach einer echten Bestellung erscheint. Nötig, wenn du Käufe prüfen willst.</span>
+                </label>
+                <label>
+                  Käufe laut Google Analytics
+                  <input id="ga4-conversions" type="number" min="0" placeholder="120">
+                  <span class="helper">Wie viele Käufe meldet Google Analytics im selben Zeitraum?</span>
+                </label>
+              </div>
+            </details>
+
+            <p id="message" class="message"></p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="result hidden" id="result-panel">
+          <div id="demo-badge" class="demo-badge">Demo-Ergebnis mit Beispieldaten</div>
+          <div class="verdict">
+            <div id="signal" class="signal">?</div>
+            <div>
+              <span id="signal-label" class="signal-label">Noch nichts ausgewertet</span>
+              <h2 id="headline">Bereit für die Auswertung</h2>
+              <p id="subline">Lade links die Besuchsliste vom Webserver. Danach siehst du sofort, welche Seiten wie oft aufgerufen wurden und wie viele Besucher du wirklich hattest.</p>
+            </div>
+          </div>
+
+          <div id="results-body" class="results-body hidden">
+            <div class="numbers">
+              <div class="number">
+                <span>Besuche laut Webserver</span>
+                <strong id="n-visits">-</strong>
+                <p class="helper">Einzelne Aufrufe grob zu Besuchen zusammengefasst.</p>
+              </div>
+              <div class="number">
+                <span>Seitenaufrufe gesamt</span>
+                <strong id="n-views">-</strong>
+                <p class="helper">Alle echten Aufrufe nach Bot- und Fehlerfilter.</p>
+              </div>
+              <div class="number purchase-only">
+                <span>Käufe laut Webserver</span>
+                <strong id="n-purchases">-</strong>
+                <p class="helper">So oft wurde die Danke-Seite gefunden.</p>
+              </div>
+              <div class="number ga4-only">
+                <span>So viel sieht Google Analytics</span>
+                <strong id="n-coverage">-</strong>
+                <p class="helper">Von 100 Aufrufen, die dein Webserver zählt, meldet Google Analytics nur so viele.</p>
+              </div>
+            </div>
+
+            <div id="action" class="action">Nach der Auswertung steht hier, was du als Nächstes tun solltest.</div>
+
+            <div id="purchase-box" class="purchase-box hidden">
+              <span>Kauf-Check (Danke-Seite)</span>
+              <div class="purchase-grid">
+                <div>
+                  <strong id="pc-server">-</strong>
+                  <p>Käufe laut Webserver</p>
+                </div>
+                <div>
+                  <strong id="pc-ga4">-</strong>
+                  <p>Käufe laut Google Analytics</p>
+                </div>
+                <div>
+                  <strong id="pc-gap">-</strong>
+                  <p>Mögliche fehlende Käufe</p>
+                </div>
+              </div>
+            </div>
+
+            <div id="compare-block" class="compare-block no-ga4">
+              <h3 id="table-title">Deine meistbesuchten Seiten</h3>
+              <p class="caption" id="table-caption">So oft hat dein Webserver diese Seiten im gewählten Zeitraum gesehen.</p>
+              <div class="table-wrap">
+                <table class="mini-table">
+                  <thead>
+                    <tr><th>Seite</th><th>Webserver</th><th class="ga4-col">Google Analytics</th><th class="ga4-col">Differenz</th><th class="ga4-col">Abdeckung</th></tr>
+                  </thead>
+                  <tbody id="page-table">
+                    <tr><td>-</td><td>-</td><td class="ga4-col">-</td><td class="ga4-col">-</td><td class="ga4-col">-</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <details>
+              <summary>Was aus der Datei gelesen wurde</summary>
+              <div class="server-grid">
+                <div class="server-card">
+                  <span>Alle Zeilen in der Datei</span>
+                  <strong id="server-total">-</strong>
+                  <p class="helper">So viele Zeilen standen in der Datei.</p>
+                </div>
+                <div class="server-card">
+                  <span>Verwendete Aufrufe</span>
+                  <strong id="server-kept">-</strong>
+                  <p class="helper">Echte Besucher-Aufrufe, die gezählt wurden.</p>
+                </div>
+                <div class="server-card">
+                  <span>Nicht verwendet</span>
+                  <strong id="server-filtered">-</strong>
+                  <p class="helper">Bots, Fehler und Zeilen außerhalb des Zeitraums.</p>
+                </div>
+                <div class="server-card">
+                  <span>Besuche aus Google Ads</span>
+                  <strong id="server-ads">-</strong>
+                  <p class="helper">Besuche mit Google-Werbe-Kennzeichen in der Adresse.</p>
+                </div>
+              </div>
+              <dl>
+                <div><dt>Besuche im Webserver</dt><dd id="visits">-</dd></div>
+                <div><dt>Verwendete Aufrufe nach Filter</dt><dd id="kept">-</dd></div>
+                <div><dt>Lesbare Zeilen</dt><dd id="parsed">-</dd></div>
+                <div><dt>Nicht verwendete Zeilen</dt><dd id="filtered">-</dd></div>
+                <div><dt>Kaufrate im Webserver</dt><dd id="server-cr">-</dd></div>
+                <div><dt>Google-Ads-Besuche mit Kauf</dt><dd id="ads-success">-</dd></div>
+              </dl>
+            </details>
+
+            <details>
+              <summary>Technische Details für IT oder Analytics</summary>
+              <div class="table-wrap">
+                <table class="mini-table">
+                  <thead>
+                    <tr><th>Typ</th><th>Anzahl</th></tr>
+                  </thead>
+                  <tbody id="status-methods">
+                    <tr><td>-</td><td>-</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </details>
+
+            <details>
+              <summary>Nachricht an IT</summary>
+              <p class="hint">Bitte Access Log für den gewünschten Zeitraum exportieren. Format: Apache/Nginx Combined Log, entpackt als .log oder .txt. ServerStory zeigt nur Summen; IPs werden nicht ausgegeben.</p>
+            </details>
+          </div>
+        </section>
+
+        <section class="cta">
+          <span class="cta-kicker">Trace5</span>
+          <h2>Hol mehr aus der Technik heraus, auf der dein Online-Marketing läuft.</h2>
+          <p class="cta-text">ServerStory zeigt dir nur einen Ausschnitt. Du willst wissen, wie du noch mehr Informationen aus deinem Server und aus der Technik holst, auf der dein Online-Marketing beruht? Trace5 zeigt dir, wie.</p>
+          <a class="cta-btn" href="https://trace5.co" target="_blank" rel="noopener noreferrer">Besuche trace5.co</a>
+        </section>
+    </main>
+
+    <script>
+      const logRe = /^(\S+) \S+ \S+ \[([^\]]+)\] "([A-Z]+) ([^"]*?) (HTTP\/[0-9.]+)" (\d{3}) \S+ "([^"]*)" "([^"]*)"/;
+      const botRe = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|whatsapp|telegrambot|linkedinbot|twitterbot|preview|monitor|uptime|pingdom|headless|python-requests|curl|wget/i;
+      const adParams = ["gclid", "gbraid", "wbraid"];
+      const visitTimeoutMs = 30 * 60 * 1000;
+      const successDedupeMs = 60 * 60 * 1000;
+      const sample = `203.0.113.10 - - [05/Jun/2026:10:00:00 +0200] "GET /?gclid=abc123 HTTP/1.1" 200 5321 "-" "Mozilla/5.0"
+203.0.113.10 - - [05/Jun/2026:10:05:00 +0200] "GET /produkt HTTP/1.1" 200 3421 "-" "Mozilla/5.0"
+203.0.113.10 - - [05/Jun/2026:10:12:00 +0200] "GET /bestellung/danke HTTP/1.1" 200 2411 "-" "Mozilla/5.0"
+203.0.113.10 - - [05/Jun/2026:10:12:20 +0200] "GET /bestellung/danke HTTP/1.1" 200 2411 "-" "Mozilla/5.0"
+198.51.100.20 - - [05/Jun/2026:11:00:00 +0200] "GET / HTTP/1.1" 200 5321 "-" "Mozilla/5.0"
+198.51.100.20 - - [05/Jun/2026:11:04:00 +0200] "GET /bestellung/danke HTTP/1.1" 200 2411 "-" "Mozilla/5.0"
+192.0.2.30 - - [05/Jun/2026:12:00:00 +0200] "GET / HTTP/1.1" 200 5321 "-" "Googlebot/2.1"`;
+      let sampleMode = false;
+      let analyzed = false;
+
+      function id(name) { return document.getElementById(name); }
+      function number(idName) {
+        const value = id(idName).value.trim();
+        return value === "" ? null : Number(value);
+      }
+      function format(value) {
+        if (value === null || value === undefined || Number.isNaN(value)) return "-";
+        return new Intl.NumberFormat("de-DE").format(value);
+      }
+      function percent(value) {
+        if (value === null || value === undefined || Number.isNaN(value)) return "-";
+        return `${Number(value).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+      }
+      function kauf(n) {
+        if (n === null || n === undefined || Number.isNaN(n)) return "-";
+        return n === 1 ? "1 Kauf" : `${format(n)} Käufe`;
+      }
+      function parseLogTime(raw) {
+        const match = raw.match(/^(\d{2})\/([A-Za-z]{3})\/(\d{4}):(\d{2}):(\d{2}):(\d{2}) ([+-])(\d{2})(\d{2})$/);
+        if (!match) return null;
+        const months = { Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06", Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12" };
+        const month = months[match[2]];
+        if (!month) return null;
+        const iso = `${match[3]}-${month}-${match[1]}T${match[4]}:${match[5]}:${match[6]}${match[7]}${match[8]}:${match[9]}`;
+        const timeMs = Date.parse(iso);
+        if (Number.isNaN(timeMs)) return null;
+        return { date: `${match[3]}-${month}-${match[1]}`, timeMs };
+      }
+      function parseTarget(target) {
+        try {
+          const url = new URL(target, "https://example.invalid");
+          return { path: url.pathname, params: url.searchParams };
+        } catch {
+          return { path: target.split("?")[0] || "/", params: new URLSearchParams() };
+        }
+      }
+      function isInRange(dateValue) {
+        const from = id("date-from").value;
+        const to = id("date-to").value;
+        if (from && dateValue < from) return false;
+        if (to && dateValue > to) return false;
+        return true;
+      }
+      function analyzeText(text) {
+        const rawSuccessUrl = id("success-url").value.trim();
+        const hasSuccessUrl = rawSuccessUrl !== "";
+        const successUrl = hasSuccessUrl ? normalizePath(rawSuccessUrl) : "";
+        const ga4Conversions = number("ga4-conversions");
+        const lastSeen = new Map();
+        const lastSuccess = new Map();
+        const adVisitors = new Set();
+        const adSuccess = new Set();
+        const pathCounts = new Map();
+        const statusCounts = new Map();
+        const methodCounts = new Map();
+        const stats = { total: 0, parsed: 0, kept: 0, filtered: 0, visits: 0, successRaw: 0, success: 0 };
+
+        const entries = [];
+        for (const line of text.split(/\r?\n/)) {
+          if (!line.trim()) continue;
+          stats.total += 1;
+          const match = line.match(logRe);
+          if (!match) continue;
+          stats.parsed += 1;
+          const [, ip, timeRaw, method, target, , statusRaw, , ua] = match;
+          const parsedTime = parseLogTime(timeRaw);
+          if (!parsedTime) {
+            stats.filtered += 1;
+            continue;
+          }
+          entries.push({ ip, timeRaw, method, target, statusRaw, ua, ...parsedTime });
+        }
+
+        entries.sort((a, b) => a.timeMs - b.timeMs);
+
+        for (const entry of entries) {
+          const { ip, method, target, statusRaw, ua, date: logDate, timeMs } = entry;
+          const status = Number(statusRaw);
+          if (!isInRange(logDate) || ![200, 201, 202, 204, 301, 302, 303, 307, 308].includes(status) || botRe.test(ua) || !["GET", "POST"].includes(method)) {
+            stats.filtered += 1;
+            continue;
+          }
+          const targetParts = parseTarget(target);
+          const key = `${ip}|${ua}`;
+          stats.kept += 1;
+          pathCounts.set(targetParts.path, (pathCounts.get(targetParts.path) || 0) + 1);
+          statusCounts.set(String(status), (statusCounts.get(String(status)) || 0) + 1);
+          methodCounts.set(method, (methodCounts.get(method) || 0) + 1);
+          const previousSeen = lastSeen.get(key);
+          if (previousSeen === undefined || timeMs - previousSeen > visitTimeoutMs) stats.visits += 1;
+          lastSeen.set(key, timeMs);
+          if (adParams.some((param) => targetParts.params.has(param))) adVisitors.add(key);
+          if (!hasSuccessUrl || normalizePath(targetParts.path) !== successUrl) continue;
+          stats.successRaw += 1;
+          const previousSuccess = lastSuccess.get(key);
+          if (previousSuccess !== undefined && timeMs - previousSuccess <= successDedupeMs) continue;
+          lastSuccess.set(key, timeMs);
+          stats.success += 1;
+          if (adVisitors.has(key)) adSuccess.add(key);
+        }
+
+        const chosen = compareUrls();
+        const tableRows = buildRows(pathCounts, chosen);
+        const ga4Rows = tableRows.filter((row) => row.ga4Views !== null && row.ga4Views !== undefined);
+        const totalServer = ga4Rows.reduce((sum, row) => sum + row.serverViews, 0);
+        const totalGa4 = ga4Rows.reduce((sum, row) => sum + row.ga4Views, 0);
+        const overall = ga4Rows.length
+          ? {
+              totalServer,
+              totalGa4,
+              difference: totalServer - totalGa4,
+              coverage: totalServer > 0 ? (totalGa4 / totalServer) * 100 : null,
+              worst: ga4Rows
+                .filter((row) => row.coverage !== null && row.serverViews > 0)
+                .sort((a, b) => a.coverage - b.coverage)[0] || null
+            }
+          : null;
+
+        const gap = ga4Conversions === null ? null : Math.max(stats.success - ga4Conversions, 0);
+        const serverCr = stats.visits ? (stats.success / stats.visits) * 100 : 0;
+        return {
+          ...stats,
+          hasSuccessUrl,
+          ga4Conversions,
+          gap,
+          serverCr,
+          adVisitors: adVisitors.size,
+          adSuccess: adSuccess.size,
+          hasChosen: chosen.length > 0,
+          tableRows,
+          overall,
+          statusCounts: topEntries(statusCounts, 12),
+          methodCounts: topEntries(methodCounts, 6)
+        };
+      }
+      function normalizePath(value) {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        let path;
+        try {
+          path = new URL(raw, "https://example.invalid").pathname;
+        } catch {
+          path = raw.startsWith("/") ? raw.split("?")[0] : `/${raw.split("?")[0]}`;
+        }
+        return path === "/" ? "/" : path.replace(/\/$/, "");
+      }
+      function compareUrls() {
+        return id("compare-urls").value
+          .split(/\r?\n|,/)
+          .map((value) => normalizePath(value))
+          .filter(Boolean)
+          .filter((value, index, all) => all.indexOf(value) === index);
+      }
+      function ga4UrlViews() {
+        const values = new Map();
+        for (const line of id("ga4-url-views").value.split(/\r?\n/)) {
+          const [url, rawViews] = line.split(",").map((part) => part && part.trim());
+          const path = normalizePath(url);
+          if (!path || rawViews === undefined || rawViews === "") continue;
+          values.set(path, Number(rawViews));
+        }
+        return values;
+      }
+      function buildRows(pathCounts, chosen) {
+        const ga4 = ga4UrlViews();
+        let names;
+        if (chosen.length) {
+          names = [...chosen];
+        } else {
+          names = topEntries(pathCounts, 8).map((entry) => entry.name);
+        }
+        for (const url of ga4.keys()) {
+          if (!names.includes(url)) names.push(url);
+        }
+        return names.map((name) => {
+          const serverViews = pathCounts.get(name) || 0;
+          const ga4Value = ga4.has(name) ? ga4.get(name) : null;
+          return {
+            name,
+            serverViews,
+            ga4Views: ga4Value,
+            difference: ga4Value === null ? null : serverViews - ga4Value,
+            coverage: ga4Value === null || serverViews === 0 ? null : (ga4Value / serverViews) * 100
+          };
+        });
+      }
+      function topEntries(map, limit) {
+        return Array.from(map.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, limit)
+          .map(([name, count]) => ({ name, count }));
+      }
+      async function getText() {
+        if (sampleMode) return sample;
+        const file = id("log-file").files[0];
+        if (!file) throw new Error("Bitte Logdatei auswählen oder „Demo mit Beispieldaten starten“ klicken.");
+        return file.text();
+      }
+      function zeitraumText() {
+        const from = id("date-from").value;
+        const to = id("date-to").value;
+        if (!from && !to) return "deiner Datei";
+        return `${from || "Anfang"} bis ${to || "Ende"}`;
+      }
+      function render(data) {
+        analyzed = true;
+        id("result-panel").classList.remove("hidden");
+        id("results-body").classList.remove("hidden");
+        id("demo-badge").classList.toggle("visible", sampleMode);
+
+        const hasGa4 = !!(data.overall && data.overall.coverage !== null);
+        const hasConv = data.hasSuccessUrl && data.ga4Conversions !== null;
+
+        document.querySelectorAll(".ga4-only").forEach((el) => el.classList.toggle("hidden", !hasGa4));
+        document.querySelectorAll(".purchase-only").forEach((el) => el.classList.toggle("hidden", !data.hasSuccessUrl));
+        id("compare-block").classList.toggle("no-ga4", !hasGa4);
+        id("purchase-box").classList.toggle("hidden", !hasConv);
+
+        // Server-Zahlen
+        id("n-visits").textContent = format(data.visits);
+        id("n-views").textContent = format(data.kept);
+        id("n-purchases").textContent = data.hasSuccessUrl ? format(data.success) : "-";
+        id("n-coverage").textContent = hasGa4 ? percent(data.overall.coverage) : "-";
+
+        // Kauf-Check
+        id("pc-server").textContent = data.hasSuccessUrl ? format(data.success) : "-";
+        id("pc-ga4").textContent = format(data.ga4Conversions);
+        id("pc-gap").textContent = data.hasSuccessUrl ? format(data.gap) : "-";
+
+        // Tabelle
+        id("table-title").textContent = data.hasChosen ? "Deine ausgewählten Seiten" : "Deine meistbesuchten Seiten";
+        id("table-caption").textContent = hasGa4
+          ? "Webserver gegen Google Analytics. „Abdeckung“ = wie viel Prozent Google Analytics von den Webserver-Aufrufen sieht."
+          : "So oft hat dein Webserver diese Seiten gesehen. Trag oben optional Google-Analytics-Zahlen ein, um zu vergleichen.";
+        renderPageTable(data.tableRows);
+
+        // Details
+        id("server-total").textContent = format(data.total);
+        id("server-kept").textContent = format(data.kept);
+        id("server-filtered").textContent = format(data.filtered);
+        id("server-ads").textContent = format(data.adVisitors);
+        id("visits").textContent = format(data.visits);
+        id("kept").textContent = format(data.kept);
+        id("parsed").textContent = format(data.parsed);
+        id("filtered").textContent = format(data.filtered);
+        id("server-cr").textContent = data.hasSuccessUrl ? percent(data.serverCr) : "-";
+        id("ads-success").textContent = data.hasSuccessUrl ? format(data.adSuccess) : "-";
+        renderRows("status-methods", [
+          ...data.statusCounts.map((item) => ({ name: `Status ${item.name}`, count: item.count })),
+          ...data.methodCounts.map((item) => ({ name: `Methode ${item.name}`, count: item.count }))
+        ]);
+
+        setVerdict(data, hasGa4, hasConv);
+
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        id("result-panel").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+      }
+      function setSignal(state, icon, label) {
+        const signal = id("signal");
+        signal.className = "signal" + (state ? ` ${state}` : "");
+        signal.textContent = icon;
+        id("signal-label").textContent = label;
+      }
+      function setVerdict(data, hasGa4, hasConv) {
+        if (!hasGa4 && !hasConv) {
+          setSignal("good", "✓", "Ausgewertet");
+          id("headline").textContent = "Das hat dein Webserver gesehen";
+          let sub = `In ${zeitraumText()} zählt dein Webserver ${format(data.visits)} Besuche und ${format(data.kept)} Seitenaufrufe.`;
+          if (data.hasSuccessUrl) sub += ` Davon ${kauf(data.success)} auf der Danke-Seite.`;
+          id("subline").textContent = sub;
+          id("action").textContent = "Nächster Schritt: Das sind die echten Server-Zahlen. Vergleiche sie mit Google Analytics — oder trag oben optional deine GA4-Zahlen ein, dann zeigt ServerStory die Lücke direkt.";
+          return;
+        }
+
+        if (hasGa4) {
+          const cov = data.overall.coverage;
+          const worst = data.overall.worst;
+          const worstText = worst && worst.coverage < 85 ? ` Am wenigsten auf ${worst.name} (${percent(worst.coverage)}).` : "";
+          if (cov < 85) {
+            setSignal("warn", "!", "Achtung");
+            id("headline").textContent = "Google Analytics zählt zu wenig";
+            id("subline").textContent = `Auf den verglichenen Seiten sieht Google Analytics nur ${percent(cov)} von dem, was dein Webserver gezählt hat.${worstText}`;
+            id("action").textContent = "Nächster Schritt: Kürze jetzt keine Werbung. Lass Tracking, Cookie-Banner und Ad-Blocker prüfen — das sind die häufigsten Gründe, warum Google Analytics weniger zählt.";
+          } else if (cov < 95) {
+            setSignal("medium", "~", "Kleine Lücke");
+            id("headline").textContent = "Kleine Abweichung";
+            id("subline").textContent = `Google Analytics sieht ${percent(cov)} der Webserver-Aufrufe. Eine kleine Lücke ist normal.${worstText}`;
+            id("action").textContent = "Nächster Schritt: Im Auge behalten, aber keine große Entscheidung nur wegen dieser kleinen Abweichung treffen.";
+          } else if (cov <= 110) {
+            setSignal("good", "✓", "Passt");
+            id("headline").textContent = "Die Zahlen passen zusammen";
+            id("subline").textContent = `Google Analytics und dein Webserver zählen fast gleich (${percent(cov)}).`;
+            id("action").textContent = "Nächster Schritt: Kurz Zeitraum und Seiten prüfen — danach wirken die Google-Analytics-Zahlen verlässlich.";
+          } else {
+            setSignal("medium", "~", "GA4 zählt mehr");
+            id("headline").textContent = "Google Analytics zählt mehr als der Webserver";
+            id("subline").textContent = `Für die verglichenen Seiten meldet Google Analytics mehr als der Webserver (${percent(cov)}). Das kann an Mehrfachzählung oder gefilterten Zugriffen liegen.`;
+            id("action").textContent = "Nächster Schritt: Prüfen, ob Bots, Reloads oder interne Zugriffe die Google-Analytics-Zahl aufblähen.";
+          }
+          if (hasConv && data.gap > 0) {
+            id("action").textContent += ` Beim Kauf-Check fehlen Google Analytics ${kauf(data.gap)}.`;
+          }
+          return;
+        }
+
+        // Nur der Kauf-Check liegt vor (keine Seiten-GA4-Zahlen).
+        const gapRate = data.success ? (data.gap / data.success) * 100 : 0;
+        if (gapRate >= 15) {
+          setSignal("warn", "!", "Achtung");
+          id("headline").textContent = "Google Analytics sieht weniger Käufe";
+          id("subline").textContent = `Dein Webserver sieht ${kauf(data.gap)} mehr als Google Analytics.`;
+          id("action").textContent = "Nächster Schritt: Kürze jetzt keine Werbung. Lass Tracking, Cookie-Banner, Ad-Blocker und die Danke-Seite prüfen.";
+        } else if (gapRate > 0) {
+          setSignal("medium", "~", "Kleine Lücke");
+          id("headline").textContent = "Kleine Lücke bei den Käufen";
+          id("subline").textContent = `Dein Webserver sieht ${kauf(data.gap)} mehr als Google Analytics.`;
+          id("action").textContent = "Nächster Schritt: Zahlen prüfen lassen, aber keine große Entscheidung nur wegen dieser kleinen Abweichung treffen.";
+        } else {
+          setSignal("good", "✓", "Passt");
+          id("headline").textContent = "Keine Lücke bei den Käufen";
+          id("subline").textContent = "Google Analytics meldet nicht weniger Käufe als dein Webserver.";
+          id("action").textContent = "Nächster Schritt: Zeitraum und Danke-Seite kurz prüfen. Danach wirkt die Google-Analytics-Zahl plausibel.";
+        }
+      }
+      function renderRows(targetId, rows) {
+        const target = id(targetId);
+        if (!rows.length) {
+          target.innerHTML = "<tr><td>-</td><td>-</td></tr>";
+          return;
+        }
+        target.innerHTML = rows
+          .map((row) => `<tr><td>${escapeHtml(row.name)}</td><td>${format(row.count)}</td></tr>`)
+          .join("");
+      }
+      function renderPageTable(rows) {
+        const target = id("page-table");
+        if (!rows.length) {
+          target.innerHTML = `<tr><td colspan="5">Keine Seiten gefunden. Prüfe Zeitraum und Datei — oder trag oben bestimmte Seiten ein.</td></tr>`;
+          return;
+        }
+        target.innerHTML = rows
+          .map((row) => `<tr><td>${escapeHtml(row.name)}</td><td>${format(row.serverViews)}</td><td class="ga4-col">${format(row.ga4Views)}</td><td class="ga4-col">${format(row.difference)}</td><td class="ga4-col">${percent(row.coverage)}</td></tr>`)
+          .join("");
+      }
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+      id("run").addEventListener("click", async () => {
+        id("message").textContent = "";
+        try {
+          render(analyzeText(await getText()));
+        } catch (error) {
+          id("message").textContent = error.message;
+        }
+      });
+      id("sample").addEventListener("click", () => {
+        sampleMode = true;
+        id("ga4-toggle").open = true;
+        id("compare-urls").value = "";
+        id("ga4-url-views").value = "/,1\n/produkt,1\n/bestellung/danke,1";
+        id("success-url").value = "/bestellung/danke";
+        id("ga4-conversions").value = "1";
+        id("date-from").value = "2026-06-05";
+        id("date-to").value = "2026-06-05";
+        id("message").textContent = "Demo gestartet — mit Beispieldaten, ohne echte Datei.";
+        render(analyzeText(sample));
+      });
+      id("copy-it").addEventListener("click", async () => {
+        const text = `Bitte exportiere für mich die Webserver-Besuchsliste für den gewünschten Zeitraum.\n\nBitte als entpackte .log oder .txt Datei liefern, idealerweise Apache/Nginx Combined Log.\n\nWir brauchen keine Auswertung einzelner Nutzer. ServerStory zählt nur Summen:\n- Besuche laut Webserver\n- Aufrufe einzelner Seiten\n- grobe Bot- und Fehlerfilter\n\nWichtig: Bitte keine Dateien in fremde Cloudtools hochladen. Die Auswertung läuft lokal im Browser.`;
+        try {
+          await navigator.clipboard.writeText(text);
+          id("message").textContent = "IT-Text kopiert.";
+        } catch {
+          id("message").textContent = text;
+        }
+      });
+      id("log-file").addEventListener("change", () => {
+        sampleMode = false;
+        id("demo-badge").classList.remove("visible");
+      });
+    </script>
+  </body>
+</html>
