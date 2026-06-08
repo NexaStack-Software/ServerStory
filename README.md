@@ -78,12 +78,12 @@ Beispiel, weil Ad-Blocker oder abgelehnte Cookies einen Teil der Besuche verschl
 ServerStory zeigt, was bei deinem Server **tatsächlich ankommt** — Cookie-Banner und
 Ad-Blocker können das nicht verstecken. Zwei Dinge solltest du wissen:
 
-**Aufrufe vs. Besucher.** Wie oft eine Seite *geöffnet* wurde (Aufrufe), zählt der Server
-exakt — eine Logzeile pro Aufruf. Wie viele *verschiedene Menschen* das waren (Besucher),
-steht nicht im Log und ist eine Schätzung: Aufrufe werden per IP und Browser zu Personen
-zusammengefasst (eine Person = mehrere Aufrufe, eine Firma = ein Besucher). Der
-Seiten-Vergleich vergleicht nur **Aufrufe gegen Aufrufe** und braucht die Besucherzahl
-gar nicht.
+**Aufrufe vs. Besucher.** Jeden Aufruf, der bei deinem Server ankommt, zählt er genau mit
+— eine Logzeile pro Aufruf. (Ob *alle* Aufrufe ankommen, hängt vom Caching ab — dazu
+gleich.) Wie viele *verschiedene Menschen* das waren (Besucher), steht dagegen nicht im
+Log und ist eine Schätzung: Aufrufe werden per IP und Browser zu Personen zusammengefasst
+(eine Person = mehrere Aufrufe, eine Firma = ein Besucher). Der Seiten-Vergleich
+vergleicht nur **Aufrufe gegen Aufrufe** und braucht die Besucherzahl gar nicht.
 
 **Abweichungen gehen in beide Richtungen.** Der Vergleich zeigt nicht „die Wahrheit",
 sondern *wo* sich Server und Google Analytics unterscheiden:
