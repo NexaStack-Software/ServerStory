@@ -3,6 +3,11 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- connect-src 'none' verbietet jede ausgehende Verbindung (fetch/XHR/WebSocket/Beacon) und
+         macht das "nichts wird hochgeladen"-Versprechen technisch nachprüfbar. Der Rest bleibt
+         bewusst offen, damit Inline-Skript, Inline-Styles, lokale Bilder und der Blob-Worker auch
+         unter file:// funktionieren. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src * data: blob: 'unsafe-inline'; connect-src 'none'; object-src 'none'; base-uri 'self'">
     <title>ServerStory: Was hat deine Website wirklich gesehen?</title>
     <meta name="description" content="Werte deine Server-Logs lokal im Browser aus: meistbesuchte Seiten, echte Aufrufe und die Lücke zu Google Analytics. Kostenlos, Open Source, kein Upload.">
     <meta property="og:title" content="ServerStory – was hat deine Website wirklich gesehen?">
@@ -1046,6 +1051,7 @@
           </div>
 
           <div id="results-body" class="results-body hidden">
+            <div id="proxy-hint" class="hint-box hidden"></div>
             <div id="recognition-hint" class="hint-box hidden"></div>
             <div id="chrono-hint" class="hint-box hidden"></div>
             <div class="numbers">
@@ -1374,6 +1380,13 @@
           visits: 0, successRaw: 0, success: 0, timeRegressions: 0
         };
         let prevTime = -Infinity, maxTime = -Infinity, seen = 0;
+        // Proxy-/CDN-Erkennung (nur relevant, wenn X-Forwarded-For NICHT genutzt wird): Sitzt die
+        // Seite hinter einem Reverse-Proxy/Loadbalancer/CDN, steht in Spalte 1 immer dieselbe
+        // (oft private) IP. Dann kollabieren alle Besucher auf einen Schlüssel und die
+        // Besucherzahl wird unbrauchbar. Wir messen die Konzentration der Spalte-1-IP über die
+        // behaltenen Zeilen, um davor zu warnen. Map wird gedeckelt, damit sie nicht unbegrenzt wächst.
+        const clientIpHits = new Map();
+        let privateClientHits = 0, clientIpCapped = false;
 
         function prune() {
           if (maxTime === -Infinity) return;
@@ -1405,6 +1418,14 @@
           if (strictBot && !browserRe.test(ua)) { stats.filtered++; stats.rStrict++; return; }
 
           stats.kept++;
+          if (!useXff) {
+            if (isPrivate(ip0)) privateClientHits++;
+            if (!clientIpCapped) {
+              clientIpHits.set(ip0, (clientIpHits.get(ip0) || 0) + 1);
+              // > 50k verschiedene Quell-IPs ⇒ sicher kein einzelner Proxy: Tracking stoppen.
+              if (clientIpHits.size > 50000) { clientIpHits.clear(); clientIpCapped = true; }
+            }
+          }
           let path, hasAd = false;
           try {
             const u = new URL(target, "http://x.invalid");
@@ -1415,8 +1436,16 @@
             const qs = target.split("?")[1] || "";
             for (const p of adParams) { if (new RegExp("(^|[?&])" + p + "(=|&|$)").test(qs)) { hasAd = true; break; } }
           }
-          pathCounts.set(path, (pathCounts.get(path) || 0) + 1);
-          if (!assetRe.test(path)) stats.pageViews++;
+          // Seitenaufruf = echter Seitenabruf, den der Besucher auch sieht: nur GET mit 2xx.
+          // Weiterleitungen (3xx) und Formular-POSTs erzeugen Logzeilen, sind aber keine
+          // angesehene Seite — Google Analytics zählt sie ebenfalls nicht als Pageview. Sie aus
+          // pathCounts/pageViews herauszuhalten verhindert eine künstliche "Server > GA"-Lücke.
+          // (Für Besuche/Conversions zählen sie weiter mit — ein Mensch war ja da.)
+          const isPageHit = method === "GET" && status >= 200 && status < 300;
+          if (isPageHit) {
+            pathCounts.set(path, (pathCounts.get(path) || 0) + 1);
+            if (!assetRe.test(path)) stats.pageViews++;
+          }
           statusCounts.set(String(status), (statusCounts.get(String(status)) || 0) + 1);
           methodCounts.set(method, (methodCounts.get(method) || 0) + 1);
 
@@ -1440,6 +1469,8 @@
         }
 
         function finalize() {
+          let topClientHits = 0;
+          if (!clientIpCapped) for (const c of clientIpHits.values()) if (c > topClientHits) topClientHits = c;
           return {
             total: stats.total, parsed: stats.parsed, unrecognized: stats.unrecognized,
             kept: stats.kept, pageViews: stats.pageViews, filtered: stats.filtered,
@@ -1447,6 +1478,7 @@
             visits: stats.visits, successRaw: stats.successRaw, success: stats.success,
             adVisitors: adVisitors.size, adSuccess: adSuccess.size,
             timeRegressions: stats.timeRegressions,
+            privateClientHits, topClientHits, distinctClientIps: clientIpCapped ? -1 : clientIpHits.size,
             pathCounts, statusCounts, methodCounts
           };
         }
@@ -1588,13 +1620,27 @@
         const ga4Conversions = number("ga4-conversions");
         const convDiff = ga4Conversions === null ? null : agg.success - ga4Conversions;
         const serverCr = agg.visits ? (agg.success / agg.visits) * 100 : 0;
+        // IP-Konzentration prüfen (nur wenn X-Forwarded-For aus ist). Zwei Fälle bewusst getrennt,
+        // um Fehlalarme zu vermeiden:
+        //  - "private": viele Zugriffe von privaten IPs in Spalte 1 ⇒ nahezu sicher ein Reverse-Proxy
+        //    auf demselben Host. Klares Signal, klare Empfehlung (X-Forwarded-For).
+        //  - "concentrated": eine einzige öffentliche IP dominiert ⇒ mehrdeutig. Kann ein CDN/Proxy
+        //    sein, aber genauso ein einzelner intensiver Nutzer (Owner beim Testen) oder ein Scraper.
+        //    Deshalb vorsichtiger formulierter Hinweis statt definitiver Proxy-Aussage.
+        const privateShare = agg.kept ? agg.privateClientHits / agg.kept : 0;
+        const topClientShare = agg.kept ? agg.topClientHits / agg.kept : 0;
+        let proxyKind = "";
+        if (!config.useXff && agg.kept >= 100) {
+          if (privateShare >= 0.3) proxyKind = "private";
+          else if (topClientShare >= 0.5) proxyKind = "concentrated";
+        }
         return {
           total: agg.total, parsed: agg.parsed, unrecognized: agg.unrecognized,
           kept: agg.kept, pageViews: agg.pageViews, filtered: agg.filtered, reasons: agg.reasons,
           visits: agg.visits, success: agg.success, successRaw: agg.successRaw,
           adVisitors: agg.adVisitors, adSuccess: agg.adSuccess, timeRegressions: agg.timeRegressions,
           hasSuccessUrl: config.hasSuccessUrl, ga4Conversions, convDiff, serverCr,
-          hasChosen: chosen.length > 0, tableRows, overall,
+          proxyKind, hasChosen: chosen.length > 0, tableRows, overall,
           statusCounts: topEntries(agg.statusCounts, 12), methodCounts: topEntries(agg.methodCounts, 6),
           unrecognizedPct: agg.total ? (agg.unrecognized / agg.total) * 100 : 0
         };
@@ -1646,6 +1692,12 @@
         renderPageTable(data.tableRows);
 
         // Hinweise
+        showHint("proxy-hint",
+          data.proxyKind === "private"
+            ? "Fast alle Zugriffe stammen von internen/privaten IP-Adressen. Das ist das typische Muster, wenn ein Reverse-Proxy oder Loadbalancer vor deiner Seite sitzt — dann steht die echte Besucher-IP nicht in der ersten Spalte deiner Logzeilen. Die Seitenaufrufe stimmen, aber die Besucherzahl ist so nicht belastbar. Aktiviere oben unter den erweiterten Filtern „X-Forwarded-For“ und werte erneut aus."
+          : data.proxyKind === "concentrated"
+            ? "Mehr als die Hälfte der Zugriffe kommt von einer einzigen IP-Adresse. Das kann ein Reverse-Proxy oder CDN (z. B. Cloudflare) vor deiner Seite sein — dann steht die echte Besucher-IP nicht in der ersten Spalte; aktiviere in diesem Fall unter den erweiterten Filtern „X-Forwarded-For“. Es kann aber auch ein einzelner sehr aktiver Zugriff sein (z. B. du selbst beim Testen oder ein Scraper). Die Seitenaufrufe stimmen in beiden Fällen — die Besucherzahl solltest du hier mit Vorsicht lesen."
+          : "");
         showHint("recognition-hint", data.unrecognizedPct >= 10
           ? `${percent(data.unrecognizedPct)} der Zeilen wurden nicht als Logzeile erkannt — möglicherweise hat deine Datei ein abweichendes Format. ServerStory erwartet Apache/Nginx Combined Log.`
           : "");
@@ -1716,6 +1768,10 @@
         if (hasGa4) {
           const cov = data.overall.coverage;
           const worst = data.overall.worst;
+          // worst.name ist ein URL-Pfad aus dem Log (angreifer-kontrollierter Inhalt). Er wird
+          // ausschließlich über .textContent ausgegeben — das rendert Klartext, kein HTML, also
+          // kein XSS. WICHTIG: bleibt das so. Wer diese Ausgabe je auf innerHTML umstellt, MUSS
+          // worst.name durch escapeHtml() schicken.
           const worstText = worst && worst.coverage < 85 ? ` Am wenigsten auf ${worst.name} (${percent(worst.coverage)}).` : "";
           if (cov < 85) {
             setSignal("warn", "!", "Achtung");

@@ -99,19 +99,40 @@ sondern *wo* sich Server und Google Analytics unterscheiden:
 nicht gecacht (dynamisch, pro Bestellung) und erreicht den Server zuverlässig — der
 Kauf-Vergleich bleibt belastbar.
 
+**Bots.** ServerStory erkennt Bots und Crawler an ihrem User-Agent (Googlebot,
+Monitoring, Skript-Tools usw.) und filtert sie heraus. Bots, die sich gezielt als echter
+Browser tarnen, lassen sich so nicht zu 100 % aussortieren — das gilt aber genauso für
+Google Analytics. Wenn du den Verdacht auf viel getarnten Bot-Traffic hast, hilft der
+strenge Filter unter den erweiterten Filtern (lässt nur klar als Browser erkennbare
+Zugriffe durch).
+
+**Sitzt du hinter einem Proxy oder CDN (z. B. Cloudflare)?** Dann steht in der ersten
+Spalte deiner Logzeile die IP des Proxys, nicht die deiner Besucher — die Besucherzahl
+wäre dann unbrauchbar. ServerStory erkennt es, wenn auffällig viele Zugriffe von einer
+einzigen oder einer internen IP-Adresse kommen, und weist dich darauf hin. Aktiviere in
+dem Fall unter den erweiterten Filtern **„X-Forwarded-For"**, damit die echte Besucher-IP
+verwendet wird. (Die Seitenaufrufe sind davon nie betroffen — nur die Besucherzahl.)
+
 ## Datenschutz
 
 Die Auswertung passiert **ausschließlich in deinem Browser**. Es wird nichts
 hochgeladen und nichts an einen Server gesendet. Angezeigt werden nur Summen — keine
 IP-Adressen und keine Nutzerlisten.
 
-**„Darf ich mir diese Daten überhaupt ansehen?" — Ja.** Es sind die Logs deines
-**eigenen** Webservers; dafür bist du der Verantwortliche im Sinne der DSGVO. Server-Logs
-(inklusive IP-Adressen) für den sicheren Betrieb und für aggregierte Zugriffsstatistiken
-auszuwerten, ist durch dein **berechtigtes Interesse nach Art. 6 Abs. 1 lit. f DSGVO**
-gedeckt. ServerStory geht dabei besonders datensparsam vor: Die Datei wird nur lokal
-verarbeitet, und ausgegeben werden ausschließlich anonyme Summen — keine einzelnen
-IP-Adressen.
+**„Darf ich mir diese Daten überhaupt ansehen?" — In der Regel ja, wenn es deine
+eigenen Logs sind.** Es sind die Logs deines **eigenen** Webservers; dafür bist du der
+Verantwortliche im Sinne der DSGVO. Server-Logs (inklusive IP-Adressen) für den sicheren
+Betrieb und für aggregierte Zugriffsstatistiken auszuwerten, lässt sich auf das
+**berechtigte Interesse nach Art. 6 Abs. 1 lit. f DSGVO** stützen — das setzt eine
+**Interessenabwägung** voraus (dein Statistik-/Sicherheitsinteresse gegen die Interessen
+der Besucher) und dass du Server-Logs in deiner Datenschutzerklärung erwähnst. ServerStory
+hilft dir dabei, datensparsam zu bleiben: Die Datei wird nur lokal verarbeitet, und
+ausgegeben werden ausschließlich anonyme Summen — keine einzelnen IP-Adressen.
+
+**Wertest du die Logs eines Kunden aus (z. B. als Agentur oder Freelancer)?** Dann ist
+der Kunde der Verantwortliche und du verarbeitest die Daten in seinem Auftrag — dafür
+braucht ihr einen **Auftragsverarbeitungsvertrag nach Art. 28 DSGVO**. Dass ServerStory
+rein lokal läuft und nichts überträgt, erleichtert diese Vereinbarung, ersetzt sie aber nicht.
 
 Auch die optionalen erweiterten Filter ändern daran nichts: Wenn du „X-Forwarded-For"
 aktivierst, dient die darin enthaltene Besucher-IP nur lokal im Browser zum
