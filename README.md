@@ -76,13 +76,22 @@ Beispiel, weil Ad-Blocker oder abgelehnte Cookies einen Teil der Besuche verschl
 ## Wie genau ist das?
 
 ServerStory zeigt, was dein Server **tatsächlich protokolliert** hat — das kann kein
-Cookie-Banner und kein Ad-Blocker verstecken. Am verlässlichsten sind der **Vergleich
-pro Seite** und die **Käufe**: spezifische, sauber gezählte Größen.
+Cookie-Banner und kein Ad-Blocker verstecken. Wichtig ist der Unterschied zwischen zwei
+Dingen:
 
-Die **Besucherzahl** ist dagegen ein guter Richtwert, keine exakte Personenzählung: Sie
-kann etwas abweichen, weil z. B. mehrere Personen aus einer Firma oder im selben
-Mobilfunknetz als ein Besucher zählen. Für Entscheidungen verlass dich daher vor allem
-auf den Vergleich Seite für Seite und die Käufe.
+- **Seitenaufrufe** (wie oft eine Seite *geöffnet* wurde) zählt der Server **exakt** —
+  eine Logzeile pro Aufruf. Google Analytics zählt dasselbe, deshalb ist der **Vergleich
+  pro Seite** aussagekräftig: Sieht GA deutlich weniger Aufrufe als der Server, geht beim
+  Tracking etwas verloren. Auch **Käufe** (eine spezifische Danke-Seite) zählt der Server
+  exakt.
+- **Besucher** (wie viele *verschiedene Menschen*) ist dagegen eine **Schätzung**, denn
+  das steht nicht im Log. Dafür müssen Aufrufe zu Personen zusammengefasst werden (per IP
+  und Browser) — nie ganz exakt: Eine Person, die eine Seite fünfmal öffnet, ist *ein*
+  Besucher mit fünf Aufrufen; mehrere Leute aus einer Firma zählen als *ein* Besucher.
+
+Kurz: **Aufrufe zählen** heißt nur Zeilen zählen (exakt). **Besucher zählen** heißt
+Aufrufe zu Personen zusammenrechnen (Schätzung). Der Seiten-Vergleich vergleicht nur
+Aufrufe gegen Aufrufe — er braucht die Besucherzahl gar nicht.
 
 ## Datenschutz
 
