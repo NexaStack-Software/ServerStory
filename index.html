@@ -29,6 +29,13 @@
         font-display: swap;
         src: url("fonts/ibm-plex-mono-400.woff2") format("woff2");
       }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url("fonts/ibm-plex-mono-500.woff2") format("woff2");
+      }
 
       :root {
         --black: #171717;
@@ -499,6 +506,10 @@
       .secondary {
         background: var(--white);
         color: var(--ink);
+        font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-weight: 500;
+        font-size: 13px;
+        letter-spacing: 0.02em;
       }
 
       .first-hint {
@@ -733,6 +744,13 @@
         font-size: 14px;
         font-weight: 900;
         letter-spacing: 0.04em;
+      }
+
+      .opt > summary {
+        font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0.02em;
       }
 
       dl {
@@ -988,7 +1006,7 @@
             <button id="copy-hoster" class="secondary" type="button">Text für deinen Hoster kopieren</button>
             <button id="sample" class="secondary" type="button">Demo mit Beispieldaten starten</button>
 
-            <details>
+            <details class="opt">
               <summary>Optional: Zeitraum &amp; Seiten eingrenzen</summary>
               <div class="ga4-fields">
                 <div class="two">
@@ -1009,7 +1027,7 @@
               </div>
             </details>
 
-            <details id="ga4-toggle">
+            <details id="ga4-toggle" class="opt">
               <summary>Optional: Mit Google Analytics vergleichen</summary>
               <div class="ga4-fields">
                 <p class="helper">Nur ausfüllen, wenn du die Server-Zahlen direkt deinen Google-Analytics-Zahlen gegenüberstellen willst. Sonst einfach zuklappen lassen.</p>
@@ -1031,7 +1049,7 @@
               </div>
             </details>
 
-            <details id="advanced-toggle">
+            <details id="advanced-toggle" class="opt">
               <summary>Optional: Erweiterte Filter (Proxy/CDN, strenger Bot-Filter)</summary>
               <div class="ga4-fields">
                 <label class="check">
@@ -1194,9 +1212,9 @@
 
         <section class="cta">
           <span class="cta-kicker">Trace5</span>
-          <h2>Du hast mit ServerStory den ersten Blick hinter die Kulissen.</h2>
-          <p class="cta-text">Dein Server erzählt dir schon jetzt mehr über dein Marketing, als Frontend-Tracking allein erfassen kann. Trace5 zeigt dir, wie du das systematisch ausreizt — von den Signalen, die ServerStory sichtbar macht, bis zum vollständigen serverseitigen Setup.</p>
-          <a class="cta-btn" href="https://trace5.co" target="_blank" rel="noopener noreferrer">Tiefer einsteigen</a>
+          <h2>ServerStory hat dir gezeigt, dass da mehr ist.</h2>
+          <p class="cta-text">Dein eigener Server weiß Dinge über deine Kunden, die kein Cookie-Banner und kein Werbeblocker je wegnehmen kann. Trace5 zeigt dir, wie du das nutzt — ohne dass du dafür Entwickler oder ein Technik-Studium brauchst.</p>
+          <a class="cta-btn" href="https://trace5.co" target="_blank" rel="noopener noreferrer">Mehr aus deinen Daten holen</a>
         </section>
     </main>
 
