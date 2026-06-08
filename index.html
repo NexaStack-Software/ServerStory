@@ -816,6 +816,68 @@
         color: var(--ink);
       }
 
+      .progress {
+        margin-top: 4px;
+        display: grid;
+        gap: 6px;
+      }
+
+      .progress-track {
+        height: 12px;
+        border: 1px solid var(--black);
+        background: var(--white);
+      }
+
+      .progress-bar {
+        height: 100%;
+        width: 0;
+        background: var(--red);
+        transition: width 120ms linear;
+      }
+
+      .progress-label {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .check {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0;
+      }
+
+      .check input[type="checkbox"] {
+        width: 20px;
+        min-width: 20px;
+        height: 20px;
+        min-height: 20px;
+        margin: 1px 0 0;
+        padding: 0;
+        flex: 0 0 auto;
+      }
+
+      .hint-box {
+        margin-top: 16px;
+        border: 1px solid var(--black);
+        border-left: 8px solid var(--amber);
+        background: rgba(245, 215, 161, 0.18);
+        padding: 13px 15px;
+        color: var(--ink);
+        font-size: 15px;
+        line-height: 1.45;
+      }
+
+      .purchase-note {
+        margin: 14px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
       @media (max-width: 1000px) {
         .cta {
           padding: 32px 22px;
@@ -885,9 +947,13 @@
             <label>
               Besuchsliste vom Webserver hochladen
               <input id="log-file" type="file" accept=".log,.txt">
-              <span class="helper">Datei-Endung meist .log oder .txt. Sehr große Datei? Lass dir vom Hoster lieber ein Log für einen kürzeren Zeitraum geben.</span>
+              <span class="helper">Datei-Endung meist .log oder .txt. Große Dateien werden mit Fortschrittsanzeige verarbeitet, ohne den Browser einzufrieren.</span>
             </label>
             <button id="run" type="button">Jetzt auswerten</button>
+            <div id="progress" class="progress hidden" role="progressbar" aria-live="polite">
+              <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+              <span id="progress-label" class="progress-label">Wird ausgewertet …</span>
+            </div>
 
             <div class="divider"></div>
 
@@ -938,6 +1004,22 @@
               </div>
             </details>
 
+            <details id="advanced-toggle">
+              <summary>Optional: Erweiterte Filter (Proxy/CDN, strenger Bot-Filter)</summary>
+              <div class="ga4-fields">
+                <label class="check">
+                  <input type="checkbox" id="use-xff">
+                  <span>Echte Besucher-IP aus „X-Forwarded-For“ verwenden</span>
+                </label>
+                <p class="helper">Nur sinnvoll, wenn ein vertrauenswürdiger Reverse-Proxy oder ein CDN vor deiner Website sitzt. Dann steht im ersten Feld oft nur die Proxy-IP, die echte Besucher-IP in „X-Forwarded-For“. Achtung: Dieser Wert ist fälschbar.</p>
+                <label class="check">
+                  <input type="checkbox" id="strict-bot">
+                  <span>Strenger Bot-Filter (nur klare Browser zählen)</span>
+                </label>
+                <p class="helper">Zählt nur Zugriffe mit eindeutigem Browser-Kennzeichen. Achtung: schließt echte Besucher mit exotischen Browsern oder Clients aus und kann die Zahlen senken.</p>
+              </div>
+            </details>
+
             <p id="message" class="message"></p>
             <p id="offline-note" class="offline-note">Lieber ganz offline? Du kannst das Tool <a href="https://github.com/NexaStack-Software/ServerStory" target="_blank" rel="noopener noreferrer">herunterladen und den Code einsehen</a> — und es ohne Internet nutzen. Es ist quelloffen, du kannst also selbst prüfen, dass nichts gesendet wird.</p>
           </div>
@@ -956,6 +1038,8 @@
           </div>
 
           <div id="results-body" class="results-body hidden">
+            <div id="recognition-hint" class="hint-box hidden"></div>
+            <div id="chrono-hint" class="hint-box hidden"></div>
             <div class="numbers">
               <div class="number">
                 <span>Besuche laut Webserver</span>
@@ -994,9 +1078,10 @@
                 </div>
                 <div>
                   <strong id="pc-gap">-</strong>
-                  <p>Mögliche fehlende Käufe</p>
+                  <p>Differenz (Webserver − GA4)</p>
                 </div>
               </div>
+              <p id="purchase-note" class="purchase-note"></p>
             </div>
 
             <div id="compare-block" class="compare-block no-ga4">
@@ -1012,6 +1097,7 @@
                   </tbody>
                 </table>
               </div>
+              <p id="compare-note" class="caption"></p>
             </div>
 
             <details>
@@ -1046,6 +1132,14 @@
                 <div><dt>Kaufrate im Webserver</dt><dd id="server-cr">-</dd></div>
                 <div><dt>Google-Ads-Besuche mit Kauf</dt><dd id="ads-success">-</dd></div>
               </dl>
+              <table class="mini-table" style="margin-top: 14px;">
+                <thead>
+                  <tr><th>Aussortiert – Grund</th><th>Anzahl</th></tr>
+                </thead>
+                <tbody id="filter-reasons">
+                  <tr><td>-</td><td>-</td></tr>
+                </tbody>
+              </table>
             </details>
 
             <details>
@@ -1078,18 +1172,16 @@
     </main>
 
     <script>
-      const logRe = /^(\S+) \S+ \S+ \[([^\]]+)\] "([A-Z]+) ([^"]*?) (HTTP\/[0-9.]+)" (\d{3}) \S+ "([^"]*)" "([^"]*)"/;
-      const botRe = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|whatsapp|telegrambot|linkedinbot|twitterbot|preview|monitor|uptime|pingdom|headless|python-requests|curl|wget/i;
-      const adParams = ["gclid", "gbraid", "wbraid"];
-      const visitTimeoutMs = 30 * 60 * 1000;
-      const successDedupeMs = 60 * 60 * 1000;
-      const sample = `203.0.113.10 - - [05/Jun/2026:10:00:00 +0200] "GET /?gclid=abc123 HTTP/1.1" 200 5321 "-" "Mozilla/5.0"
-203.0.113.10 - - [05/Jun/2026:10:05:00 +0200] "GET /produkt HTTP/1.1" 200 3421 "-" "Mozilla/5.0"
-203.0.113.10 - - [05/Jun/2026:10:12:00 +0200] "GET /bestellung/danke HTTP/1.1" 200 2411 "-" "Mozilla/5.0"
-203.0.113.10 - - [05/Jun/2026:10:12:20 +0200] "GET /bestellung/danke HTTP/1.1" 200 2411 "-" "Mozilla/5.0"
-198.51.100.20 - - [05/Jun/2026:11:00:00 +0200] "GET / HTTP/1.1" 200 5321 "-" "Mozilla/5.0"
-198.51.100.20 - - [05/Jun/2026:11:04:00 +0200] "GET /bestellung/danke HTTP/1.1" 200 2411 "-" "Mozilla/5.0"
-192.0.2.30 - - [05/Jun/2026:12:00:00 +0200] "GET / HTTP/1.1" 200 5321 "-" "Googlebot/2.1"`;
+      const sample = `203.0.113.10 - - [05/Jun/2026:10:00:00 +0200] "GET /?gclid=abc123 HTTP/1.1" 200 5321 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0 Safari/537.36"
+203.0.113.10 - - [05/Jun/2026:10:05:00 +0200] "GET /produkt HTTP/1.1" 200 3421 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0 Safari/537.36"
+203.0.113.10 - - [05/Jun/2026:10:12:00 +0200] "GET /bestellung/danke HTTP/1.1" 200 2411 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0 Safari/537.36"
+203.0.113.10 - - [05/Jun/2026:10:12:20 +0200] "GET /bestellung/danke HTTP/1.1" 200 2411 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0 Safari/537.36"
+198.51.100.20 - - [05/Jun/2026:11:00:00 +0200] "GET / HTTP/1.1" 200 5321 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1.15"
+198.51.100.20 - - [05/Jun/2026:11:04:00 +0200] "GET /bestellung/danke HTTP/1.1" 200 2411 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1.15"
+2001:db8::1 - - [05/Jun/2026:11:30:00 +0200] "GET /produkt HTTP/1.1" 200 3400 "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/604.1"
+10.0.0.5 - - [05/Jun/2026:11:45:00 +0200] "GET /preise HTTP/1.1" 200 2100 "-" "Mozilla/5.0 (X11; Linux x86_64) Firefox/126.0" "203.0.113.55, 10.0.0.5"
+192.0.2.30 - - [05/Jun/2026:12:00:00 +0200] "GET / HTTP/1.1" 200 5321 "-" "Googlebot/2.1 (+http://www.google.com/bot.html)"
+198.51.100.77 - - [05/Jun/2026:12:10:00 +0200] "GET /agb HTTP/1.1" 200 800 "-" "-"`;
       let sampleMode = false;
       let analyzed = false;
 
@@ -1106,127 +1198,23 @@
         if (value === null || value === undefined || Number.isNaN(value)) return "-";
         return `${Number(value).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
       }
+      function signed(value) {
+        if (value === null || value === undefined || Number.isNaN(value)) return "-";
+        if (value > 0) return "+" + format(value);
+        if (value < 0) return "−" + format(Math.abs(value));
+        return "0";
+      }
       function kauf(n) {
         if (n === null || n === undefined || Number.isNaN(n)) return "-";
         return n === 1 ? "1 Kauf" : `${format(n)} Käufe`;
       }
-      function parseLogTime(raw) {
-        const match = raw.match(/^(\d{2})\/([A-Za-z]{3})\/(\d{4}):(\d{2}):(\d{2}):(\d{2}) ([+-])(\d{2})(\d{2})$/);
-        if (!match) return null;
-        const months = { Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06", Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12" };
-        const month = months[match[2]];
-        if (!month) return null;
-        const iso = `${match[3]}-${month}-${match[1]}T${match[4]}:${match[5]}:${match[6]}${match[7]}${match[8]}:${match[9]}`;
-        const timeMs = Date.parse(iso);
-        if (Number.isNaN(timeMs)) return null;
-        return { date: `${match[3]}-${month}-${match[1]}`, timeMs };
-      }
-      function parseTarget(target) {
-        try {
-          const url = new URL(target, "https://example.invalid");
-          return { path: url.pathname, params: url.searchParams };
-        } catch {
-          return { path: target.split("?")[0] || "/", params: new URLSearchParams() };
-        }
-      }
-      function isInRange(dateValue) {
-        const from = id("date-from").value;
-        const to = id("date-to").value;
-        if (from && dateValue < from) return false;
-        if (to && dateValue > to) return false;
-        return true;
-      }
-      function analyzeText(text) {
-        const rawSuccessUrl = id("success-url").value.trim();
-        const hasSuccessUrl = rawSuccessUrl !== "";
-        const successUrl = hasSuccessUrl ? normalizePath(rawSuccessUrl) : "";
-        const ga4Conversions = number("ga4-conversions");
-        const lastSeen = new Map();
-        const lastSuccess = new Map();
-        const adVisitors = new Set();
-        const adSuccess = new Set();
-        const pathCounts = new Map();
-        const statusCounts = new Map();
-        const methodCounts = new Map();
-        const stats = { total: 0, parsed: 0, kept: 0, filtered: 0, visits: 0, successRaw: 0, success: 0 };
-
-        const entries = [];
-        for (const line of text.split(/\r?\n/)) {
-          if (!line.trim()) continue;
-          stats.total += 1;
-          const match = line.match(logRe);
-          if (!match) continue;
-          stats.parsed += 1;
-          const [, ip, timeRaw, method, target, , statusRaw, , ua] = match;
-          const parsedTime = parseLogTime(timeRaw);
-          if (!parsedTime) {
-            stats.filtered += 1;
-            continue;
-          }
-          entries.push({ ip, timeRaw, method, target, statusRaw, ua, ...parsedTime });
-        }
-
-        entries.sort((a, b) => a.timeMs - b.timeMs);
-
-        for (const entry of entries) {
-          const { ip, method, target, statusRaw, ua, date: logDate, timeMs } = entry;
-          const status = Number(statusRaw);
-          if (!isInRange(logDate) || ![200, 201, 202, 204, 301, 302, 303, 307, 308].includes(status) || botRe.test(ua) || !["GET", "POST"].includes(method)) {
-            stats.filtered += 1;
-            continue;
-          }
-          const targetParts = parseTarget(target);
-          const key = `${ip}|${ua}`;
-          stats.kept += 1;
-          pathCounts.set(targetParts.path, (pathCounts.get(targetParts.path) || 0) + 1);
-          statusCounts.set(String(status), (statusCounts.get(String(status)) || 0) + 1);
-          methodCounts.set(method, (methodCounts.get(method) || 0) + 1);
-          const previousSeen = lastSeen.get(key);
-          if (previousSeen === undefined || timeMs - previousSeen > visitTimeoutMs) stats.visits += 1;
-          lastSeen.set(key, timeMs);
-          if (adParams.some((param) => targetParts.params.has(param))) adVisitors.add(key);
-          if (!hasSuccessUrl || normalizePath(targetParts.path) !== successUrl) continue;
-          stats.successRaw += 1;
-          const previousSuccess = lastSuccess.get(key);
-          if (previousSuccess !== undefined && timeMs - previousSuccess <= successDedupeMs) continue;
-          lastSuccess.set(key, timeMs);
-          stats.success += 1;
-          if (adVisitors.has(key)) adSuccess.add(key);
-        }
-
-        const chosen = compareUrls();
-        const tableRows = buildRows(pathCounts, chosen);
-        const ga4Rows = tableRows.filter((row) => row.ga4Views !== null && row.ga4Views !== undefined);
-        const totalServer = ga4Rows.reduce((sum, row) => sum + row.serverViews, 0);
-        const totalGa4 = ga4Rows.reduce((sum, row) => sum + row.ga4Views, 0);
-        const overall = ga4Rows.length
-          ? {
-              totalServer,
-              totalGa4,
-              difference: totalServer - totalGa4,
-              coverage: totalServer > 0 ? (totalGa4 / totalServer) * 100 : null,
-              worst: ga4Rows
-                .filter((row) => row.coverage !== null && row.serverViews > 0)
-                .sort((a, b) => a.coverage - b.coverage)[0] || null
-            }
-          : null;
-
-        const gap = ga4Conversions === null ? null : Math.max(stats.success - ga4Conversions, 0);
-        const serverCr = stats.visits ? (stats.success / stats.visits) * 100 : 0;
-        return {
-          ...stats,
-          hasSuccessUrl,
-          ga4Conversions,
-          gap,
-          serverCr,
-          adVisitors: adVisitors.size,
-          adSuccess: adSuccess.size,
-          hasChosen: chosen.length > 0,
-          tableRows,
-          overall,
-          statusCounts: topEntries(statusCounts, 12),
-          methodCounts: topEntries(methodCounts, 6)
-        };
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
       }
       function normalizePath(value) {
         const raw = String(value || "").trim();
@@ -1255,6 +1243,12 @@
           values.set(path, Number(rawViews));
         }
         return values;
+      }
+      function topEntries(map, limit) {
+        return Array.from(map.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, limit)
+          .map(([name, count]) => ({ name, count }));
       }
       function buildRows(pathCounts, chosen) {
         const ga4 = ga4UrlViews();
@@ -1286,23 +1280,318 @@
           };
         });
       }
-      function topEntries(map, limit) {
-        return Array.from(map.entries())
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, limit)
-          .map(([name, count]) => ({ name, count }));
-      }
-      async function getText() {
-        if (sampleMode) return sample;
-        const file = id("log-file").files[0];
-        if (!file) throw new Error("Bitte Logdatei auswählen oder „Demo mit Beispieldaten starten“ klicken.");
-        return file.text();
-      }
       function zeitraumText() {
         const from = id("date-from").value;
         const to = id("date-to").value;
         if (!from && !to) return "deiner Datei";
         return `${from || "Anfang"} bis ${to || "Ende"}`;
+      }
+
+      // ---- Parser/Aggregator: läuft entweder im Worker oder (Fallback) im Hauptthread ----
+      // Vollständig in sich geschlossen, damit er per toString() in den Inline-Worker
+      // serialisiert werden kann (keine externen Referenzen, keine DOM-Zugriffe).
+      function makeAggregator(config) {
+        const reLine = /^(\S+)[ \t]+\S+[ \t]+\S+[ \t]+\[([^\]]+)\][ \t]+"([A-Z]+)[ \t]+([^"]*?)[ \t]+(HTTP\/[0-9.]+)"[ \t]+(\d{3})[ \t]+\S+[ \t]+"([^"]*)"[ \t]+"([^"]*)"(.*)$/;
+        const botRe = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|whatsapp|telegrambot|linkedinbot|twitterbot|preview|monitor|uptime|pingdom|headless|python-requests|curl|wget/i;
+        const browserRe = /mozilla\/.*(chrome|safari|firefox|edg|opr|gecko|trident)/i;
+        const adParams = ["gclid", "gbraid", "wbraid"];
+        const okStatus = new Set([200, 201, 202, 204, 301, 302, 303, 307, 308]);
+        const VISIT_MS = 30 * 60 * 1000;
+        const SUCCESS_MS = 60 * 60 * 1000;
+        const monthMap = { Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06", Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12" };
+
+        const successUrl = config.successUrl || "";
+        const hasSuccessUrl = successUrl !== "";
+        const dateFrom = config.dateFrom || "";
+        const dateTo = config.dateTo || "";
+        const useXff = !!config.useXff;
+        const strictBot = !!config.strictBot;
+
+        function normPath(value) {
+          const raw = String(value || "").trim();
+          if (!raw) return "";
+          let path;
+          try { path = new URL(raw, "http://x.invalid").pathname; }
+          catch { path = raw.startsWith("/") ? raw.split("?")[0] : "/" + raw.split("?")[0]; }
+          return path === "/" ? "/" : path.replace(/\/$/, "");
+        }
+        function parseTime(raw) {
+          const m = raw.match(/^(\d{2})\/([A-Za-z]{3})\/(\d{4}):(\d{2}):(\d{2}):(\d{2})[ \t]+([+-])(\d{2})(\d{2})$/);
+          if (!m) return null;
+          const mo = monthMap[m[2]];
+          if (!mo) return null;
+          const t = Date.parse(m[3] + "-" + mo + "-" + m[1] + "T" + m[4] + ":" + m[5] + ":" + m[6] + m[7] + m[8] + ":" + m[9]);
+          if (Number.isNaN(t)) return null;
+          return { date: m[3] + "-" + mo + "-" + m[1], timeMs: t };
+        }
+        function isPrivate(ip) {
+          if (/^10\./.test(ip) || /^192\.168\./.test(ip) || /^127\./.test(ip) || /^169\.254\./.test(ip)) return true;
+          if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return true;
+          const l = ip.toLowerCase();
+          return l === "::1" || l.startsWith("fc") || l.startsWith("fd") || l.startsWith("fe80");
+        }
+        function clientIp(firstField, trailing) {
+          if (!useXff) return firstField;
+          let src = trailing || "";
+          const q = src.match(/"([^"]*)"/);
+          if (q) src = q[1];
+          let firstValid = "";
+          for (let tok of src.split(",")) {
+            tok = tok.trim().replace(/^\[/, "");
+            const colons = (tok.match(/:/g) || []).length;
+            if (colons === 1) tok = tok.replace(/:\d+$/, "");
+            else if (colons > 1) tok = tok.replace(/\](?::\d+)?$/, "");
+            const isV4 = /^(\d{1,3}\.){3}\d{1,3}$/.test(tok);
+            const isV6 = colons > 1 && /^[0-9a-fA-F:]+$/.test(tok);
+            if (!isV4 && !isV6) continue;
+            if (!firstValid) firstValid = tok;
+            if (!isPrivate(tok)) return tok;
+          }
+          return firstValid || firstField;
+        }
+
+        const pathCounts = new Map(), statusCounts = new Map(), methodCounts = new Map();
+        const lastSeen = new Map(), lastSuccess = new Map(), adVisitors = new Set(), adSuccess = new Set();
+        const stats = {
+          total: 0, parsed: 0, unrecognized: 0, kept: 0, filtered: 0,
+          rBot: 0, rStatus: 0, rRange: 0, rMethod: 0, rEmptyUa: 0, rStrict: 0,
+          visits: 0, successRaw: 0, success: 0, timeRegressions: 0
+        };
+        let prevTime = -Infinity, maxTime = -Infinity, seen = 0;
+
+        function prune() {
+          if (maxTime === -Infinity) return;
+          const visitCut = maxTime - VISIT_MS, successCut = maxTime - SUCCESS_MS;
+          for (const [k, t] of lastSeen) if (t < visitCut) lastSeen.delete(k);
+          for (const [k, t] of lastSuccess) if (t < successCut) lastSuccess.delete(k);
+        }
+
+        function processLine(line) {
+          if (line.charCodeAt(line.length - 1) === 13) line = line.slice(0, -1);
+          if (!line || !line.trim()) return;
+          stats.total++;
+          const m = reLine.exec(line);
+          if (!m) { stats.unrecognized++; return; }
+          const ip0 = m[1], timeRaw = m[2], method = m[3], target = m[4], status = +m[6], ua = m[8], trailing = m[9] || "";
+          const pt = parseTime(timeRaw);
+          if (!pt) { stats.unrecognized++; return; }
+          stats.parsed++;
+          if (pt.timeMs < prevTime) stats.timeRegressions++;
+          prevTime = pt.timeMs;
+          if (pt.timeMs > maxTime) maxTime = pt.timeMs;
+
+          if ((dateFrom && pt.date < dateFrom) || (dateTo && pt.date > dateTo)) { stats.filtered++; stats.rRange++; return; }
+          if (!okStatus.has(status)) { stats.filtered++; stats.rStatus++; return; }
+          if (method !== "GET" && method !== "POST") { stats.filtered++; stats.rMethod++; return; }
+          const uaTrim = ua.trim();
+          if (uaTrim === "" || uaTrim === "-" || uaTrim.length < 8) { stats.filtered++; stats.rEmptyUa++; return; }
+          if (botRe.test(ua)) { stats.filtered++; stats.rBot++; return; }
+          if (strictBot && !browserRe.test(ua)) { stats.filtered++; stats.rStrict++; return; }
+
+          stats.kept++;
+          let path, hasAd = false;
+          try {
+            const u = new URL(target, "http://x.invalid");
+            path = u.pathname;
+            for (const p of adParams) { if (u.searchParams.has(p)) { hasAd = true; break; } }
+          } catch {
+            path = target.split("?")[0] || "/";
+            const qs = target.split("?")[1] || "";
+            for (const p of adParams) { if (new RegExp("(^|[?&])" + p + "(=|&|$)").test(qs)) { hasAd = true; break; } }
+          }
+          pathCounts.set(path, (pathCounts.get(path) || 0) + 1);
+          statusCounts.set(String(status), (statusCounts.get(String(status)) || 0) + 1);
+          methodCounts.set(method, (methodCounts.get(method) || 0) + 1);
+
+          const key = clientIp(ip0, trailing) + "|" + ua;
+          const ps = lastSeen.get(key);
+          if (ps === undefined || pt.timeMs - ps > VISIT_MS) stats.visits++;
+          lastSeen.set(key, pt.timeMs);
+          if (hasAd) adVisitors.add(key);
+
+          if (hasSuccessUrl && normPath(path) === successUrl) {
+            stats.successRaw++;
+            const pl = lastSuccess.get(key);
+            if (pl === undefined || pt.timeMs - pl > SUCCESS_MS) {
+              lastSuccess.set(key, pt.timeMs);
+              stats.success++;
+              if (adVisitors.has(key)) adSuccess.add(key);
+            }
+          }
+
+          if ((++seen % 250000) === 0) prune();
+        }
+
+        function finalize() {
+          return {
+            total: stats.total, parsed: stats.parsed, unrecognized: stats.unrecognized,
+            kept: stats.kept, filtered: stats.filtered,
+            reasons: { bot: stats.rBot, status: stats.rStatus, range: stats.rRange, method: stats.rMethod, emptyUa: stats.rEmptyUa, strict: stats.rStrict },
+            visits: stats.visits, successRaw: stats.successRaw, success: stats.success,
+            adVisitors: adVisitors.size, adSuccess: adSuccess.size,
+            timeRegressions: stats.timeRegressions,
+            pathCounts, statusCounts, methodCounts
+          };
+        }
+
+        return { processLine, finalize };
+      }
+
+      // Worker-Quelle: makeAggregator wird per toString() eingebettet, damit alles inline
+      // bleibt (keine externen Skripte, läuft auch unter file://).
+      const WORKER_SRC = `
+        self.onmessage = async function (e) {
+          var cfg = e.data.config, blob = e.data.blob;
+          ${makeAggregator.toString()}
+          try {
+            var agg = makeAggregator(cfg);
+            if (!blob.stream) {
+              var text = await blob.text();
+              var all = text.split("\\n");
+              for (var k = 0; k < all.length; k++) agg.processLine(all[k]);
+              self.postMessage({ type: "done", result: agg.finalize() });
+              return;
+            }
+            var reader = blob.stream().pipeThrough(new TextDecoderStream()).getReader();
+            var buf = "", processed = 0, lastPost = 0;
+            for (;;) {
+              var r = await reader.read();
+              if (r.done) break;
+              processed += r.value.length;
+              buf += r.value;
+              var parts = buf.split("\\n");
+              buf = parts.pop();
+              for (var j = 0; j < parts.length; j++) agg.processLine(parts[j]);
+              if (processed - lastPost > 500000) { lastPost = processed; self.postMessage({ type: "progress", processed: processed }); }
+            }
+            if (buf.length) agg.processLine(buf);
+            self.postMessage({ type: "done", result: agg.finalize() });
+          } catch (err) {
+            self.postMessage({ type: "error", message: String(err && err.message ? err.message : err) });
+          }
+        };
+      `;
+
+      function processViaWorker(blob, config, onProgress) {
+        return new Promise((resolve, reject) => {
+          let worker, url, settled = false, gotFirst = false, watchdog;
+          try {
+            url = URL.createObjectURL(new Blob([WORKER_SRC], { type: "application/javascript" }));
+            worker = new Worker(url);
+          } catch (e) { reject(e); return; }
+          const cleanup = () => { clearTimeout(watchdog); try { worker.terminate(); } catch (_) {} try { URL.revokeObjectURL(url); } catch (_) {} };
+          const ok = (res) => { if (settled) return; settled = true; cleanup(); resolve(res); };
+          const fail = (err) => { if (settled) return; settled = true; cleanup(); reject(err); };
+          worker.onmessage = (e) => {
+            gotFirst = true;
+            clearTimeout(watchdog);
+            const msg = e.data;
+            if (msg.type === "progress") onProgress(msg.processed);
+            else if (msg.type === "done") ok(msg.result);
+            else if (msg.type === "error") fail(new Error(msg.message));
+          };
+          worker.onerror = (e) => fail(new Error((e && e.message) || "Worker nicht verfügbar"));
+          // Manche Umgebungen (z. B. Chrome unter file://) starten Blob-Worker nicht und
+          // melden keinen Fehler. Reagiert der Worker nicht, fällt processFile auf den
+          // Hauptthread zurück.
+          watchdog = setTimeout(() => { if (!gotFirst) fail(new Error("Worker reagiert nicht – Fallback auf Hauptthread")); }, 2500);
+          worker.postMessage({ blob, config });
+        });
+      }
+
+      async function processOnMainThread(blob, config, onProgress) {
+        const agg = makeAggregator(config);
+        if (!blob.stream) {
+          const text = await blob.text();
+          const all = text.split("\n");
+          for (let i = 0; i < all.length; i++) {
+            agg.processLine(all[i]);
+            if ((i & 32767) === 0) await new Promise((r) => setTimeout(r));
+          }
+          return agg.finalize();
+        }
+        const reader = blob.stream().pipeThrough(new TextDecoderStream()).getReader();
+        let buf = "", processed = 0, lastPost = 0, sinceYield = 0;
+        for (;;) {
+          const r = await reader.read();
+          if (r.done) break;
+          processed += r.value.length;
+          buf += r.value;
+          const parts = buf.split("\n");
+          buf = parts.pop();
+          for (let i = 0; i < parts.length; i++) {
+            agg.processLine(parts[i]);
+            if (++sinceYield >= 25000) { sinceYield = 0; onProgress(processed); await new Promise((r2) => setTimeout(r2)); }
+          }
+          if (processed - lastPost > 500000) { lastPost = processed; onProgress(processed); }
+        }
+        if (buf.length) agg.processLine(buf);
+        return agg.finalize();
+      }
+
+      async function processFile(blob, config, onProgress) {
+        // Worker nur über http(s): unter file:// starten viele Browser (z. B. Chrome) keine
+        // Blob-Worker. Dort läuft das Streaming direkt im Hauptthread (mit Yield, bleibt
+        // responsiv). Auf der gehosteten Version übernimmt der Worker.
+        if (location.protocol === "http:" || location.protocol === "https:") {
+          try { return await processViaWorker(blob, config, onProgress); }
+          catch (e) { /* Fallback unten */ }
+        }
+        return await processOnMainThread(blob, config, onProgress);
+      }
+
+      function readConfig() {
+        const raw = id("success-url").value.trim();
+        return {
+          successUrl: raw ? normalizePath(raw) : "",
+          hasSuccessUrl: raw !== "",
+          dateFrom: id("date-from").value,
+          dateTo: id("date-to").value,
+          useXff: id("use-xff").checked,
+          strictBot: id("strict-bot").checked
+        };
+      }
+
+      function buildResult(agg, config) {
+        const chosen = compareUrls();
+        const tableRows = buildRows(agg.pathCounts, chosen);
+        const ga4Rows = tableRows.filter((row) => row.ga4Views !== null && row.ga4Views !== undefined);
+        const totalServer = ga4Rows.reduce((sum, row) => sum + row.serverViews, 0);
+        const totalGa4 = ga4Rows.reduce((sum, row) => sum + row.ga4Views, 0);
+        const overall = ga4Rows.length
+          ? {
+              totalServer,
+              totalGa4,
+              difference: totalServer - totalGa4,
+              coverage: totalServer > 0 ? (totalGa4 / totalServer) * 100 : null,
+              worst: ga4Rows.filter((row) => row.coverage !== null && row.serverViews > 0).sort((a, b) => a.coverage - b.coverage)[0] || null
+            }
+          : null;
+        const ga4Conversions = number("ga4-conversions");
+        const convDiff = ga4Conversions === null ? null : agg.success - ga4Conversions;
+        const serverCr = agg.visits ? (agg.success / agg.visits) * 100 : 0;
+        return {
+          total: agg.total, parsed: agg.parsed, unrecognized: agg.unrecognized,
+          kept: agg.kept, filtered: agg.filtered, reasons: agg.reasons,
+          visits: agg.visits, success: agg.success, successRaw: agg.successRaw,
+          adVisitors: agg.adVisitors, adSuccess: agg.adSuccess, timeRegressions: agg.timeRegressions,
+          hasSuccessUrl: config.hasSuccessUrl, ga4Conversions, convDiff, serverCr,
+          hasChosen: chosen.length > 0, tableRows, overall,
+          statusCounts: topEntries(agg.statusCounts, 12), methodCounts: topEntries(agg.methodCounts, 6),
+          unrecognizedPct: agg.total ? (agg.unrecognized / agg.total) * 100 : 0
+        };
+      }
+
+      function setSignal(state, icon, label) {
+        const signal = id("signal");
+        signal.className = "signal" + (state ? ` ${state}` : "");
+        signal.textContent = icon;
+        id("signal-label").textContent = label;
+      }
+      function showHint(elId, text) {
+        const el = id(elId);
+        if (text) { el.textContent = text; el.classList.remove("hidden"); }
+        else { el.textContent = ""; el.classList.add("hidden"); }
       }
       function render(data) {
         analyzed = true;
@@ -1324,44 +1613,76 @@
         id("n-purchases").textContent = data.hasSuccessUrl ? format(data.success) : "-";
         id("n-coverage").textContent = hasGa4 ? percent(data.overall.coverage) : "-";
 
-        // Kauf-Check
+        // Kauf-Check (signierte Differenz)
         id("pc-server").textContent = data.hasSuccessUrl ? format(data.success) : "-";
         id("pc-ga4").textContent = format(data.ga4Conversions);
-        id("pc-gap").textContent = data.hasSuccessUrl ? format(data.gap) : "-";
+        id("pc-gap").textContent = signed(data.convDiff);
+        id("purchase-note").textContent = hasConv ? convNote(data.convDiff) : "";
 
-        // Tabelle
+        // Seiten-Tabelle
         id("table-title").textContent = data.hasChosen ? "Deine ausgewählten Seiten" : "Deine meistbesuchten Seiten";
         id("table-caption").textContent = hasGa4
           ? "Webserver gegen Google Analytics. „Abdeckung“ = wie viel Prozent Google Analytics von den Webserver-Aufrufen sieht."
           : "So oft hat dein Webserver diese Seiten gesehen. Trag oben optional Google-Analytics-Zahlen ein, um zu vergleichen.";
+        id("compare-note").textContent = hasGa4 ? diffNote(data.overall.difference) : "";
         renderPageTable(data.tableRows);
+
+        // Hinweise
+        showHint("recognition-hint", data.unrecognizedPct >= 10
+          ? `${percent(data.unrecognizedPct)} der Zeilen wurden nicht als Logzeile erkannt — möglicherweise hat deine Datei ein abweichendes Format. ServerStory erwartet Apache/Nginx Combined Log.`
+          : "");
+        showHint("chrono-hint", (data.timeRegressions >= 5 && data.parsed && data.timeRegressions / data.parsed >= 0.01)
+          ? "Die Logzeilen sind nicht durchgehend chronologisch (oft bei mehreren zusammenkopierten Dateien). Besucher- und Conversion-Zählung können dadurch leicht ungenau sein."
+          : "");
 
         // Details
         id("server-total").textContent = format(data.total);
         id("server-kept").textContent = format(data.kept);
-        id("server-filtered").textContent = format(data.filtered);
+        id("server-filtered").textContent = format(data.filtered + data.unrecognized);
         id("server-ads").textContent = format(data.adVisitors);
         id("visits").textContent = format(data.visits);
         id("kept").textContent = format(data.kept);
         id("parsed").textContent = format(data.parsed);
-        id("filtered").textContent = format(data.filtered);
+        id("filtered").textContent = format(data.filtered + data.unrecognized);
         id("server-cr").textContent = data.hasSuccessUrl ? percent(data.serverCr) : "-";
         id("ads-success").textContent = data.hasSuccessUrl ? format(data.adSuccess) : "-";
         renderRows("status-methods", [
           ...data.statusCounts.map((item) => ({ name: `Status ${item.name}`, count: item.count })),
           ...data.methodCounts.map((item) => ({ name: `Methode ${item.name}`, count: item.count }))
         ]);
+        const reasonRows = [
+          { name: "Bot/Crawler (User-Agent)", count: data.reasons.bot },
+          { name: "Fehler- oder Sonderstatus", count: data.reasons.status },
+          { name: "Methode (kein GET/POST)", count: data.reasons.method },
+          { name: "Leerer/zu kurzer User-Agent", count: data.reasons.emptyUa },
+          { name: "Außerhalb Zeitraum", count: data.reasons.range },
+          { name: "Strenger Filter (kein Browser)", count: data.reasons.strict },
+          { name: "Format nicht erkannt", count: data.unrecognized }
+        ].filter((row) => row.count > 0);
+        renderRows("filter-reasons", reasonRows);
 
         setVerdict(data, hasGa4, hasConv);
 
         const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         id("result-panel").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
       }
-      function setSignal(state, icon, label) {
-        const signal = id("signal");
-        signal.className = "signal" + (state ? ` ${state}` : "");
-        signal.textContent = icon;
-        id("signal-label").textContent = label;
+      function convNote(diff) {
+        if (diff > 0) {
+          return "Dein Webserver zählt mehr Käufe als Google Analytics. Häufige Gründe: Besucher haben Cookies/Consent abgelehnt, ein Ad-Blocker war aktiv, oder das Tracking-Skript wurde nicht geladen — der Kauf kam also nie in Google Analytics an.";
+        }
+        if (diff < 0) {
+          return "Google Analytics zählt mehr Käufe als dein Webserver. Mögliche Gründe: die Danke-Seite wird auch von Bots oder Monitoring aufgerufen und hier herausgefiltert; Google Analytics zählt Käufe ohne eigene Danke-URL (z. B. AJAX-/Ein-Seiten-Shops); mehrere Käufe desselben Besuchers innerhalb einer Stunde wurden hier zu einem zusammengefasst; oder die Server-Logs sind unvollständig (CDN-Cache, mehrere Logdateien).";
+        }
+        return "Beide Quellen zählen gleich viele Käufe — das spricht für sauberes Tracking.";
+      }
+      function diffNote(diff) {
+        if (diff > 0) {
+          return "Differenz = Webserver − Google Analytics. Eine positive Zahl heißt: dein Webserver hat mehr Aufrufe gezählt, Google Analytics sieht sie nicht (z. B. Ad-Blocker, abgelehnter Consent, nicht geladenes Skript).";
+        }
+        if (diff < 0) {
+          return "Differenz = Webserver − Google Analytics. Eine negative Zahl heißt: Google Analytics hat mehr gezählt als der Webserver — möglich durch Mehrfachzählung, gefilterte Server-Zugriffe oder unvollständige Logs (CDN-Cache, mehrere Logdateien).";
+        }
+        return "Differenz = Webserver − Google Analytics. Beide Quellen zählen hier gleich viele Aufrufe.";
       }
       function setVerdict(data, hasGa4, hasConv) {
         if (!hasGa4 && !hasConv) {
@@ -1399,28 +1720,36 @@
             id("subline").textContent = `Für die verglichenen Seiten meldet Google Analytics mehr als der Webserver (${percent(cov)}). Das kann an Mehrfachzählung oder gefilterten Zugriffen liegen.`;
             id("action").textContent = "Nächster Schritt: Prüfen, ob Bots, Reloads oder interne Zugriffe die Google-Analytics-Zahl aufblähen.";
           }
-          if (hasConv && data.gap > 0) {
-            id("action").textContent += ` Beim Kauf-Check fehlen Google Analytics ${kauf(data.gap)}.`;
+          if (hasConv && data.convDiff > 0) {
+            id("action").textContent += ` Beim Kauf-Check zählt dein Webserver ${kauf(data.convDiff)} mehr als Google Analytics.`;
+          } else if (hasConv && data.convDiff < 0) {
+            id("action").textContent += ` Beim Kauf-Check zählt Google Analytics dagegen ${kauf(Math.abs(data.convDiff))} mehr — Details unten beim Kauf-Check.`;
           }
           return;
         }
 
         // Nur der Kauf-Check liegt vor (keine Seiten-GA4-Zahlen).
-        const gapRate = data.success ? (data.gap / data.success) * 100 : 0;
-        if (gapRate >= 15) {
-          setSignal("warn", "!", "Achtung");
-          id("headline").textContent = "Google Analytics sieht weniger Käufe";
-          id("subline").textContent = `Dein Webserver sieht ${kauf(data.gap)} mehr als Google Analytics.`;
+        const diff = data.convDiff;
+        if (diff > 0) {
+          const rate = data.success ? (diff / data.success) * 100 : 0;
+          if (rate >= 15) {
+            setSignal("warn", "!", "Achtung");
+            id("headline").textContent = "Google Analytics sieht weniger Käufe";
+          } else {
+            setSignal("medium", "~", "Kleine Lücke");
+            id("headline").textContent = "Kleine Lücke bei den Käufen";
+          }
+          id("subline").textContent = `Dein Webserver zählt ${kauf(diff)} mehr als Google Analytics.`;
           id("action").textContent = "Nächster Schritt: Kürze jetzt keine Werbung. Lass Tracking, Cookie-Banner, Ad-Blocker und die Danke-Seite prüfen.";
-        } else if (gapRate > 0) {
-          setSignal("medium", "~", "Kleine Lücke");
-          id("headline").textContent = "Kleine Lücke bei den Käufen";
-          id("subline").textContent = `Dein Webserver sieht ${kauf(data.gap)} mehr als Google Analytics.`;
-          id("action").textContent = "Nächster Schritt: Zahlen prüfen lassen, aber keine große Entscheidung nur wegen dieser kleinen Abweichung treffen.";
+        } else if (diff < 0) {
+          setSignal("medium", "~", "GA4 zählt mehr");
+          id("headline").textContent = "Google Analytics zählt mehr Käufe als der Webserver";
+          id("subline").textContent = `Google Analytics meldet ${kauf(Math.abs(diff))} mehr als dein Webserver.`;
+          id("action").textContent = "Nächster Schritt: Prüfe die Danke-Seite — wird sie auch von Bots/Monitoring getroffen, zählt GA Käufe ohne eigene URL (AJAX/SPA), oder fehlen Server-Logs (CDN-Cache, mehrere Dateien)?";
         } else {
           setSignal("good", "✓", "Passt");
           id("headline").textContent = "Keine Lücke bei den Käufen";
-          id("subline").textContent = "Google Analytics meldet nicht weniger Käufe als dein Webserver.";
+          id("subline").textContent = "Google Analytics und dein Webserver zählen gleich viele Käufe.";
           id("action").textContent = "Nächster Schritt: Zeitraum und Danke-Seite kurz prüfen. Danach wirkt die Google-Analytics-Zahl plausibel.";
         }
       }
@@ -1441,36 +1770,55 @@
           return;
         }
         target.innerHTML = rows
-          .map((row) => `<tr><td>${escapeHtml(row.name)}</td><td>${format(row.serverViews)}</td><td class="ga4-col">${format(row.ga4Views)}</td><td class="ga4-col">${format(row.difference)}</td><td class="ga4-col">${percent(row.coverage)}</td></tr>`)
+          .map((row) => `<tr><td>${escapeHtml(row.name)}</td><td>${format(row.serverViews)}</td><td class="ga4-col">${format(row.ga4Views)}</td><td class="ga4-col">${signed(row.difference)}</td><td class="ga4-col">${percent(row.coverage)}</td></tr>`)
           .join("");
       }
-      function escapeHtml(value) {
-        return String(value)
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#039;");
+
+      function setBusy(busy) {
+        id("run").disabled = busy;
+        id("run").textContent = busy ? "Wird ausgewertet …" : "Jetzt auswerten";
+        id("progress").classList.toggle("hidden", !busy);
       }
-      id("run").addEventListener("click", async () => {
-        id("message").textContent = "";
+      function updateProgress(done, total) {
+        const pct = Math.max(0, Math.min(100, total ? (done / total) * 100 : 0));
+        id("progress-bar").style.width = pct.toFixed(1) + "%";
+        id("progress-label").textContent = `Wird ausgewertet … ${Math.round(pct)} %`;
+      }
+      async function runAnalysis(blob, isSample) {
+        sampleMode = !!isSample;
+        setBusy(true);
+        updateProgress(0, blob.size || 1);
         try {
-          render(analyzeText(await getText()));
+          const config = readConfig();
+          const agg = await processFile(blob, config, (processed) => updateProgress(processed, blob.size || 1));
+          updateProgress(blob.size || 1, blob.size || 1);
+          render(buildResult(agg, config));
         } catch (error) {
-          id("message").textContent = error.message;
+          id("message").textContent = error && error.message ? error.message : "Auswertung fehlgeschlagen.";
+        } finally {
+          setBusy(false);
         }
+      }
+
+      id("run").addEventListener("click", () => {
+        id("message").textContent = "";
+        const file = id("log-file").files[0];
+        if (!file) {
+          id("message").textContent = "Bitte Logdatei auswählen oder „Demo mit Beispieldaten starten“ klicken.";
+          return;
+        }
+        runAnalysis(file, false);
       });
       id("sample").addEventListener("click", () => {
-        sampleMode = true;
         id("ga4-toggle").open = true;
         id("compare-urls").value = "";
-        id("ga4-url-views").value = "/,1\n/produkt,1\n/bestellung/danke,1";
+        id("ga4-url-views").value = "/,1\n/produkt,1\n/bestellung/danke,1\n/preise,1";
         id("success-url").value = "/bestellung/danke";
         id("ga4-conversions").value = "1";
         id("date-from").value = "2026-06-05";
         id("date-to").value = "2026-06-05";
         id("message").textContent = "Demo gestartet — mit Beispieldaten, ohne echte Datei.";
-        render(analyzeText(sample));
+        runAnalysis(new Blob([sample], { type: "text/plain" }), true);
       });
       async function copyText(text, okMsg) {
         try {
