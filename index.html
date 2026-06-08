@@ -1044,12 +1044,12 @@
               <div class="number">
                 <span>Besuche laut Webserver</span>
                 <strong id="n-visits">-</strong>
-                <p class="helper">Einzelne Aufrufe grob zu Besuchen zusammengefasst.</p>
+                <p class="helper">Grobe Schätzung: Aufrufe per IP + Browser im 30-Min-Fenster zusammengefasst. Mehrere Personen hinter einer IP zählen als eine.</p>
               </div>
               <div class="number">
                 <span>Seitenaufrufe gesamt</span>
                 <strong id="n-views">-</strong>
-                <p class="helper">Alle echten Aufrufe nach Bot- und Fehlerfilter.</p>
+                <p class="helper">Echte Seiten — ohne Bilder, CSS oder JS. Vergleichbar mit „Seitenaufrufen" in Google Analytics.</p>
               </div>
               <div class="number purchase-only">
                 <span>Käufe laut Webserver</span>
@@ -1294,6 +1294,7 @@
         const reLine = /^(\S+)[ \t]+\S+[ \t]+\S+[ \t]+\[([^\]]+)\][ \t]+"([A-Z]+)[ \t]+([^"]*?)[ \t]+(HTTP\/[0-9.]+)"[ \t]+(\d{3})[ \t]+\S+[ \t]+"([^"]*)"[ \t]+"([^"]*)"(.*)$/;
         const botRe = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|whatsapp|telegrambot|linkedinbot|twitterbot|preview|monitor|uptime|pingdom|headless|python-requests|curl|wget/i;
         const browserRe = /mozilla\/.*(chrome|safari|firefox|edg|opr|gecko|trident)/i;
+        const assetRe = /\.(css|js|mjs|map|png|jpe?g|gif|svg|webp|avif|ico|bmp|woff2?|ttf|otf|eot|mp4|webm|mov|mp3|pdf|zip|gz)$/i;
         const adParams = ["gclid", "gbraid", "wbraid"];
         const okStatus = new Set([200, 201, 202, 204, 301, 302, 303, 307, 308]);
         const VISIT_MS = 30 * 60 * 1000;
@@ -1353,7 +1354,7 @@
         const pathCounts = new Map(), statusCounts = new Map(), methodCounts = new Map();
         const lastSeen = new Map(), lastSuccess = new Map(), adVisitors = new Set(), adSuccess = new Set();
         const stats = {
-          total: 0, parsed: 0, unrecognized: 0, kept: 0, filtered: 0,
+          total: 0, parsed: 0, unrecognized: 0, kept: 0, pageViews: 0, filtered: 0,
           rBot: 0, rStatus: 0, rRange: 0, rMethod: 0, rEmptyUa: 0, rStrict: 0,
           visits: 0, successRaw: 0, success: 0, timeRegressions: 0
         };
@@ -1400,6 +1401,7 @@
             for (const p of adParams) { if (new RegExp("(^|[?&])" + p + "(=|&|$)").test(qs)) { hasAd = true; break; } }
           }
           pathCounts.set(path, (pathCounts.get(path) || 0) + 1);
+          if (!assetRe.test(path)) stats.pageViews++;
           statusCounts.set(String(status), (statusCounts.get(String(status)) || 0) + 1);
           methodCounts.set(method, (methodCounts.get(method) || 0) + 1);
 
@@ -1425,7 +1427,7 @@
         function finalize() {
           return {
             total: stats.total, parsed: stats.parsed, unrecognized: stats.unrecognized,
-            kept: stats.kept, filtered: stats.filtered,
+            kept: stats.kept, pageViews: stats.pageViews, filtered: stats.filtered,
             reasons: { bot: stats.rBot, status: stats.rStatus, range: stats.rRange, method: stats.rMethod, emptyUa: stats.rEmptyUa, strict: stats.rStrict },
             visits: stats.visits, successRaw: stats.successRaw, success: stats.success,
             adVisitors: adVisitors.size, adSuccess: adSuccess.size,
@@ -1572,7 +1574,7 @@
         const serverCr = agg.visits ? (agg.success / agg.visits) * 100 : 0;
         return {
           total: agg.total, parsed: agg.parsed, unrecognized: agg.unrecognized,
-          kept: agg.kept, filtered: agg.filtered, reasons: agg.reasons,
+          kept: agg.kept, pageViews: agg.pageViews, filtered: agg.filtered, reasons: agg.reasons,
           visits: agg.visits, success: agg.success, successRaw: agg.successRaw,
           adVisitors: agg.adVisitors, adSuccess: agg.adSuccess, timeRegressions: agg.timeRegressions,
           hasSuccessUrl: config.hasSuccessUrl, ga4Conversions, convDiff, serverCr,
@@ -1609,7 +1611,7 @@
 
         // Server-Zahlen
         id("n-visits").textContent = format(data.visits);
-        id("n-views").textContent = format(data.kept);
+        id("n-views").textContent = format(data.pageViews);
         id("n-purchases").textContent = data.hasSuccessUrl ? format(data.success) : "-";
         id("n-coverage").textContent = hasGa4 ? percent(data.overall.coverage) : "-";
 
