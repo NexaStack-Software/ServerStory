@@ -871,7 +871,7 @@
             <label>
               Besuchsliste vom Webserver hochladen
               <input id="log-file" type="file" accept=".log,.txt">
-              <span class="helper">Datei-Endung meist .log oder .txt.</span>
+              <span class="helper">Datei-Endung meist .log oder .txt. Sehr große Datei? Lass dir vom Hoster lieber ein Log für einen kürzeren Zeitraum geben.</span>
             </label>
             <button id="run" type="button">Jetzt auswerten</button>
 
@@ -1247,7 +1247,14 @@
         if (chosen.length) {
           names = [...chosen];
         } else {
-          names = topEntries(pathCounts, 8).map((entry) => entry.name);
+          // Automatische Top-Liste: statische Dateien (Bilder, CSS, JS …) ausblenden,
+          // damit echte Seiten sichtbar sind. Selbst eingetragene URLs bleiben unberührt.
+          const isAsset = (p) => /\.(css|js|mjs|map|png|jpe?g|gif|svg|webp|avif|ico|bmp|woff2?|ttf|otf|eot|mp4|webm|mov|mp3|pdf|zip|gz)$/i.test(p);
+          const pages = new Map();
+          for (const [path, count] of pathCounts) {
+            if (!isAsset(path)) pages.set(path, count);
+          }
+          names = topEntries(pages, 8).map((entry) => entry.name);
         }
         for (const url of ga4.keys()) {
           if (!names.includes(url)) names.push(url);

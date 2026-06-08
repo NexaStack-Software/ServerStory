@@ -10,6 +10,8 @@ und siehst sofort, ob Google Analytics weniger zählt als die Realität.
 Du brauchst kein Programm, keinen Account und keine Installation — nur einen Browser
 (Chrome, Edge, Firefox oder Safari).
 
+![ServerStory: Logdatei auswählen, auswerten, Ergebnis ansehen](screenshot.png)
+
 ---
 
 ## 1. Tool herunterladen
@@ -43,6 +45,10 @@ Danach hast du einen ganz normalen Ordner mit den Dateien darin.
 
 Du siehst sofort deine meistbesuchten Seiten und wie viele Besucher du im gewählten
 Zeitraum wirklich hattest.
+
+> **Sehr große Logdatei?** Bei viel Website-Traffic kann die Datei sehr groß werden und
+> den Browser ausbremsen. Lass dir dann vom Hoster oder von der IT ein Log für einen
+> **kürzeren Zeitraum** exportieren.
 
 ---
 
