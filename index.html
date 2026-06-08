@@ -492,6 +492,20 @@
         display: none;
       }
 
+      .offline-note {
+        margin: 14px 0 0;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .offline-note a {
+        color: var(--ink);
+        font-weight: 700;
+      }
+
       .result {
         padding: 28px;
       }
@@ -925,6 +939,7 @@
             </details>
 
             <p id="message" class="message"></p>
+            <p id="offline-note" class="offline-note">Lieber ganz offline? Du kannst das Tool <a href="https://github.com/NexaStack-Software/ServerStory" target="_blank" rel="noopener noreferrer">herunterladen und den Code einsehen</a> — und es ohne Internet nutzen. Es ist quelloffen, du kannst also selbst prüfen, dass nichts gesendet wird.</p>
           </div>
         </aside>
       </section>
@@ -1477,6 +1492,7 @@
         sampleMode = false;
         id("demo-badge").classList.remove("visible");
       });
+      if (location.protocol === "file:") id("offline-note").classList.add("hidden");
     </script>
   </body>
 </html>
