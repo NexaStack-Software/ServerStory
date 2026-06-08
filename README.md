@@ -46,9 +46,9 @@ Danach hast du einen ganz normalen Ordner mit den Dateien darin.
 Du siehst sofort deine meistbesuchten Seiten und wie viele Besucher du im gewählten
 Zeitraum wirklich hattest.
 
-> **Sehr große Logdatei?** Bei viel Website-Traffic kann die Datei sehr groß werden und
-> den Browser ausbremsen. Lass dir dann vom Hoster oder von der IT ein Log für einen
-> **kürzeren Zeitraum** exportieren.
+> **Sehr große Logdatei?** Kein Problem — die Datei wird zeilenweise mit Fortschritts-
+> anzeige verarbeitet und friert den Browser nicht ein. Nur bei vielen Millionen Zeilen
+> kann es ein paar Sekunden dauern.
 
 ---
 
@@ -57,10 +57,11 @@ Zeitraum wirklich hattest.
 Die Logdatei liegt auf dem Server, auf dem deine Website läuft — meist hat sie deine
 IT-Abteilung oder deine Agentur.
 
-Damit du nicht lange erklären musst, gibt es im Tool den Button
-**„Noch keine Datei? Kopier den fertigen Text hier."**. Ein Klick darauf kopiert einen
-fertig formulierten Text. Den schickst du einfach an deine IT — sie weiß dann genau,
-welche Datei du brauchst und wie sie sie exportiert.
+Damit du nicht lange erklären musst, gibt es im Tool zwei fertige Vorlagen:
+**„Text für deine IT/Agentur kopieren"** und **„Text für deinen Hoster kopieren"**. Ein
+Klick kopiert den passenden Text — den schickst du an deine IT bzw. an deinen
+Hoster-Support, und die Gegenseite weiß genau, welche Datei du brauchst und wie sie sie
+exportiert.
 
 **Erst mal ausprobieren?** Klicke im Tool auf **„Demo mit Beispieldaten starten"** —
 dann siehst du an Beispielzahlen, wie das Ergebnis aussieht, ganz ohne eigene Datei.
@@ -85,6 +86,10 @@ auszuwerten, ist durch dein **berechtigtes Interesse nach Art. 6 Abs. 1 lit. f D
 gedeckt. ServerStory geht dabei besonders datensparsam vor: Die Datei wird nur lokal
 verarbeitet, und ausgegeben werden ausschließlich anonyme Summen — keine einzelnen
 IP-Adressen.
+
+Auch die optionalen erweiterten Filter ändern daran nichts: Wenn du „X-Forwarded-For"
+aktivierst, dient die darin enthaltene Besucher-IP nur lokal im Browser zum
+Zusammenfassen von Besuchen — übertragen oder ausgegeben wird sie nicht.
 
 Halte dich an die übliche Log-Hygiene: kurze Aufbewahrungsfrist, Zugriff begrenzen,
 Server-Logs in der Datenschutzerklärung erwähnen und IP-Adressen nach Möglichkeit kürzen.
