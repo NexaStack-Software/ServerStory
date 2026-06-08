@@ -877,7 +877,8 @@
 
             <div class="divider"></div>
 
-            <button id="copy-it" class="secondary" type="button">Noch keine Datei? Kopier den fertigen Text hier.</button>
+            <button id="copy-it" class="secondary" type="button">Text für deine IT/Agentur kopieren</button>
+            <button id="copy-hoster" class="secondary" type="button">Text für deinen Hoster kopieren</button>
             <button id="sample" class="secondary" type="button">Demo mit Beispieldaten starten</button>
 
             <details>
@@ -1449,15 +1450,22 @@
         id("message").textContent = "Demo gestartet — mit Beispieldaten, ohne echte Datei.";
         render(analyzeText(sample));
       });
-      id("copy-it").addEventListener("click", async () => {
-        const text = `Bitte exportiere für mich die Webserver-Besuchsliste für den gewünschten Zeitraum.\n\nBitte als entpackte .log oder .txt Datei liefern, idealerweise Apache/Nginx Combined Log.\n\nWir brauchen keine Auswertung einzelner Nutzer. ServerStory zählt nur Summen:\n- Besuche laut Webserver\n- Aufrufe einzelner Seiten\n- grobe Bot- und Fehlerfilter\n\nWichtig: Bitte keine Dateien in fremde Cloudtools hochladen. Die Auswertung läuft lokal im Browser.`;
+      async function copyText(text, okMsg) {
         try {
           await navigator.clipboard.writeText(text);
-          id("message").textContent = "IT-Text kopiert.";
+          id("message").textContent = okMsg;
         } catch {
           id("message").textContent = text;
         }
-      });
+      }
+      id("copy-it").addEventListener("click", () => copyText(
+        `Bitte exportiere mir das Access Log (die Besuchsliste des Webservers) für den gewünschten Zeitraum.\n\nBitte als entpackte .log- oder .txt-Datei, idealerweise Apache/Nginx Combined Log.\n\nEs geht nur um Summen (Besuche, Seitenaufrufe), keine Auswertung einzelner Nutzer. Die Datei wird lokal im Browser ausgewertet und nicht in fremde Cloudtools hochgeladen.`,
+        "Text für IT/Agentur kopiert — jetzt einfügen und abschicken."
+      ));
+      id("copy-hoster").addEventListener("click", () => copyText(
+        `Hallo, ich bin Inhaber bzw. berechtigt für das Hosting-Paket zur Domain [DEINE-DOMAIN.DE].\n\nBitte stellt mir das Access Log (die Server-Logdatei mit den Seitenaufrufen) für den Zeitraum [VON] bis [BIS] zum Download bereit oder schickt es mir per E-Mail. Falls ich es selbst im Kundenmenü herunterladen kann: Wo finde ich die Logdateien?\n\nFormat bitte als entpackte .log- oder .txt-Datei (Apache/Nginx Combined Log). Es geht nur um aggregierte Zugriffszahlen, keine personenbezogene Auswertung.\n\nVielen Dank!`,
+        "Text für Hoster-Support kopiert — Platzhalter [...] ersetzen, dann abschicken."
+      ));
       id("log-file").addEventListener("change", () => {
         sampleMode = false;
         id("demo-badge").classList.remove("visible");

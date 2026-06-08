@@ -72,6 +72,18 @@ Die Auswertung passiert **ausschließlich in deinem Browser**. Es wird nichts
 hochgeladen und nichts an einen Server gesendet. Angezeigt werden nur Summen — keine
 IP-Adressen und keine Nutzerlisten.
 
+**„Darf ich mir diese Daten überhaupt ansehen?" — Ja.** Es sind die Logs deines
+**eigenen** Webservers; dafür bist du der Verantwortliche im Sinne der DSGVO. Server-Logs
+(inklusive IP-Adressen) für den sicheren Betrieb und für aggregierte Zugriffsstatistiken
+auszuwerten, ist durch dein **berechtigtes Interesse nach Art. 6 Abs. 1 lit. f DSGVO**
+gedeckt. ServerStory geht dabei besonders datensparsam vor: Die Datei wird nur lokal
+verarbeitet, und ausgegeben werden ausschließlich anonyme Summen — keine einzelnen
+IP-Adressen.
+
+Halte dich an die übliche Log-Hygiene: kurze Aufbewahrungsfrist, Zugriff begrenzen,
+Server-Logs in der Datenschutzerklärung erwähnen und IP-Adressen nach Möglichkeit kürzen.
+Das ist keine Rechtsberatung.
+
 ## Lizenz
 
 MIT — siehe [`LICENSE`](LICENSE).
