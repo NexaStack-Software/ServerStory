@@ -4,6 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ServerStory: Was hat deine Website wirklich gesehen?</title>
+    <meta name="description" content="Werte deine Server-Logs lokal im Browser aus: meistbesuchte Seiten, echte Aufrufe und die Lücke zu Google Analytics. Kostenlos, Open Source, kein Upload.">
+    <meta property="og:title" content="ServerStory – was hat deine Website wirklich gesehen?">
+    <meta property="og:description" content="Werte deine Server-Logs lokal im Browser aus: meistbesuchte Seiten, echte Aufrufe und die Lücke zu Google Analytics. Kostenlos, Open Source, kein Upload.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://nexastack-software.github.io/ServerStory/">
+    <meta property="og:image" content="https://nexastack-software.github.io/ServerStory/screenshot.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://nexastack-software.github.io/ServerStory/screenshot.png">
     <style>
       :root {
         --black: #171717;
@@ -1063,7 +1071,7 @@
               </div>
             </div>
 
-            <p class="caption" style="margin-top: 14px;"><strong>Seitenaufrufe</strong> (wie oft eine Seite geöffnet wurde) zählt der Server exakt — genau wie Google Analytics. Darum ist der Vergleich pro Seite belastbar. <strong>Besucher</strong> (wie viele verschiedene Menschen) ist dagegen eine Schätzung: Eine Person kann eine Seite mehrfach öffnen, und mehrere Leute aus einer Firma zählen als ein Besucher.</p>
+            <p class="caption" style="margin-top: 14px;"><strong>Seitenaufrufe</strong> (wie oft eine Seite geöffnet wurde) zählt der Server exakt; <strong>Besucher</strong> (verschiedene Menschen) sind eine Schätzung — eine Person kann eine Seite mehrfach öffnen, mehrere Leute aus einer Firma zählen als einer. Der Vergleich zeigt Abweichungen in <strong>beide Richtungen</strong>: Google Analytics weniger → meist Tracking-Verlust (Cookies/Ad-Blocker); der Server weniger → oft Caching/CDN (gecachte Aufrufe erreichen das Server-Log nicht). Käufe sind kaum betroffen, weil die Danke-Seite selten gecacht wird.</p>
             <div id="action" class="action">Nach der Auswertung steht hier, was du als Nächstes tun solltest.</div>
 
             <div id="purchase-box" class="purchase-box hidden">
@@ -1185,6 +1193,10 @@
 198.51.100.77 - - [05/Jun/2026:12:10:00 +0200] "GET /agb HTTP/1.1" 200 800 "-" "-"`;
       let sampleMode = false;
       let analyzed = false;
+      // Statische Dateien (keine "Seiten"): eine Quelle der Wahrheit. Wird via config in
+      // den Worker gereicht (RegExp ist strukturiert klonbar), damit das Muster nicht
+      // doppelt gepflegt werden muss.
+      const ASSET_RE = /\.(css|js|mjs|map|json|xml|txt|rss|webmanifest|png|jpe?g|gif|svg|webp|avif|ico|bmp|woff2?|ttf|otf|eot|mp4|webm|mov|mp3|pdf|zip|gz)(\?|$)/i;
 
       function id(name) { return document.getElementById(name); }
       function number(idName) {
@@ -1259,7 +1271,7 @@
         } else {
           // Automatische Top-Liste: statische Dateien (Bilder, CSS, JS …) ausblenden,
           // damit echte Seiten sichtbar sind. Selbst eingetragene URLs bleiben unberührt.
-          const isAsset = (p) => /\.(css|js|mjs|map|png|jpe?g|gif|svg|webp|avif|ico|bmp|woff2?|ttf|otf|eot|mp4|webm|mov|mp3|pdf|zip|gz)$/i.test(p);
+          const isAsset = (p) => ASSET_RE.test(p);
           const pages = new Map();
           for (const [path, count] of pathCounts) {
             if (!isAsset(path)) pages.set(path, count);
@@ -1295,7 +1307,7 @@
         const reLine = /^(\S+)[ \t]+\S+[ \t]+\S+[ \t]+\[([^\]]+)\][ \t]+"([A-Z]+)[ \t]+([^"]*?)[ \t]+(HTTP\/[0-9.]+)"[ \t]+(\d{3})[ \t]+\S+[ \t]+"([^"]*)"[ \t]+"([^"]*)"(.*)$/;
         const botRe = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|whatsapp|telegrambot|linkedinbot|twitterbot|preview|monitor|uptime|pingdom|headless|python-requests|curl|wget/i;
         const browserRe = /mozilla\/.*(chrome|safari|firefox|edg|opr|gecko|trident)/i;
-        const assetRe = /\.(css|js|mjs|map|png|jpe?g|gif|svg|webp|avif|ico|bmp|woff2?|ttf|otf|eot|mp4|webm|mov|mp3|pdf|zip|gz)$/i;
+        const assetRe = config.assetRe || /(?!)/;
         const adParams = ["gclid", "gbraid", "wbraid"];
         const okStatus = new Set([200, 201, 202, 204, 301, 302, 303, 307, 308]);
         const VISIT_MS = 30 * 60 * 1000;
@@ -1551,7 +1563,8 @@
           dateFrom: id("date-from").value,
           dateTo: id("date-to").value,
           useXff: id("use-xff").checked,
-          strictBot: id("strict-bot").checked
+          strictBot: id("strict-bot").checked,
+          assetRe: ASSET_RE
         };
       }
 
@@ -1720,8 +1733,8 @@
           } else {
             setSignal("medium", "~", "GA4 zählt mehr");
             id("headline").textContent = "Google Analytics zählt mehr als der Webserver";
-            id("subline").textContent = `Für die verglichenen Seiten meldet Google Analytics mehr als der Webserver (${percent(cov)}). Das kann an Mehrfachzählung oder gefilterten Zugriffen liegen.`;
-            id("action").textContent = "Nächster Schritt: Prüfen, ob Bots, Reloads oder interne Zugriffe die Google-Analytics-Zahl aufblähen.";
+            id("subline").textContent = `Für die verglichenen Seiten meldet Google Analytics mehr als der Webserver (${percent(cov)}). Häufigste Ursache: Caching/CDN — gecachte Aufrufe erreichen das Server-Log gar nicht, das Tracking-Skript läuft aber trotzdem. Auch Mehrfachzählung oder Bots können Google Analytics aufblähen.`;
+            id("action").textContent = "Nächster Schritt: Prüfen, ob ein CDN oder Cache (z. B. Cloudflare) vor der Seite sitzt — dann fehlen Aufrufe im Server-Log. Sonst Bots oder Mehrfachzählung in Google Analytics prüfen.";
           }
           if (hasConv && data.convDiff > 0) {
             id("action").textContent += ` Beim Kauf-Check zählt dein Webserver ${kauf(data.convDiff)} mehr als Google Analytics.`;

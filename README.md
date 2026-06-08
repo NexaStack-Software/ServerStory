@@ -43,8 +43,8 @@ Danach hast du einen ganz normalen Ordner mit den Dateien darin.
    Besuchsliste deines Webservers, meist eine Datei mit der Endung `.log` oder `.txt`.
 3. Klicke auf **„Jetzt auswerten"**.
 
-Du siehst sofort deine meistbesuchten Seiten und wie viele Besucher du im gewählten
-Zeitraum wirklich hattest.
+Du siehst sofort deine meistbesuchten Seiten und — als Richtwert — wie viele Besucher du
+im gewählten Zeitraum hattest.
 
 > **Sehr große Logdatei?** Kein Problem — die Datei wird zeilenweise mit Fortschritts-
 > anzeige verarbeitet und friert den Browser nicht ein. Nur bei vielen Millionen Zeilen
@@ -75,23 +75,29 @@ Beispiel, weil Ad-Blocker oder abgelehnte Cookies einen Teil der Besuche verschl
 
 ## Wie genau ist das?
 
-ServerStory zeigt, was dein Server **tatsächlich protokolliert** hat — das kann kein
-Cookie-Banner und kein Ad-Blocker verstecken. Wichtig ist der Unterschied zwischen zwei
-Dingen:
+ServerStory zeigt, was bei deinem Server **tatsächlich ankommt** — Cookie-Banner und
+Ad-Blocker können das nicht verstecken. Zwei Dinge solltest du wissen:
 
-- **Seitenaufrufe** (wie oft eine Seite *geöffnet* wurde) zählt der Server **exakt** —
-  eine Logzeile pro Aufruf. Google Analytics zählt dasselbe, deshalb ist der **Vergleich
-  pro Seite** aussagekräftig: Sieht GA deutlich weniger Aufrufe als der Server, geht beim
-  Tracking etwas verloren. Auch **Käufe** (eine spezifische Danke-Seite) zählt der Server
-  exakt.
-- **Besucher** (wie viele *verschiedene Menschen*) ist dagegen eine **Schätzung**, denn
-  das steht nicht im Log. Dafür müssen Aufrufe zu Personen zusammengefasst werden (per IP
-  und Browser) — nie ganz exakt: Eine Person, die eine Seite fünfmal öffnet, ist *ein*
-  Besucher mit fünf Aufrufen; mehrere Leute aus einer Firma zählen als *ein* Besucher.
+**Aufrufe vs. Besucher.** Wie oft eine Seite *geöffnet* wurde (Aufrufe), zählt der Server
+exakt — eine Logzeile pro Aufruf. Wie viele *verschiedene Menschen* das waren (Besucher),
+steht nicht im Log und ist eine Schätzung: Aufrufe werden per IP und Browser zu Personen
+zusammengefasst (eine Person = mehrere Aufrufe, eine Firma = ein Besucher). Der
+Seiten-Vergleich vergleicht nur **Aufrufe gegen Aufrufe** und braucht die Besucherzahl
+gar nicht.
 
-Kurz: **Aufrufe zählen** heißt nur Zeilen zählen (exakt). **Besucher zählen** heißt
-Aufrufe zu Personen zusammenrechnen (Schätzung). Der Seiten-Vergleich vergleicht nur
-Aufrufe gegen Aufrufe — er braucht die Besucherzahl gar nicht.
+**Abweichungen gehen in beide Richtungen.** Der Vergleich zeigt nicht „die Wahrheit",
+sondern *wo* sich Server und Google Analytics unterscheiden:
+
+- **Google Analytics zählt weniger als der Server** → meist Tracking-Verlust: abgelehnte
+  Cookies, Ad-Blocker, nicht geladenes Skript.
+- **Der Server zählt weniger als Google Analytics** → meist Caching/CDN: liegt deine
+  Seite hinter Cloudflare, Fastly o. Ä. (oder im Browser-Cache), wird ein Teil der
+  Aufrufe aus dem Cache ausgeliefert und erreicht das Origin-Log nie — das GA-Skript
+  feuert trotzdem. (Auch Mehrfachzählung oder Bots können Google Analytics aufblähen.)
+
+**Käufe** sind davon kaum betroffen: Eine Danke-Seite nach dem Kauf wird typischerweise
+nicht gecacht (dynamisch, pro Bestellung) und erreicht den Server zuverlässig — der
+Kauf-Vergleich bleibt belastbar.
 
 ## Datenschutz
 
