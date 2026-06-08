@@ -1,9 +1,9 @@
 # ServerStory
 
 Sieh in wenigen Minuten, was deine Website laut deinen Server-Logs **wirklich** an
-Besuchern und Seitenaufrufen hatte — direkt aus der Quelle, ohne Cookies und ohne
-Tracking-Tool. Optional kannst du die Zahlen direkt mit Google Analytics vergleichen
-und siehst sofort, ob Google Analytics weniger zählt als die Realität.
+Seitenaufrufen (und ungefähr an Besuchern) hatte — direkt aus der Quelle, ohne Cookies
+und ohne Tracking-Tool. Optional kannst du die Zahlen direkt mit Google Analytics
+vergleichen und siehst sofort, ob Google Analytics weniger zählt als die Realität.
 
 **Alles läuft lokal in deinem Browser. Deine Logdatei wird nirgendwohin hochgeladen.**
 
@@ -72,6 +72,18 @@ Klappe im Tool den Bereich **„Optional: Mit Google Analytics vergleichen"** au
 trag deine Google-Analytics-Zahlen ein. ServerStory stellt sie dann deinen echten
 Server-Zahlen gegenüber und zeigt dir, ob Google Analytics weniger zählt — zum
 Beispiel, weil Ad-Blocker oder abgelehnte Cookies einen Teil der Besuche verschlucken.
+
+## Wie genau ist das?
+
+ServerStory zeigt, was dein Server **tatsächlich protokolliert** hat — das kann kein
+Cookie-Banner und kein Ad-Blocker verstecken. Am verlässlichsten sind der **Vergleich
+pro Seite** und die **Käufe**: spezifische, sauber gezählte Größen.
+
+Die absolute **Besucherzahl** ist dagegen eine gute Schätzung, keine exakte
+Personenzählung: Aufrufe werden per IP und Browser im 30-Minuten-Fenster zu Besuchen
+zusammengefasst, und mehrere Personen hinter einer IP (Firma, Mobilfunk) zählen als
+eine. Für Entscheidungen verlass dich daher vor allem auf den Seiten-Vergleich und die
+Conversion-Zahlen.
 
 ## Datenschutz
 
