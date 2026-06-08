@@ -1193,9 +1193,11 @@
 198.51.100.77 - - [05/Jun/2026:12:10:00 +0200] "GET /agb HTTP/1.1" 200 800 "-" "-"`;
       let sampleMode = false;
       let analyzed = false;
-      // Statische Dateien (keine "Seiten"): eine Quelle der Wahrheit. Wird via config in
-      // den Worker gereicht (RegExp ist strukturiert klonbar), damit das Muster nicht
-      // doppelt gepflegt werden muss.
+      // Nicht-HTML-Ressourcen (Bilder, CSS, JS, Sitemaps, Feeds, JSON-Endpunkte …) werden
+      // von den "Seitenaufrufen" ausgeschlossen, damit die Zahl mit GA4-Seitenaufrufen
+      // (page_view für HTML-Dokumente) vergleichbar bleibt. Eine einzige Quelle; wird via
+      // config (RegExp ist strukturiert klonbar) auch in den Worker gereicht, damit Haupt-
+      // und Worker-Pfad garantiert identisch zählen.
       const ASSET_RE = /\.(css|js|mjs|map|json|xml|txt|rss|webmanifest|png|jpe?g|gif|svg|webp|avif|ico|bmp|woff2?|ttf|otf|eot|mp4|webm|mov|mp3|pdf|zip|gz)(\?|$)/i;
 
       function id(name) { return document.getElementById(name); }
@@ -1704,7 +1706,7 @@
         if (!hasGa4 && !hasConv) {
           setSignal("good", "✓", "Ausgewertet");
           id("headline").textContent = "Das hat dein Webserver gesehen";
-          let sub = `In ${zeitraumText()} zählt dein Webserver ${format(data.visits)} Besuche und ${format(data.kept)} Seitenaufrufe.`;
+          let sub = `In ${zeitraumText()} zählt dein Webserver ${format(data.visits)} Besuche und ${format(data.pageViews)} Seitenaufrufe.`;
           if (data.hasSuccessUrl) sub += ` Davon ${kauf(data.success)} auf der Danke-Seite.`;
           id("subline").textContent = sub;
           id("action").textContent = "Nächster Schritt: Das sind die echten Server-Zahlen. Vergleiche sie mit Google Analytics — oder trag oben optional deine GA4-Zahlen ein, dann zeigt ServerStory die Lücke direkt.";
