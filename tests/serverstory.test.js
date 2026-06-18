@@ -259,6 +259,86 @@ const baselineAkamai = [
   akamaiEvent("203.0.113.12", "2026-06-05T11:05:00Z", "/api/ping", 500)
 ].join("\n");
 
+function isoAt(seconds) {
+  return new Date(Date.UTC(2026, 5, 5, 8, 0, seconds)).toISOString();
+}
+
+function combinedStampAt(seconds) {
+  const d = new Date(Date.UTC(2026, 5, 5, 8, 0, seconds));
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${pad(d.getUTCDate())}/Jun/${d.getUTCFullYear()}:${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} +0000`;
+}
+
+function docIp(i) {
+  return `198.51.${Math.floor(i / 250)}.${i % 250}`;
+}
+
+function createLargeGoldenCorpus(format = "combined") {
+  const lines = [];
+  const expected = {
+    visitors: 1250,
+    assetHits: 0,
+    botFiltered: 40,
+    statusFiltered: 30,
+    productViews: 0,
+    conversions: 0,
+    duplicateConversions: 0,
+    adVisitors: 0
+  };
+  const browserUa = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
+  const botUa = "Googlebot/2.1";
+  const emit = (ip, seconds, target, status = 200, ua = browserUa) => {
+    if (format === "cloudflare") {
+      lines.push(cloudflareEvent(ip, isoAt(seconds), target, status, ua));
+    } else {
+      lines.push(combined(ip, combinedStampAt(seconds), target, status, ua));
+    }
+  };
+
+  for (let i = 0; i < expected.visitors; i++) {
+    const ip = docIp(i);
+    const base = i * 6;
+    const ad = i % 5 === 0;
+    if (ad) expected.adVisitors++;
+    emit(ip, base, `/landing${ad ? "?gclid=ad-" + i : ""}`);
+
+    if (i % 2 === 0) {
+      expected.productViews++;
+      emit(ip, base + 1, `/produkt/${i % 20}`);
+    }
+    if (i % 3 === 0) {
+      expected.assetHits++;
+      emit(ip, base + 2, "/assets/app.css");
+    }
+    if (i % 10 === 0) {
+      expected.conversions++;
+      emit(ip, base + 3, `/checkout/danke?order_id=G${i}`);
+    }
+    if (i % 50 === 0) {
+      expected.duplicateConversions++;
+      emit(ip, base + 4, `/checkout/danke?order_id=G${i}`);
+    }
+  }
+
+  for (let i = 0; i < expected.botFiltered; i++) {
+    emit(`203.0.113.${i}`, 9000 + i, `/bot/${i}`, 200, botUa);
+  }
+  for (let i = 0; i < expected.statusFiltered; i++) {
+    emit(`192.0.2.${i}`, 9100 + i, `/fehler/${i}`, 500);
+  }
+
+  expected.total = lines.length;
+  expected.parsed = lines.length;
+  expected.filtered = expected.botFiltered + expected.statusFiltered;
+  expected.kept = expected.visitors + expected.productViews + expected.assetHits + expected.conversions + expected.duplicateConversions;
+  expected.pageViews = expected.visitors + expected.productViews + expected.conversions + expected.duplicateConversions;
+  expected.successRaw = expected.conversions + expected.duplicateConversions;
+  expected.success = expected.conversions;
+  expected.adSuccess = expected.conversions;
+  expected.landingViews = expected.visitors;
+  return { text: lines.join("\n"), expected };
+}
+
 const tests = [];
 function test(name, fn) {
   tests.push([name, fn, false]);
@@ -347,6 +427,45 @@ test("dieselbe Besuchsrealitaet zaehlt ueber Edge-Formate gleich", () => {
     assert.strictEqual(result.success, 1);
     assert.strictEqual(result.pathCounts.get("/preise"), 2);
     assert.strictEqual(result.pathCounts.get("/checkout/danke"), 2);
+  }
+});
+
+test("grosser Golden-Corpus mit ueber 1000 Besuchern liefert feste Sollwerte", () => {
+  for (const kind of ["combined", "cloudflare"]) {
+    const { text, expected } = createLargeGoldenCorpus(kind);
+    const result = buildResultFor(text, {
+      successPattern: "/checkout/*",
+      orderParam: "order_id",
+      hasSuccessUrl: true
+    }, {
+      "ga4-url-views": { value: `/landing,${expected.landingViews}\n/checkout/danke,${expected.successRaw}` },
+      "ga4-conversions": { value: String(expected.success) }
+    });
+
+    assertBuiltResultInvariants(result);
+    assert.strictEqual(result.formatKind, kind);
+    assert.strictEqual(result.total, expected.total);
+    assert.strictEqual(result.parsed, expected.parsed);
+    assert.strictEqual(result.unrecognized, 0);
+    assert.strictEqual(result.filtered, expected.filtered);
+    assert.strictEqual(result.reasons.bot, expected.botFiltered);
+    assert.strictEqual(result.reasons.status, expected.statusFiltered);
+    assert.strictEqual(result.kept, expected.kept);
+    assert.strictEqual(result.pageViews, expected.pageViews);
+    assert.strictEqual(result.visits, expected.visitors);
+    assert.strictEqual(result.successRaw, expected.successRaw);
+    assert.strictEqual(result.success, expected.success);
+    assert.strictEqual(result.adVisitors, expected.adVisitors);
+    assert.strictEqual(result.adSuccess, expected.adSuccess);
+    assert.strictEqual(result.pathCounts.get("/landing"), expected.landingViews);
+    assert.strictEqual(result.pathCounts.get("/checkout/danke"), expected.successRaw);
+    assert.strictEqual(result.pathCounts.get("/assets/app.css"), expected.assetHits);
+    assert.strictEqual(result.statusCounts.find((item) => item.name === "200").count, expected.kept);
+    assert.strictEqual(result.diagnostics.pageviewReliability, "high");
+    assert.strictEqual(result.diagnostics.visitorReliability, "high");
+    assert.strictEqual(result.diagnostics.conversionReliability, "high");
+    assert.strictEqual(result.diagnostics.trackingReliability, "high");
+    assert.strictEqual(result.trackingCapped, false);
   }
 });
 
