@@ -661,6 +661,44 @@
         line-height: 1.35;
       }
 
+      .claim-box {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .claim-box.hidden {
+        display: none;
+      }
+
+      .claim-box > div {
+        border: 1px solid var(--black);
+        background: var(--white);
+        padding: 14px;
+      }
+
+      .claim-box strong {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+
+      .claim-box ul {
+        margin: 0;
+        padding-left: 18px;
+        color: #27272a;
+        font-size: 14px;
+        line-height: 1.35;
+      }
+
+      .claim-box li + li {
+        margin-top: 7px;
+      }
+
       .purchase-box {
         margin-top: 18px;
         border: 1px solid var(--black);
@@ -947,6 +985,7 @@
         .flow,
         .numbers,
         .purchase-grid,
+        .claim-box,
         .server-grid,
         dl,
         .two {

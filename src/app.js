@@ -1049,6 +1049,9 @@
         if (!el) return;
         el.textContent = text || "";
       }
+      function unique(items) {
+        return [...new Set(items.filter(Boolean))];
+      }
       function qualityReason(data, metric, hasGa4) {
         if (metric === "views") {
           const recognized = percent(data.diagnostics.recognitionRate * 100);
@@ -1111,6 +1114,23 @@
           : "Keine Kauf-/Danke-Seite angegeben."));
         id("precision-checklist").innerHTML = rows.join("");
       }
+      function renderClaimBox(data, hasGa4, hasConv) {
+        const relevant = [
+          data.claims.pageViews,
+          data.claims.visits,
+          ...(hasGa4 ? [data.claims.ga4] : []),
+          data.claims.hostScope,
+          ...(data.hasSuccessUrl || hasConv ? [data.claims.conversions] : [])
+        ].filter(Boolean);
+        const allowed = unique(relevant.filter((claim) => claim.claimAllowed).map((claim) => claim.statement)).slice(0, 4);
+        const forbidden = unique(relevant.flatMap((claim) => claim.forbiddenConclusions || [])).slice(0, 4);
+        const checks = unique(relevant.flatMap((claim) => claim.recommendedChecks || [])).slice(0, 4);
+        const listHtml = (items, fallback) => (items.length ? items : [fallback]).map((text) => `<li>${escapeHtml(text)}</li>`).join("");
+        id("claim-allowed").innerHTML = listHtml(allowed, "Die Hauptzahlen als ersten Richtwert nutzen.");
+        id("claim-forbidden").innerHTML = listHtml(forbidden, "Keine harte Entscheidung treffen, ohne Zeitraum und Website zu prüfen.");
+        id("claim-checks").innerHTML = listHtml(checks, "Zeitraum, Website und Export kurz gegenprüfen.");
+        id("claim-box").classList.remove("hidden");
+      }
       function render(data) {
         analyzed = true;
         lastResult = data;
@@ -1150,6 +1170,7 @@
         setQualityReason("q-bot", qualityReason(data, "bot", hasGa4));
         setQualityReason("q-tracking", qualityReason(data, "tracking", hasGa4));
         setPrecisionChecklist(data, hasGa4);
+        renderClaimBox(data, hasGa4, hasConv);
 
         // Kauf-Check (signierte Differenz)
         id("pc-server").textContent = data.hasSuccessUrl ? format(data.success) : "-";
