@@ -638,6 +638,102 @@ test("grosser Corpus mit kaputten Zeilen senkt Recognition-Ampel und behaelt erk
   assert.strictEqual(result.diagnostics.pageviewReliability, "medium");
 });
 
+test("Ground Truth: fehlende Zeitbloecke bleiben im Report als Exportluecke sichtbar", async () => {
+  const lines = [];
+  for (let i = 0; i < 120; i++) {
+    lines.push(combined(docIp(i), combinedStampAt(i * 20), `/morgen/${i}`));
+  }
+  for (let i = 0; i < 120; i++) {
+    lines.push(combined(docIp(i + 120), combinedStampAt((8 * 60 * 60) + (i * 20)), `/abend/${i}`));
+  }
+  const report = await copyReportFor(buildResultFor(lines.join("\n"), {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }));
+
+  assert.strictEqual(report.totals.pageViews, 240);
+  assert.ok(report.timeRange.maxGapHours >= 7);
+  assert.match(report.accuracyNotes.pageViews, /Datei wurde sauber gelesen/i);
+  assert.strictEqual(report.claims.pageViews.claimAllowed, true);
+  assert.match(report.claims.ga4.recommendedChecks.join(" "), /Zeitraum/i);
+});
+
+test("Ground Truth: Cache-Origin-Unterzaehlung darf nicht als vollstaendige Server-Wahrheit erscheinen", async () => {
+  const { text } = createLargeGoldenCorpus("combined", {
+    proxyIp: "10.0.0.5",
+    xff: true
+  });
+  const report = await copyReportFor(buildResultFor(text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/landing,1250\n/checkout/danke,125" }
+  }));
+
+  assert.strictEqual(report.quality.cacheRisk, "elevated");
+  assert.strictEqual(report.evidence.pageViews.type, "lower_bound");
+  assert.match(report.claims.pageViews.statement, /Mindestwert/i);
+  assert.match(report.claims.pageViews.blockingReasons.join(" "), /Cache/i);
+  assert.match(report.claims.pageViews.forbiddenConclusions.join(" "), /alle Aufrufe/i);
+});
+
+test("Ground Truth: falsche GA4-Seitenauswahl bleibt nur Vergleich mit Pruefpflicht", async () => {
+  const { text, expected } = createLargeGoldenCorpus("combined");
+  const report = await copyReportFor(buildResultFor(text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: `/landing,${expected.landingViews * 2}\n/nicht-im-log,9000` }
+  }));
+
+  assert.ok(report.topPages.find((row) => row.name === "/landing").coverage > 100);
+  assert.strictEqual(report.claims.ga4.claimAllowed, true);
+  assert.match(report.claims.ga4.statement, /gleicher Website, gleichem Zeitraum und gleichen Seiten/i);
+  assert.match(report.claims.ga4.recommendedChecks.join(" "), /Seitenaufrufe/i);
+  assert.match(report.claims.ga4.forbiddenConclusions.join(" "), /nicht ohne Zeitraum/i);
+});
+
+test("Ground Truth: Danke-Seiten-Reloads ohne Bestellnummer senken Kauf-Sicherheit", () => {
+  const lines = [];
+  for (let i = 0; i < 30; i++) {
+    const ip = docIp(i);
+    const base = i * 120;
+    lines.push(combined(ip, combinedStampAt(base), "/checkout/danke"));
+    lines.push(combined(ip, combinedStampAt(base + 10), "/checkout/danke"));
+    lines.push(combined(ip, combinedStampAt(base + 20), "/checkout/danke"));
+  }
+  const result = buildResultFor(lines.join("\n"), {
+    successPattern: "/checkout/*",
+    hasSuccessUrl: true
+  });
+
+  assertBuiltResultInvariants(result);
+  assert.strictEqual(result.successRaw, 90);
+  assert.strictEqual(result.success, 30);
+  assert.strictEqual(result.diagnostics.conversionReliability, "medium");
+  assert.strictEqual(result.claims.conversions.claimAllowed, true);
+  assert.match(result.claims.conversions.blockingReasons.join(" "), /Ohne Bestellnummer/i);
+  assert.match(result.claims.conversions.recommendedChecks.join(" "), /Bestellnummer/i);
+});
+
+test("Ground Truth: interner Test-Traffic darf nicht automatisch als Proxy-Risiko gelten", () => {
+  const lines = [];
+  for (let i = 0; i < 220; i++) {
+    lines.push(combined("198.51.100.77", combinedStampAt(i * 20), `/test/${i}`));
+  }
+  const result = buildResultFor(lines.join("\n"));
+
+  assertBuiltResultInvariants(result);
+  assert.strictEqual(result.proxyKind, "concentrated");
+  assert.strictEqual(result.diagnostics.visitorReliability, "limited");
+  assert.strictEqual(result.claims.visits.claimAllowed, false);
+  assert.match(result.claims.visits.blockingReasons.join(" "), /Proxy oder Cache/i);
+  assert.doesNotMatch(result.claims.pageViews.blockingReasons.join(" "), /Zu viel der Datei/i);
+});
+
 test("liest GA4-Werte mit Semikolon, Tab und Tausenderzeichen", () => {
   const values = {
     "ga4-url-views": { value: "/preise; 1.234\n/produkt\t840\n/,1,234\nhttps://example.test/a,b,12" }
