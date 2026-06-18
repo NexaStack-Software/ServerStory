@@ -624,6 +624,31 @@
         margin: 10px 0 0;
       }
 
+      .diagnostic-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .diagnostic-item {
+        border: 1px solid var(--line);
+        background: var(--paper);
+        padding: 12px;
+      }
+
+      .diagnostic-item > span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.03em;
+      }
+
+      .diagnostic-item .helper {
+        margin: 8px 0 0;
+      }
+
       .quality-badge {
         display: inline-block;
         width: fit-content;

@@ -929,6 +929,18 @@
           if (data.diagnostics.ga4Reliability === "medium") return "GA4-Werte mit Server-Seiten abgeglichen; Zeitraum/Seiten muessen identisch sein.";
           return "GA4-Vergleich eingeschraenkt; Eingabe oder Server-Erkennung pruefen.";
         }
+        if (metric === "host") {
+          if (data.diagnostics.hostReliability === "limited") return `Mehrere Hosts/Domains erkannt (${format(data.hosts.total)}). Ohne Hostfilter kann die Analyse fremde Domains enthalten.`;
+          return "Host-Scope wirkt eindeutig.";
+        }
+        if (metric === "bot") {
+          if (data.diagnostics.botReliability === "medium") return `${format(data.suspiciousClients)} Besucher-Schluessel mit auffaellig vielen Aufrufen fast ohne Assets. Bot-/Monitoring-Anteil pruefen.`;
+          return data.reasons.bot ? `${format(data.reasons.bot)} klare Bot-/Crawler-Zeilen gefiltert; keine auffaellige Restkonzentration erkannt.` : "Keine auffaellige Bot-/Monitoring-Konzentration erkannt.";
+        }
+        if (metric === "tracking") {
+          if (data.diagnostics.trackingReliability === "medium") return "Tracking-Speicherlimit erreicht. Hauptzahlen bleiben nutzbar, aber Besucher-, Bot- und Deduplikationssignale koennen grober sein.";
+          return "Tracking-Speicherlimit nicht erreicht.";
+        }
         return "";
       }
       function setPrecisionChecklist(data, hasGa4) {
@@ -978,10 +990,16 @@
         setQuality("q-views", data.diagnostics.pageviewReliability);
         setQuality("q-purchases", data.hasSuccessUrl ? data.diagnostics.conversionReliability : "none");
         setQuality("q-ga4", hasGa4 ? data.diagnostics.ga4Reliability : "none");
+        setQuality("q-host", data.diagnostics.hostReliability);
+        setQuality("q-bot", data.diagnostics.botReliability);
+        setQuality("q-tracking", data.diagnostics.trackingReliability);
         setQualityReason("q-visits", qualityReason(data, "visits", hasGa4));
         setQualityReason("q-views", qualityReason(data, "views", hasGa4));
         setQualityReason("q-purchases", qualityReason(data, "purchases", hasGa4));
         setQualityReason("q-ga4", qualityReason(data, "ga4", hasGa4));
+        setQualityReason("q-host", qualityReason(data, "host", hasGa4));
+        setQualityReason("q-bot", qualityReason(data, "bot", hasGa4));
+        setQualityReason("q-tracking", qualityReason(data, "tracking", hasGa4));
         setPrecisionChecklist(data, hasGa4);
 
         // Kauf-Check (signierte Differenz)

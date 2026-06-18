@@ -1081,9 +1081,42 @@ test("Render zeigt Limitierungsgruende bei gemischten Hosts und falscher GA4-Met
   ui.ctx.render(data);
   assert.strictEqual(ui.get("q-ga4").textContent, "Belastbarkeit niedrig");
   assert.match(ui.get("q-ga4-reason").textContent, /Nutzer|Users|falsche Metrik/i);
+  assert.strictEqual(ui.get("q-host").textContent, "Belastbarkeit niedrig");
+  assert.match(ui.get("q-host-reason").textContent, /Mehrere Hosts\/Domains erkannt/i);
   assert.match(ui.get("recognition-hint").textContent, /mehrere Hosts\/Domains/i);
   assert.match(ui.get("recognition-hint").textContent, /Nutzer|Users|falsche Metrik/i);
   assert.match(ui.get("precision-checklist").innerHTML, /Mehrere Hosts\/Domains erkannt/i);
+});
+
+test("Render verhindert falsche Sicherheit bei Proxy, Bot-Anomalien und Tracking-Cap", () => {
+  const proxyData = buildResultFor(createLargeGoldenCorpus("combined", {
+    proxyIp: "10.0.0.5",
+    xff: true
+  }).text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  });
+  const proxyUi = createRenderContext();
+  proxyUi.ctx.render(proxyData);
+  assert.strictEqual(proxyUi.get("q-visits").textContent, "Belastbarkeit niedrig");
+  assert.match(proxyUi.get("q-visits-reason").textContent, /Proxy-\/CDN-Muster erkannt/i);
+  assert.match(proxyUi.get("proxy-hint").textContent, /Reverse-Proxy|Loadbalancer/i);
+
+  const botUi = createRenderContext();
+  botUi.ctx.render(buildResultFor(fixture("suspicious-volume.log")));
+  assert.strictEqual(botUi.get("q-bot").textContent, "Belastbarkeit mittel");
+  assert.match(botUi.get("q-bot-reason").textContent, /auffaellig vielen Aufrufen/i);
+
+  const cappedLines = [];
+  for (let i = 0; i < 1005; i++) {
+    cappedLines.push(`198.51.${Math.floor(i / 250)}.${i % 250} - - [05/Jun/2026:10:00:00 +0200] "GET /p${i} HTTP/1.1" 200 100 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"`);
+  }
+  const capUi = createRenderContext();
+  capUi.ctx.render(buildResultFor(cappedLines.join("\n"), { maxTrackedClients: 1000 }));
+  assert.strictEqual(capUi.get("q-tracking").textContent, "Belastbarkeit mittel");
+  assert.match(capUi.get("q-tracking-reason").textContent, /Speicherlimit erreicht/i);
+  assert.match(capUi.get("recognition-hint").textContent, /Tracking-Speicherlimit wurde erreicht/i);
 });
 
 test("Copy-Report liefert versioniertes Schema mit Genauigkeitshinweisen", async () => {
