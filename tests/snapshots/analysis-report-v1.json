@@ -2,6 +2,14 @@
   "schema": "serverstory.analysis.v1",
   "schemaVersion": 1,
   "format": "combined",
+  "ga4Validation": {
+    "rows": 2,
+    "unmatchedRows": 0,
+    "unmatchedShare": 0,
+    "unmatchedPaths": [],
+    "duplicateCount": 0,
+    "duplicatePaths": []
+  },
   "totals": {
     "rows": 6,
     "parsed": 6,

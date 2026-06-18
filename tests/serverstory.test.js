@@ -701,11 +701,28 @@ test("Ground Truth: falsche GA4-Seitenauswahl bleibt nur Vergleich mit Pruefpfli
   }));
 
   assert.ok(report.topPages.find((row) => row.name === "/landing").coverage > 100);
-  assert.strictEqual(report.conflicts.length, 0);
-  assert.strictEqual(report.claims.ga4.claimAllowed, true);
+  assert.ok(report.conflicts.some((conflict) => conflict.id === "ga4_pages_missing_in_server"));
+  assert.strictEqual(report.ga4Validation.unmatchedRows, 1);
+  assert.strictEqual(report.claims.ga4.claimAllowed, false);
   assert.match(report.claims.ga4.statement, /gleicher Website, gleichem Zeitraum und gleichen Seiten/i);
   assert.match(report.claims.ga4.recommendedChecks.join(" "), /Seitenaufrufe/i);
-  assert.match(report.claims.ga4.forbiddenConclusions.join(" "), /nicht ohne Zeitraum/i);
+  assert.match(report.claims.ga4.forbiddenConclusions.join(" "), /Keine Budget- oder Tracking-Entscheidung/i);
+});
+
+test("Ground Truth: doppelte GA4-Zeilen blockieren glatten Vergleich", async () => {
+  const report = await copyReportFor(buildResultFor(baselineCombined, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/preise,1\n/preise,2\n/checkout/danke,1" }
+  }));
+
+  assert.strictEqual(report.ga4Validation.duplicateCount, 1);
+  assert.deepStrictEqual(report.ga4Validation.duplicatePaths, ["/preise"]);
+  assert.ok(report.conflicts.some((conflict) => conflict.id === "ga4_duplicate_pages"));
+  assert.strictEqual(report.claims.ga4.claimAllowed, false);
+  assert.match(report.claims.ga4.recommendedChecks.join(" "), /Doppelte GA4-Zeilen/i);
 });
 
 test("Ground Truth: Danke-Seiten-Reloads ohne Bestellnummer senken Kauf-Sicherheit", () => {

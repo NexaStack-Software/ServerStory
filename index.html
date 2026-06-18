@@ -1518,7 +1518,7 @@
       }
       function ga4UrlViews() {
         const values = new Map();
-        lastGa4Import = { warning: "" };
+        lastGa4Import = { warning: "", rows: 0, duplicateCount: 0, duplicatePaths: [] };
         const lines = id("ga4-url-views").value
           .replace(/^\uFEFF/, "")
           .split(/\r?\n/)
@@ -1566,7 +1566,14 @@
           }
           }
           if (!path || views === null) continue;
-          values.set(path, views);
+          lastGa4Import.rows++;
+          if (values.has(path)) {
+            lastGa4Import.duplicateCount++;
+            if (!lastGa4Import.duplicatePaths.includes(path)) lastGa4Import.duplicatePaths.push(path);
+            values.set(path, values.get(path) + views);
+          } else {
+            values.set(path, views);
+          }
         }
         if (lines.length && values.size === 0 && !lastGa4Import.warning) {
           lastGa4Import.warning = "Die GA4-Eingabe konnte nicht als Seitenaufrufe gelesen werden. Bitte Export mit Page path und Views/Page Views verwenden.";
@@ -2261,6 +2268,15 @@
               worst: ga4Rows.filter((row) => row.coverage !== null && row.serverViews > 0).sort((a, b) => a.coverage - b.coverage)[0] || null
             }
           : null;
+        const ga4OnlyRows = ga4Rows.filter((row) => row.ga4Views !== null && row.ga4Views !== undefined && row.serverViews === 0);
+        const ga4Validation = {
+          rows: lastGa4Import.rows || 0,
+          unmatchedRows: ga4OnlyRows.length,
+          unmatchedShare: ga4Rows.length ? ga4OnlyRows.length / ga4Rows.length : 0,
+          unmatchedPaths: ga4OnlyRows.slice(0, 8).map((row) => row.name),
+          duplicateCount: lastGa4Import.duplicateCount || 0,
+          duplicatePaths: (lastGa4Import.duplicatePaths || []).slice(0, 8)
+        };
         const ga4Conversions = number("ga4-conversions");
         const convDiff = ga4Conversions === null ? null : agg.success - ga4Conversions;
         const serverCr = agg.visits ? (agg.success / agg.visits) * 100 : 0;
@@ -2289,7 +2305,8 @@
         const edgeKinds = new Set(["cloudflare", "cloudfront", "fastly", "akamai"]);
         const structuredKinds = new Set([...edgeKinds, "iis"]);
         const pageviewReliability = recognitionRate >= 0.95 && (agg.formatKind === "combined" || structuredKinds.has(agg.formatKind)) ? "high" : recognitionRate >= 0.8 ? "medium" : "limited";
-        const ga4Reliability = lastGa4Import.warning ? "limited" : (ga4Rows.length && pageviewReliability !== "limited" ? "medium" : "limited");
+        const ga4InputProblem = ga4Validation.duplicateCount > 0 || (ga4Validation.unmatchedRows > 0 && ga4Validation.unmatchedShare >= 0.5);
+        const ga4Reliability = lastGa4Import.warning || ga4InputProblem ? "limited" : (ga4Rows.length && pageviewReliability !== "limited" ? "medium" : "limited");
         const conversionReliability = config.hasSuccessUrl
           ? (config.orderParam ? "high" : (agg.successRaw > agg.success * 1.25 ? "medium" : "high"))
           : "none";
@@ -2325,6 +2342,24 @@
             ["ga4_decision"]
           );
         }
+        if (overall && ga4Validation.unmatchedRows > 0 && ga4Validation.unmatchedShare >= 0.5) {
+          addConflict(
+            "ga4_pages_missing_in_server",
+            "high",
+            `${format(ga4Validation.unmatchedRows)} GA4-Seiten haben keinen Treffer in der Server-Datei.`,
+            "Prüfen, ob GA4-Zeitraum, Website und Seitenauswahl wirklich zur Server-Datei passen.",
+            ["ga4_decision"]
+          );
+        }
+        if (overall && ga4Validation.duplicateCount > 0) {
+          addConflict(
+            "ga4_duplicate_pages",
+            "medium",
+            "GA4 enthält dieselbe Seite mehrfach. ServerStory summiert diese Zeilen, aber der Export sollte geprüft werden.",
+            "Doppelte GA4-Zeilen entfernen oder den Export nach Seite zusammenfassen.",
+            ["ga4_decision"]
+          );
+        }
         if (ga4Conversions !== null && config.hasSuccessUrl && ga4Conversions > agg.successRaw) {
           addConflict(
             "ga4_purchases_exceed_server_success_page",
@@ -2352,6 +2387,7 @@
             ["complete_time_range"]
           );
         }
+        const ga4DecisionBlocked = conflicts.some((conflict) => conflict.blocks.includes("ga4_decision"));
         const evidence = {
           pageViews: {
             type: originCacheRisk ? "lower_bound" : "measured",
@@ -2379,10 +2415,14 @@
               : "Ohne Danke-Seite oder Conversion-Muster kann ServerStory keine Conversions bestimmen."
           },
           ga4: {
-            type: overall && !lastGa4Import.warning && hostReliability !== "limited" ? "comparison" : "not_determinable",
+            type: overall && !lastGa4Import.warning && hostReliability !== "limited" && !ga4DecisionBlocked ? "comparison" : "not_determinable",
             reliability: ga4Reliability,
-            canAnswer: !!(overall && !lastGa4Import.warning && hostReliability !== "limited"),
-            reason: lastGa4Import.warning || (!overall ? "Keine brauchbaren GA4-Seitenzahlen eingetragen." : (hostReliability === "limited" ? "Die Datei enthält mehrere Websites. Ohne Filter ist der GA4-Vergleich unsicher." : "GA4 wurde mit denselben Seitenadressen aus der Server-Datei verglichen."))
+            canAnswer: !!(overall && !lastGa4Import.warning && hostReliability !== "limited" && !ga4DecisionBlocked),
+            reason: lastGa4Import.warning || (!overall
+              ? "Keine brauchbaren GA4-Seitenzahlen eingetragen."
+              : (hostReliability === "limited"
+                ? "Die Datei enthält mehrere Websites. Ohne Filter ist der GA4-Vergleich unsicher."
+                : (ga4DecisionBlocked ? conflicts.find((conflict) => conflict.blocks.includes("ga4_decision")).text : "GA4 wurde mit denselben Seitenadressen aus der Server-Datei verglichen.")))
           },
           hostScope: {
             type: hosts.total ? "measured" : "not_available",
@@ -2438,7 +2478,7 @@
               : (visitorReliability === "medium" ? ["Besucherzahl nicht als exakten Wert behandeln."] : [])
           },
           ga4: {
-            claimAllowed: !!(overall && !lastGa4Import.warning && hostReliability !== "limited" && pageviewReliability !== "limited"),
+            claimAllowed: !!(overall && !lastGa4Import.warning && hostReliability !== "limited" && pageviewReliability !== "limited" && !ga4DecisionBlocked),
             confidence: ga4Reliability,
             statement: overall ? "GA4-Vergleich ist nur mit gleicher Website, gleichem Zeitraum und gleichen Seiten belastbar." : "GA4-Vergleich nicht vorhanden.",
             blockingReasons: [
@@ -2454,7 +2494,7 @@
               ...(hostReliability === "limited" ? ["Website-Filter setzen."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.check)
             ],
-            forbiddenConclusions: !(overall && !lastGa4Import.warning && hostReliability !== "limited" && pageviewReliability !== "limited")
+            forbiddenConclusions: !(overall && !lastGa4Import.warning && hostReliability !== "limited" && pageviewReliability !== "limited" && !ga4DecisionBlocked)
               ? ["Keine Budget- oder Tracking-Entscheidung aus dem GA4-Vergleich ableiten."]
               : ["GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."]
           },
@@ -2502,6 +2542,7 @@
           evidence,
           claims,
           conflicts,
+          ga4Validation,
           ga4Import: lastGa4Import,
           diagnostics: { recognitionRate, pageviewReliability, visitorReliability, ga4Reliability, conversionReliability, cacheRisk, chronologyIssue, botReliability, hostReliability, trackingReliability: agg.trackingCapped ? "medium" : "high" },
           hasSuccessUrl: config.hasSuccessUrl, ga4Conversions, convDiff, serverCr,
@@ -3002,6 +3043,7 @@
           evidence: lastResult.evidence,
           claims: lastResult.claims,
           conflicts: lastResult.conflicts,
+          ga4Validation: lastResult.ga4Validation,
           xForwardedFor: {
             used: lastResult.xffUsed,
             missing: lastResult.xffMissing,
