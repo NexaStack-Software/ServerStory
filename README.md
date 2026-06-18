@@ -46,9 +46,28 @@ Danach hast du einen ganz normalen Ordner mit den Dateien darin.
 Du siehst sofort deine meistbesuchten Seiten und — als Richtwert — wie viele Besucher du
 im gewählten Zeitraum hattest.
 
-> **Sehr große Logdatei?** Kein Problem — die Datei wird zeilenweise mit Fortschritts-
-> anzeige verarbeitet und friert den Browser nicht ein. Nur bei vielen Millionen Zeilen
-> kann es ein paar Sekunden dauern.
+### Was du im Ergebnis siehst
+
+Ganz oben steht ein farbiges **Ampel-Signal** (Icon + kurzes Label) als schnelles
+Gesamturteil — grün heißt „passt", gelb „kleine Lücke / Achtung", rot „hier solltest du
+genauer hinschauen". Dazu gibt es bei Bedarf kurze Hinweis-Boxen.
+
+Außerdem werden die wichtigsten Kennzahlen offen ausgewiesen, damit du nachvollziehen
+kannst, wie die Zahlen zustande kommen:
+
+- **Seitenaufrufe gesamt** und die meistbesuchten Seiten
+- **geschätzte Besucher** (verschiedene Menschen, als Richtwert)
+- **lesbare Zeilen**, also wie viele Logzeilen tatsächlich ausgewertet wurden
+- **nicht verwendete Zeilen** samt Grund (z. B. Bot, Fehlerstatus, außerhalb des
+  Zeitraums oder „Format nicht erkannt")
+
+> **Sehr große Logdatei?** Kein Problem — die Datei wird zeilenweise gestreamt und mit
+> Fortschrittsanzeige verarbeitet, der Browser friert nicht ein. Intern ist der
+> Speicherverbrauch gedeckelt, sodass auch sehr große Dateien sicher durchlaufen. Nur bei
+> vielen Millionen Zeilen kann es ein paar Sekunden dauern.
+>
+> Kaputte oder unleserliche Zeilen lassen das Tool nicht abstürzen — sie werden
+> übersprungen und im Ergebnis als „nicht lesbar" bzw. „Format nicht erkannt" ausgewiesen.
 
 ---
 
@@ -65,6 +84,17 @@ exportiert.
 
 **Erst mal ausprobieren?** Klicke im Tool auf **„Demo mit Beispieldaten starten"** —
 dann siehst du an Beispielzahlen, wie das Ergebnis aussieht, ganz ohne eigene Datei.
+
+### Welches Logformat passt?
+
+ServerStory liest das **Combined Log Format** von Apache und Nginx — das ist das mit
+Abstand gängigste Format, und genau danach fragen die fertigen Textvorlagen im Tool.
+
+Liegt deine Website hinter einem Edge/CDN (z. B. Cloudflare, CloudFront, Fastly oder
+Akamai) und exportierst du die Logs direkt dort, kommen sie oft im hauseigenen JSON-
+oder TSV-Format — das erkennt ServerStory aktuell nicht direkt. Bitte in dem Fall deine
+IT, deinen Hoster oder den CDN-Export auf das **Apache/Nginx Combined Log Format**
+einzustellen, dann passt die Auswertung.
 
 ## Optional: mit Google Analytics vergleichen
 
@@ -99,12 +129,13 @@ sondern *wo* sich Server und Google Analytics unterscheiden:
 nicht gecacht (dynamisch, pro Bestellung) und erreicht den Server zuverlässig — der
 Kauf-Vergleich bleibt belastbar.
 
-**Bots.** ServerStory erkennt Bots und Crawler an ihrem User-Agent (Googlebot,
-Monitoring, Skript-Tools usw.) und filtert sie heraus. Bots, die sich gezielt als echter
-Browser tarnen, lassen sich so nicht zu 100 % aussortieren — das gilt aber genauso für
-Google Analytics. Wenn du den Verdacht auf viel getarnten Bot-Traffic hast, hilft der
-strenge Filter unter den erweiterten Filtern (lässt nur klar als Browser erkennbare
-Zugriffe durch).
+**Bots.** Standardmäßig erkennt ServerStory Bots und Crawler an ihrem User-Agent
+(Googlebot, Monitoring, Skript-Tools usw.) und filtert sie heraus. Bots, die sich gezielt
+als echter Browser tarnen, lassen sich so nicht zu 100 % aussortieren — das gilt aber
+genauso für Google Analytics. Wenn du den Verdacht auf viel getarnten Bot-Traffic hast,
+aktiviere unter **„Erweiterte Filter"** den **strengen Bot-Filter**: Dann zählen nur noch
+Zugriffe, die sich klar als Browser ausweisen. Das senkt das Bot-Risiko, kann aber auch
+echte Besucher mit exotischen Browsern oder Clients ausschließen.
 
 **Sitzt du hinter einem Proxy oder CDN (z. B. Cloudflare)?** Dann steht in der ersten
 Spalte deiner Logzeile die IP des Proxys, nicht die deiner Besucher — die Besucherzahl
@@ -141,6 +172,22 @@ Zusammenfassen von Besuchen — übertragen oder ausgegeben wird sie nicht.
 Halte dich an die übliche Log-Hygiene: kurze Aufbewahrungsfrist, Zugriff begrenzen,
 Server-Logs in der Datenschutzerklärung erwähnen und IP-Adressen nach Möglichkeit kürzen.
 Das ist keine Rechtsberatung.
+
+## Für technisch Interessierte: Aufbau
+
+ServerStory ist eine **einzige, abhängigkeitsfreie `index.html`** — die komplette Logik
+(HTML, CSS, JavaScript) steckt in dieser Datei. Kein Build-Schritt, kein npm, keine
+externen Bibliotheken zur Laufzeit. **`START_HIER.html`** ist nur der freundliche
+Einstiegspunkt und leitet auf `index.html` weiter.
+
+Es gibt **keine Server-Komponente**: Die Logdatei wird ausschließlich im Browser
+verarbeitet (Streaming Zeile für Zeile), nichts wird hochgeladen oder an einen Server
+gesendet. Die Logzeilen werden gegen das Apache/Nginx Combined Log Format geparst;
+unleserliche Zeilen werden robust übersprungen statt das Tool abstürzen zu lassen.
+
+Tests liegen unter **`tests/`** und prüfen die echte, unveränderte Parser-/Aggregator-
+Logik aus `index.html` (inklusive kaputter und unleserlicher Zeilen) gegen feste
+Beispiel-Logs in `tests/fixtures/`.
 
 ## Lizenz
 
