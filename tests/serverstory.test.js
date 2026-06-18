@@ -1257,4 +1257,21 @@ test("CSP blockiert Netzwerkverbindungen und breite Default-Quellen", () => {
   assert.doesNotMatch(csp, /default-src \*/);
 });
 
+test("Demo nutzt realistische Groessenordnung und keine harte GA4-zu-wenig-Headline", () => {
+  const demoSample = vm.runInContext("sample", ctx);
+  const result = buildResultFor(demoSample, {
+    successUrl: "/bestellung/danke",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/,1950\n/produkt/0,58\n/produkt/2,54\n/produkt/4,55\n/bestellung/danke,185" },
+    "ga4-conversions": { value: "185" }
+  });
+  assert.ok(result.visits >= 2000);
+  assert.ok(result.pageViews >= 3500);
+  assert.ok(result.success >= 200);
+  assert.doesNotMatch(script, /Google Analytics zählt zu wenig/);
+  assert.doesNotMatch(script, /Google Analytics sieht weniger Käufe/);
+  assert.match(script, /GA4-Abdeckung ist niedrig/);
+});
+
 run();

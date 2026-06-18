@@ -1,16 +1,28 @@
 
 
 
-      const sample = `203.0.113.10 - - [05/Jun/2026:10:00:00 +0200] "GET /?gclid=abc123 HTTP/1.1" 200 5321 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0 Safari/537.36"
-203.0.113.10 - - [05/Jun/2026:10:05:00 +0200] "GET /produkt HTTP/1.1" 200 3421 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0 Safari/537.36"
-203.0.113.10 - - [05/Jun/2026:10:12:00 +0200] "GET /bestellung/danke HTTP/1.1" 200 2411 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0 Safari/537.36"
-203.0.113.10 - - [05/Jun/2026:10:12:20 +0200] "GET /bestellung/danke HTTP/1.1" 200 2411 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0 Safari/537.36"
-198.51.100.20 - - [05/Jun/2026:11:00:00 +0200] "GET / HTTP/1.1" 200 5321 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1.15"
-198.51.100.20 - - [05/Jun/2026:11:04:00 +0200] "GET /bestellung/danke HTTP/1.1" 200 2411 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1.15"
-2001:db8::1 - - [05/Jun/2026:11:30:00 +0200] "GET /produkt HTTP/1.1" 200 3400 "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/604.1"
-10.0.0.5 - - [05/Jun/2026:11:45:00 +0200] "GET /preise HTTP/1.1" 200 2100 "-" "Mozilla/5.0 (X11; Linux x86_64) Firefox/126.0" "203.0.113.55, 10.0.0.5"
-192.0.2.30 - - [05/Jun/2026:12:00:00 +0200] "GET / HTTP/1.1" 200 5321 "-" "Googlebot/2.1 (+http://www.google.com/bot.html)"
-198.51.100.77 - - [05/Jun/2026:12:10:00 +0200] "GET /agb HTTP/1.1" 200 800 "-" "-"`;
+      const sample = (() => {
+        const lines = [];
+        const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0 Safari/537.36";
+        const botUa = "Googlebot/2.1 (+http://www.google.com/bot.html)";
+        const pad = (value) => String(value).padStart(2, "0");
+        const stamp = (seconds) => {
+          const d = new Date(Date.UTC(2026, 5, 5, 8, 0, seconds));
+          return `${pad(d.getUTCDate())}/Jun/${d.getUTCFullYear()}:${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} +0200`;
+        };
+        const ip = (i) => `198.51.${Math.floor(i / 250)}.${i % 250}`;
+        const line = (i, seconds, target, status = 200, userAgent = ua) => `${ip(i)} - - [${stamp(seconds)}] "GET ${target} HTTP/1.1" ${status} 123 "-" "${userAgent}"`;
+        for (let i = 0; i < 2500; i++) {
+          const base = i * 5;
+          lines.push(line(i, base, i % 4 === 0 ? `/?gclid=demo-${i}` : "/"));
+          if (i % 2 === 0) lines.push(line(i, base + 1, `/produkt/${i % 20}`));
+          if (i % 3 === 0) lines.push(line(i, base + 2, "/assets/app.css"));
+          if (i % 10 === 0) lines.push(line(i, base + 3, `/bestellung/danke?order_id=D${i}`));
+        }
+        for (let i = 0; i < 80; i++) lines.push(line(2600 + i, 14000 + i, `/bot/${i}`, 200, botUa));
+        for (let i = 0; i < 40; i++) lines.push(line(2700 + i, 14100 + i, `/fehler/${i}`, 500, ua));
+        return lines.join("\n");
+      })();
       let sampleMode = false;
       let analyzed = false;
       let lastResult = null;
@@ -1204,9 +1216,9 @@
           const worstText = worst && worst.coverage < 85 ? ` Am wenigsten auf ${worst.name} (${percent(worst.coverage)}).` : "";
           if (cov < 85) {
             setSignal("warn", "!", "Achtung");
-            id("headline").textContent = "Google Analytics zählt zu wenig";
-            id("subline").textContent = `Auf den verglichenen Seiten sieht Google Analytics nur ${percent(cov)} von dem, was dein Webserver gezählt hat.${worstText}`;
-            id("action").textContent = "Nächster Schritt: Kürze jetzt keine Werbung. Lass Tracking, Cookie-Banner und Ad-Blocker prüfen — das sind die häufigsten Gründe, warum Google Analytics weniger zählt.";
+            id("headline").textContent = "GA4-Abdeckung ist niedrig";
+            id("subline").textContent = `Auf den konkret verglichenen Seiten meldet GA4 ${percent(cov)} der Server-Log-Aufrufe.${worstText}`;
+            id("action").textContent = "Nächster Schritt: Keine Entscheidung nur aus dieser Zahl ableiten. Prüfe zuerst Zeitraum, Hostfilter, GA4-Metrik, Consent, Ad-Blocker und ob Server-/CDN-Logs dieselbe Traffic-Quelle abdecken.";
           } else if (cov < 95) {
             setSignal("medium", "~", "Kleine Lücke");
             id("headline").textContent = "Kleine Abweichung";
@@ -1219,8 +1231,8 @@
             id("action").textContent = "Nächster Schritt: Kurz Zeitraum und Seiten prüfen — danach wirken die Google-Analytics-Zahlen verlässlich.";
           } else {
             setSignal("medium", "~", "GA4 zählt mehr");
-            id("headline").textContent = "Google Analytics zählt mehr als der Webserver";
-            id("subline").textContent = `Für die verglichenen Seiten meldet Google Analytics mehr als der Webserver (${percent(cov)}). Häufigste Ursache: Caching/CDN — gecachte Aufrufe erreichen das Server-Log gar nicht, das Tracking-Skript läuft aber trotzdem. Auch Mehrfachzählung oder Bots können Google Analytics aufblähen.`;
+            id("headline").textContent = "GA4 liegt über dem Server-Log";
+            id("subline").textContent = `Für die verglichenen Seiten meldet GA4 mehr als das ausgewertete Server-Log (${percent(cov)}). Häufige Ursache: Caching/CDN — gecachte Aufrufe erreichen das Origin-Log gar nicht, das Tracking-Skript läuft aber trotzdem. Auch Mehrfachzählung oder Bots können GA4 aufblähen.`;
             id("action").textContent = "Nächster Schritt: Prüfen, ob ein CDN oder Cache (z. B. Cloudflare) vor der Seite sitzt — dann fehlen Aufrufe im Server-Log. Sonst Bots oder Mehrfachzählung in Google Analytics prüfen.";
           }
           if (hasConv && data.convDiff > 0) {
@@ -1237,7 +1249,7 @@
           const rate = data.success ? (diff / data.success) * 100 : 0;
           if (rate >= 15) {
             setSignal("warn", "!", "Achtung");
-            id("headline").textContent = "Google Analytics sieht weniger Käufe";
+            id("headline").textContent = "GA4-Kaufabdeckung ist niedriger";
           } else {
             setSignal("medium", "~", "Kleine Lücke");
             id("headline").textContent = "Kleine Lücke bei den Käufen";
@@ -1345,9 +1357,9 @@
       id("sample").addEventListener("click", () => {
         id("ga4-toggle").open = true;
         id("compare-urls").value = "";
-        id("ga4-url-views").value = "/,1\n/produkt,1\n/bestellung/danke,1\n/preise,1";
+        id("ga4-url-views").value = "/,1950\n/produkt/0,58\n/produkt/2,54\n/produkt/4,55\n/bestellung/danke,185";
         id("success-url").value = "/bestellung/danke";
-        id("ga4-conversions").value = "1";
+        id("ga4-conversions").value = "185";
         id("date-from").value = "2026-06-05";
         id("date-to").value = "2026-06-05";
         id("message").textContent = "Demo gestartet — mit Beispieldaten, ohne echte Datei.";
