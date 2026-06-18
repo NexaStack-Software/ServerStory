@@ -1,0 +1,6 @@
+203.0.113.40 - - [05/Jun/2026:10:00:00 +0200] "GET /preise HTTP/1.1" 200 5321 "-" "Googlebot/2.1 (+http://www.google.com/bot.html)"
+203.0.113.41 - - [05/Jun/2026:10:01:00 +0200] "GET /preise HTTP/1.1" 200 5321 "-" "curl/8.7.1"
+203.0.113.42 - - [05/Jun/2026:10:02:00 +0200] "GET /preise HTTP/1.1" 200 5321 "-" "HeadlessChrome/124.0"
+203.0.113.43 - - [05/Jun/2026:10:03:00 +0200] "GET /preise HTTP/1.1" 200 5321 "-" "Go-http-client/2.0"
+203.0.113.44 - - [05/Jun/2026:10:04:00 +0200] "GET /preise HTTP/1.1" 200 5321 "-" "Java/17.0.10"
+203.0.113.45 - - [05/Jun/2026:10:05:00 +0200] "GET /preise HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"

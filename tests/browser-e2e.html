@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <title>ServerStory Browser E2E</title>
+  </head>
+  <body>
+    <pre id="status">RUNNING</pre>
+    <iframe id="app" src="../index.html" style="width: 1200px; height: 900px;"></iframe>
+    <script>
+      const status = document.getElementById("status");
+      const frame = document.getElementById("app");
+      const log = [
+        '203.0.113.10 - - [05/Jun/2026:10:00:00 +0000] "GET /preise?gclid=abc HTTP/1.1" 200 123 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"',
+        '203.0.113.10 - - [05/Jun/2026:10:02:00 +0000] "GET /assets/app.css HTTP/1.1" 200 123 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"',
+        '203.0.113.10 - - [05/Jun/2026:10:10:00 +0000] "GET /checkout/danke?order_id=A1 HTTP/1.1" 200 123 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"',
+        '203.0.113.11 - - [05/Jun/2026:11:00:00 +0000] "GET /preise HTTP/1.1" 200 123 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"'
+      ].join("\n");
+      const mixedHostsLog = [
+        '203.0.113.20 - - [05/Jun/2026:10:00:00 +0000] "GET https://www.example.test/preise HTTP/1.1" 200 123 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"',
+        '203.0.113.21 - - [05/Jun/2026:10:01:00 +0000] "GET https://shop.example.test/kaufen HTTP/1.1" 200 123 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"',
+        '203.0.113.22 - - [05/Jun/2026:10:02:00 +0000] "GET https://www.example.test/kontakt HTTP/1.1" 200 123 "-" "Mozilla/5.0 Firefox/126.0"'
+      ].join("\n");
+      const xffLog = [
+        '10.0.0.5 - - [05/Jun/2026:10:00:00 +0000] "GET /preise HTTP/1.1" 200 123 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36" "198.51.100.10"',
+        '10.0.0.5 - - [05/Jun/2026:11:00:00 +0000] "GET /kontakt HTTP/1.1" 200 123 "-" "Mozilla/5.0 Firefox/126.0" "198.51.100.11"'
+      ].join("\n");
+      const capLog = Array.from({ length: 1005 }, (_, i) =>
+        `198.51.${Math.floor(i / 250)}.${i % 250} - - [05/Jun/2026:10:00:00 +0000] "GET /p${i} HTTP/1.1" 200 123 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"`
+      ).join("\n");
+
+      function fail(error) {
+        status.textContent = "SERVERSTORY_E2E_FAIL " + (error && error.stack ? error.stack : error);
+      }
+      function assert(condition, message) {
+        if (!condition) throw new Error(message);
+      }
+      function waitFor(fn, timeoutMs = 5000) {
+        const start = Date.now();
+        return new Promise((resolve, reject) => {
+          function tick() {
+            try {
+              if (fn()) { resolve(); return; }
+            } catch (error) {
+              reject(error);
+              return;
+            }
+            if (Date.now() - start > timeoutMs) {
+              reject(new Error("timeout"));
+              return;
+            }
+            setTimeout(tick, 25);
+          }
+          tick();
+        });
+      }
+      function setFile(w, input, text, name) {
+        const file = new w.File([text], name, { type: "text/plain" });
+        Object.defineProperty(input, "files", { configurable: true, value: [file] });
+      }
+      async function gzipBlob(w, text) {
+        if (!w.CompressionStream) return null;
+        const stream = new w.Blob([text]).stream().pipeThrough(new w.CompressionStream("gzip"));
+        return await new w.Response(stream).blob();
+      }
+      function setBlobFile(w, input, blob, name) {
+        const file = new w.File([blob], name, { type: "application/gzip" });
+        Object.defineProperty(input, "files", { configurable: true, value: [file] });
+      }
+
+      frame.addEventListener("load", async () => {
+        try {
+          const w = frame.contentWindow;
+          const d = frame.contentDocument;
+          const id = (name) => d.getElementById(name);
+          let copied = "";
+          Object.defineProperty(w.navigator, "clipboard", {
+            configurable: true,
+            value: { writeText: async (text) => { copied = text; } }
+          });
+
+          setFile(w, id("log-file"), log, "browser-e2e.log");
+          id("success-pattern").value = "/checkout/*";
+          id("order-param").value = "order_id";
+          id("ga4-url-views").value = "/preise,1\n/checkout/danke,1";
+          id("ga4-conversions").value = "1";
+
+          id("preflight").click();
+          await waitFor(() => /Kurzprüfung: combined/.test(id("message").textContent));
+
+          id("run").click();
+          await waitFor(() => id("n-views").textContent === "3");
+          assert(id("n-visits").textContent === "2", "visits not rendered");
+          assert(id("n-purchases").textContent === "1", "purchases not rendered");
+          assert(/Belastbarkeit hoch/.test(id("q-views").textContent), "view quality missing");
+          assert(/Datenzeilen erkannt/.test(id("q-views-reason").textContent), "view quality reason missing");
+          assert(/GA4-Werte/.test(id("q-ga4-reason").textContent), "ga4 reason missing");
+          assert(/Host-Scope wirkt eindeutig/.test(id("precision-checklist").textContent), "precision checklist missing host check");
+
+          id("copy-report").click();
+          await waitFor(() => copied.includes("serverstory.analysis.v1"));
+          const report = JSON.parse(copied);
+          assert(report.schemaVersion === 1, "report schema version missing");
+          assert(report.totals.pageViews === 3, "report pageviews wrong");
+          assert(report.accuracyNotes && report.accuracyNotes.pageViews, "accuracy notes missing");
+
+          const gz = await gzipBlob(w, log);
+          if (gz && w.DecompressionStream) {
+            setBlobFile(w, id("log-file"), gz, "browser-e2e.log.gz");
+            id("ga4-url-views").value = "";
+            id("ga4-conversions").value = "";
+            id("run").click();
+            await waitFor(() => id("n-views").textContent === "3", 7000);
+            assert(/combined/.test(id("precision-checklist").textContent), "gzip analysis did not finish with combined format");
+          }
+
+          setFile(w, id("log-file"), mixedHostsLog, "mixed-hosts.log");
+          id("host-filter").value = "www.example.test";
+          id("ga4-url-views").value = "";
+          id("ga4-conversions").value = "";
+          id("success-pattern").value = "";
+          id("run").click();
+          await waitFor(() => id("n-views").textContent === "2");
+          assert(/Host-Scope wirkt eindeutig/.test(id("precision-checklist").textContent), "host filter precision missing");
+
+          setFile(w, id("log-file"), xffLog, "xff.log");
+          id("host-filter").value = "";
+          id("use-xff").checked = true;
+          id("run").click();
+          await waitFor(() => id("n-visits").textContent === "2");
+          assert(/XFF-IP/.test(id("q-visits-reason").textContent), "xff reason missing");
+
+          setFile(w, id("log-file"), log, "wrong-ga4.log");
+          id("use-xff").checked = false;
+          id("ga4-url-views").value = "Page path,Users\n/preise,1";
+          id("run").click();
+          await waitFor(() => /Nutzer|Users|falsche Metrik/.test(id("q-ga4-reason").textContent));
+
+          setFile(w, id("log-file"), capLog, "tracking-cap.log");
+          id("ga4-url-views").value = "";
+          id("tracking-cap").value = "1000";
+          id("run").click();
+          await waitFor(() => /Tracking-Speicherlimit/.test(id("recognition-hint").textContent), 7000);
+
+          id("sample").click();
+          await waitFor(() => /Demo gestartet/.test(id("message").textContent));
+          await waitFor(() => id("demo-badge").classList.contains("visible"));
+
+          status.textContent = "SERVERSTORY_E2E_PASS";
+        } catch (error) {
+          fail(error);
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,2 @@
+{"timestamp":"2026-06-05T12:00:00Z","client_ip":"203.0.113.30","method":"GET","request":"/preise","host":"example.test","status":200,"user_agent":"Mozilla/5.0 Chrome/125.0","fastly_info_state":"HIT"}
+{"timestamp":"2026-06-05T12:01:00Z","client_ip":"203.0.113.31","method":"GET","request":"/assets/app.css","host":"example.test","status":200,"user_agent":"Mozilla/5.0 Chrome/125.0","fastly_info_state":"HIT"}

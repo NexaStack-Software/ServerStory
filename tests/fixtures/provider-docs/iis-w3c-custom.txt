@@ -1,0 +1,6 @@
+#Software: Microsoft Internet Information Services 10.0
+#Version: 1.0
+#Fields: time date cs-uri-query sc-status cs(User-Agent) cs-method c-ip cs-uri-stem cs-host
+10:00:00 2026-06-05 gclid=abc 200 Mozilla/5.0 GET 203.0.113.30 /preise www.example.test
+10:02:00 2026-06-05 - 200 Mozilla/5.0 GET 203.0.113.30 /assets/app.css www.example.test
+10:10:00 2026-06-05 order_id=A1 200 Mozilla/5.0 GET 203.0.113.31 /checkout/danke www.example.test

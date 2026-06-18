@@ -1,466 +1,843 @@
-// ServerStory — Testsuite für die echte Aggregator-Logik aus index.html.
-//
-// WARUM EIN EIGENER, SCHLANKER RUNNER (statt node:test direkt)?
-// Die Aufgabe verlangt ein klares "expectedFailure"-Konzept mit drei Zuständen,
-// die node:test allein nicht sauber abbildet:
-//   - Ein erwartet fehlschlagender Test (Format wird vom Produktcode noch nicht
-//     unterstützt) darf den Gesamt-Exit-Code NICHT auf Fehler setzen, soll aber
-//     sichtbar als "EXPECTED FAILURE" geloggt werden.
-//   - Schlägt ein erwarteter Fehlschlag plötzlich NICHT mehr fehl (Produktcode
-//     wurde ergänzt), muss das als "UNEXPECTED PASS" auffallen — denn dann ist
-//     der Test veraltet und sollte zu einem echten Test werden.
-//   - Normale Tests sind PASS/FAIL wie üblich.
-// node:test kennt zwar todo/skip, aber "todo"-Tests, die unerwartet bestehen,
-// erzeugen keinen klaren, eigenständig auswertbaren Status und beeinflussen den
-// Exit-Code nicht differenziert genug. Ein eigener Runner (~60 Zeilen) ist hier
-// die robusteste Variante: deterministisch, ohne Abhängigkeiten, mit exakt den
-// vier benötigten Zuständen und einem definierten Exit-Code.
-//
-// Exit-Code-Regel:
-//   0  = alles in Ordnung (alle echten Tests bestanden, erwartete Fehlschläge
-//        sind weiterhin fehlgeschlagen)
-//   1  = mindestens ein echter Test ist fehlgeschlagen ODER ein erwarteter
-//        Fehlschlag ist unerwartet bestanden (beides erfordert Handeln)
-//
-// Keine Netzwerkzugriffe, keine Zeitabhängigkeit, vollständig deterministisch.
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+const zlib = require("zlib");
+const assert = require("assert");
 
-"use strict";
+const root = path.resolve(__dirname, "..");
+const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
+const cut = script.slice(0, script.indexOf("function setSignal"));
 
-const assert = require("node:assert");
-const fs = require("node:fs");
-const path = require("node:path");
-const { loadMakeAggregator } = require("./load-aggregator.js");
+const ctx = {
+  console,
+  URL,
+  Blob,
+  TextDecoderStream,
+  DecompressionStream,
+  setTimeout,
+  clearTimeout,
+  window: { matchMedia: () => ({ matches: false }) },
+  document: { getElementById: () => ({ value: "", checked: false }) }
+};
 
-const makeAggregator = loadMakeAggregator();
-const FIX = path.join(__dirname, "fixtures");
+vm.createContext(ctx);
+vm.runInContext(cut, ctx);
 
-// ---------------------------------------------------------------------------
-// Minimaler Runner
-// ---------------------------------------------------------------------------
-const results = { pass: 0, fail: 0, expectedFailure: 0, unexpectedPass: 0 };
-const failures = [];
+function fixture(name) {
+  return fs.readFileSync(path.join(__dirname, "fixtures", name), "utf8");
+}
 
-function test(name, fn) {
-  try {
-    fn();
-    results.pass++;
-    console.log(`  PASS              ${name}`);
-  } catch (err) {
-    results.fail++;
-    failures.push({ name, err });
-    console.log(`  FAIL              ${name}`);
-    console.log(`                    -> ${err.message.split("\n")[0]}`);
+function fixturePath(name) {
+  return fs.readFileSync(path.join(__dirname, "fixtures", ...name.split("/")), "utf8");
+}
+
+function fixtureNames(dir = path.join(__dirname, "fixtures"), prefix = "") {
+  const names = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      names.push(...fixtureNames(path.join(dir, entry.name), prefix + entry.name + "/"));
+    } else {
+      names.push(prefix + entry.name);
+    }
   }
+  return names;
 }
 
-// Ein Test, von dem wir wissen, dass der Produktcode das Format (noch) nicht
-// unterstützt. Erwartet wird eine Assertion-Verletzung. Tritt sie ein:
-// EXPECTED FAILURE (Suite bleibt grün). Besteht der Test wider Erwarten:
-// UNEXPECTED PASS (Suite wird rot, denn der Test ist jetzt veraltet).
-function expectedFailure(name, grund, fn) {
-  try {
-    fn();
-    results.unexpectedPass++;
-    failures.push({ name, err: new Error("UNEXPECTED PASS — Produktcode unterstützt dieses Format jetzt; Test in echten Test umwandeln") });
-    console.log(`  UNEXPECTED PASS   ${name}`);
-    console.log(`                    -> Produktcode scheint dieses Format nun zu unterstützen — Test aktualisieren.`);
-  } catch (err) {
-    results.expectedFailure++;
-    console.log(`  EXPECTED FAILURE  ${name}`);
-    console.log(`                    -> Produktcode fehlt: ${grund}`);
-  }
+function combined(ip, stamp, target, status = 200, ua = "Mozilla/5.0 Chrome/124.0 Safari/537.36", method = "GET", extra = "") {
+  return `${ip} - - [${stamp}] "${method} ${target} HTTP/1.1" ${status} 123 "-" "${ua}"${extra}`;
 }
 
-function section(title) {
-  console.log("\n" + title);
+function cloudflareEvent(ip, iso, target, status = 200, ua = "Mozilla/5.0 Chrome/124.0 Safari/537.36") {
+  return JSON.stringify({
+    EdgeStartTimestamp: iso,
+    ClientIP: ip,
+    ClientRequestMethod: "GET",
+    ClientRequestURI: `https://example.test${target}`,
+    ClientRequestHost: "example.test",
+    EdgeResponseStatus: status,
+    ClientRequestUserAgent: ua,
+    ClientRequestHeaderXForwardedFor: ip
+  });
 }
 
-// ---------------------------------------------------------------------------
-// Helfer
-// ---------------------------------------------------------------------------
-const BROWSER_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
-// Baut eine valide Combined-Log-Zeile.
-function combined(opts = {}) {
-  const ip = opts.ip || "203.0.113.10";
-  const time = opts.time || "05/Jun/2026:12:00:00 +0200";
-  const method = opts.method || "GET";
-  const target = opts.target || "/";
-  const status = opts.status != null ? opts.status : 200;
-  const size = opts.size != null ? opts.size : 1234;
-  const ref = opts.ref || "-";
-  const ua = opts.ua != null ? opts.ua : BROWSER_UA;
-  const trailing = opts.trailing || "";
-  return `${ip} - - [${time}] "${method} ${target} HTTP/1.1" ${status} ${size} "${ref}" "${ua}"${trailing}`;
+function fastlyEvent(ip, iso, target, status = 200, ua = "Mozilla/5.0 Chrome/124.0 Safari/537.36") {
+  return JSON.stringify({
+    timestamp: iso,
+    client_ip: ip,
+    method: "GET",
+    request: target,
+    host: "example.test",
+    status,
+    user_agent: ua,
+    fastly_info_state: "HIT"
+  });
 }
 
-function feed(agg, lines) {
-  for (const l of lines) agg.processLine(l);
+function akamaiEvent(ip, iso, target, status = 200, ua = "Mozilla/5.0 Chrome/124.0 Safari/537.36") {
+  return JSON.stringify({
+    start: iso,
+    ip,
+    reqMethod: "GET",
+    reqPath: target,
+    reqHost: "example.test",
+    statusCode: status,
+    userAgent: ua,
+    cp: "edge"
+  });
+}
+
+function cloudfrontFixture() {
+  return [
+    "#Version: 1.0",
+    "#Fields: date time x-edge-location sc-bytes c-ip cs-method cs(Host) cs-uri-stem sc-status cs(Referer) cs(User-Agent) cs-uri-query",
+    "2026-06-05 10:00:00 FRA56-P1 100 203.0.113.10 GET example.test /preise 200 - Mozilla/5.0 -",
+    "2026-06-05 10:02:00 FRA56-P1 100 203.0.113.10 GET example.test /assets/app.css 200 - Mozilla/5.0 -",
+    "2026-06-05 10:10:00 FRA56-P1 100 203.0.113.10 GET example.test /checkout/danke 200 - Mozilla/5.0 order_id=A1",
+    "2026-06-05 10:12:00 FRA56-P1 100 203.0.113.10 GET example.test /checkout/danke 200 - Mozilla/5.0 order_id=A1",
+    "2026-06-05 11:00:00 FRA56-P1 100 203.0.113.11 GET example.test /preise 200 - Mozilla/5.0 -",
+    "2026-06-05 11:05:00 FRA56-P1 100 203.0.113.12 GET example.test /api/ping 500 - Mozilla/5.0 -"
+  ].join("\n");
+}
+
+function analyze(text, config = {}) {
+  const agg = ctx.makeAggregator({
+    assetRe: /\.(css|js|png)(\?|$)/i,
+    gzip: false,
+    ...config
+  });
+  for (const line of text.split("\n")) agg.processLine(line);
   return agg.finalize();
 }
 
-function readFixtureLines(file) {
-  return fs.readFileSync(path.join(FIX, file), "utf8").split("\n").filter((l) => l.length > 0);
+function withDomValues(values, fn) {
+  const previous = ctx.document.getElementById;
+  ctx.document.getElementById = (name) => values[name] || { value: "", checked: false };
+  try {
+    return fn();
+  } finally {
+    ctx.document.getElementById = previous;
+  }
 }
 
-// ===========================================================================
-// 1.–3. NICHT unterstützte Fremdformate — erwartete Fehlschläge
-// ===========================================================================
-section("Fremdformate (erwartete Fehlschläge — Produktcode unterstützt nur Combined Log)");
-
-expectedFailure(
-  "Cloudflare Logpush (NDJSON) wird geparst",
-  "kein JSON-/NDJSON-Parser im Aggregator (reLine erwartet Combined-Format)",
-  () => {
-    const agg = makeAggregator({});
-    const lines = readFixtureLines("cloudflare-logpush.ndjson");
-    const r = feed(agg, lines);
-    // Erwartung an einen funktionierenden Parser: alle 4 Zeilen geparst,
-    // 3 GET/2xx davon sind Seitenaufrufe (/, /preise, /danke).
-    assert.ok(r.parsed > 0, "parsed sollte > 0 sein");
-    assert.strictEqual(r.parsed, 4, "alle 4 NDJSON-Zeilen sollten geparst werden");
-    assert.strictEqual(r.pageViews, 3, "3 Seitenaufrufe erwartet");
-  }
-);
-
-expectedFailure(
-  "CloudFront Standard Logs (TSV/W3C) werden geparst",
-  "kein TSV-/#Fields-Header-Parser im Aggregator",
-  () => {
-    const agg = makeAggregator({});
-    const lines = readFixtureLines("cloudfront-standard.tsv").filter((l) => !l.startsWith("#"));
-    const r = feed(agg, lines);
-    assert.ok(r.parsed > 0, "parsed sollte > 0 sein");
-    assert.strictEqual(r.parsed, 4, "alle 4 Datenzeilen sollten geparst werden");
-    assert.strictEqual(r.pageViews, 3, "3 Seitenaufrufe erwartet");
-  }
-);
-
-expectedFailure(
-  "Fastly/Akamai-nahe JSON-Logs werden geparst",
-  "kein verschachtelter-JSON-Parser (request.method/response.status) im Aggregator",
-  () => {
-    const agg = makeAggregator({});
-    const lines = readFixtureLines("fastly-akamai.ndjson");
-    const r = feed(agg, lines);
-    assert.ok(r.parsed > 0, "parsed sollte > 0 sein");
-    assert.strictEqual(r.parsed, 4, "alle 4 JSON-Zeilen sollten geparst werden");
-    assert.strictEqual(r.pageViews, 3, "3 Seitenaufrufe erwartet");
-  }
-);
-
-// Gegenprobe: Die Fremdformat-Zeilen müssen als 'unrecognized' gezählt werden,
-// nicht etwa eine Exception auslösen. Das ist ein ECHTER Test und soll PASSEN.
-test("Fremdformat-Zeilen landen sauber in unrecognized (keine Exception)", () => {
-  const agg = makeAggregator({});
-  const lines = [
-    ...readFixtureLines("cloudflare-logpush.ndjson"),
-    ...readFixtureLines("fastly-akamai.ndjson"),
-  ];
-  const r = feed(agg, lines);
-  assert.strictEqual(r.parsed, 0, "kein Fremdformat darf als geparst gelten");
-  assert.strictEqual(r.unrecognized, lines.length, "alle Fremdzeilen müssen unrecognized sein");
-});
-
-// ===========================================================================
-// 4. Bot-Schwellen — echte Tests, sollen PASSEN
-// ===========================================================================
-section("Bot-Erkennung und strictBot");
-
-test("Googlebot wird als Bot gefiltert (reasons.bot)", () => {
-  const agg = makeAggregator({});
-  const r = feed(agg, [
-    combined({ ua: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" }),
-  ]);
-  assert.strictEqual(r.kept, 0);
-  assert.strictEqual(r.reasons.bot, 1);
-});
-
-test("curl und python-requests werden als Bots gefiltert", () => {
-  const agg = makeAggregator({});
-  const r = feed(agg, [
-    combined({ ua: "curl/8.4.0" }),
-    combined({ ua: "python-requests/2.31.0" }),
-  ]);
-  assert.strictEqual(r.kept, 0);
-  assert.strictEqual(r.reasons.bot, 2);
-});
-
-test("echter Browser wird durchgelassen", () => {
-  const agg = makeAggregator({});
-  const r = feed(agg, [combined({ ua: BROWSER_UA })]);
-  assert.strictEqual(r.kept, 1);
-  assert.strictEqual(r.reasons.bot, 0);
-  assert.strictEqual(r.pageViews, 1);
-});
-
-test("strictBot: unklarer (aber nicht bot-verdächtiger) UA wird per reasons.strict gefiltert", () => {
-  // UA ist >= 8 Zeichen, kein Bot-Treffer, aber kein klarer Browser.
-  const oddUa = "MyCustomNativeApp/3.2 (internal build)";
-  const agg = makeAggregator({ strictBot: true });
-  const r = feed(agg, [combined({ ua: oddUa })]);
-  assert.strictEqual(r.kept, 0);
-  assert.strictEqual(r.reasons.strict, 1);
-  assert.strictEqual(r.reasons.bot, 0);
-});
-
-test("strictBot: echter Browser bleibt erhalten, strict zählt nicht hoch", () => {
-  const agg = makeAggregator({ strictBot: true });
-  const r = feed(agg, [combined({ ua: BROWSER_UA })]);
-  assert.strictEqual(r.kept, 1);
-  assert.strictEqual(r.reasons.strict, 0);
-});
-
-test("ohne strictBot wird derselbe unklare UA durchgelassen", () => {
-  const oddUa = "MyCustomNativeApp/3.2 (internal build)";
-  const agg = makeAggregator({ strictBot: false });
-  const r = feed(agg, [combined({ ua: oddUa })]);
-  assert.strictEqual(r.kept, 1);
-  assert.strictEqual(r.reasons.strict, 0);
-});
-
-// ===========================================================================
-// 5. Large-file-Caps — echte Tests, sollen PASSEN
-// ===========================================================================
-section("Large-File-Verhalten (IP-Cap und Prune)");
-
-function ipFromIndex(i) {
-  // Erzeugt > 50000 garantiert verschiedene öffentliche IPv4-Adressen.
-  const a = 11 + (Math.floor(i / (254 * 254)) % 200); // 11..210, nie privat
-  const b = Math.floor(i / 254) % 254;
-  const c = i % 254;
-  return `${a}.${b}.${c + 1}.7`;
+function buildResultFor(text, config = {}, values = {}) {
+  return withDomValues(values, () => ctx.buildResult(analyze(text, config), {
+    assetRe: /\.(css|js|png)(\?|$)/i,
+    gzip: false,
+    ...config
+  }));
 }
 
-test("> 50000 verschiedene Client-IPs lassen distinctClientIps auf -1 kippen", () => {
-  const agg = makeAggregator({});
-  const N = 50001;
-  let base = Date.parse("2026-06-05T10:00:00+02:00");
-  for (let i = 0; i < N; i++) {
-    // Zeit minimal variieren, bleibt aber deterministisch.
-    const t = new Date(base + i * 1000);
-    const time = formatApacheTime(t);
-    agg.processLine(combined({ ip: ipFromIndex(i), time, ua: BROWSER_UA }));
+function assertAggregatorInvariants(result) {
+  assert.strictEqual(result.parsed + result.unrecognized + result.meta, result.total);
+  assert.strictEqual(result.kept + result.filtered, result.parsed);
+  assert.ok(result.pageViews <= result.kept);
+  assert.ok(result.success <= result.successRaw);
+  assert.ok(result.visits <= result.kept);
+  for (const value of [
+    result.total, result.dataRows, result.parsed, result.unrecognized, result.meta, result.kept,
+    result.pageViews, result.filtered, result.visits, result.successRaw, result.success,
+    result.adVisitors, result.adSuccess, result.timeRegressions, result.xffUsed, result.xffMissing,
+    result.xffPrivate, result.suspiciousClients
+  ]) {
+    assert.strictEqual(Number.isFinite(value), true);
+    assert.ok(value >= 0);
   }
-  const r = agg.finalize();
-  assert.strictEqual(r.distinctClientIps, -1, "Cap muss greifen (distinctClientIps === -1)");
-  assert.strictEqual(r.topClientHits, 0, "bei aktivem Cap wird topClientHits nicht berechnet");
-  assert.strictEqual(r.kept, N, "alle Browser-Zeilen bleiben behalten");
-});
-
-test("unterhalb des Caps wird distinctClientIps korrekt gezählt", () => {
-  const agg = makeAggregator({});
-  for (let i = 0; i < 100; i++) {
-    agg.processLine(combined({ ip: ipFromIndex(i), ua: BROWSER_UA, time: "05/Jun/2026:12:00:00 +0200" }));
-  }
-  const r = agg.finalize();
-  assert.strictEqual(r.distinctClientIps, 100);
-  assert.ok(r.topClientHits >= 1);
-});
-
-test("Prune läuft beim Überschreiten von 250000 Zeilen ohne Fehler und hält Visits konsistent", () => {
-  // Wir speisen > 250000 Zeilen ein, damit der Prune-Pfad (seen % 250000 === 0)
-  // mindestens einmal ausgeführt wird. Ein und derselbe Besucher, Zeitstempel
-  // immer steigend, Lücken < 30min -> genau 1 Visit. Prune darf das nicht
-  // verfälschen und keine Exception werfen.
-  const agg = makeAggregator({});
-  const N = 250002;
-  let base = Date.parse("2026-06-05T08:00:00+02:00");
-  for (let i = 0; i < N; i++) {
-    const t = new Date(base + i * 60 * 1000); // jede Minute -> nie > 30min Lücke
-    agg.processLine(combined({ ip: "203.0.113.99", time: formatApacheTime(t), ua: BROWSER_UA }));
-  }
-  const r = agg.finalize();
-  assert.strictEqual(r.parsed, N);
-  assert.strictEqual(r.visits, 1, "lückenloser Verlauf eines Besuchers = genau 1 Visit");
-});
-
-function formatApacheTime(d) {
-  // Deterministisch in fester Zone +0200 formatieren (auf Basis von UTC + 2h),
-  // damit der Test unabhängig von der lokalen Zeitzone läuft.
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const shifted = new Date(d.getTime() + 2 * 60 * 60 * 1000);
-  const p2 = (n) => String(n).padStart(2, "0");
-  const dd = p2(shifted.getUTCDate());
-  const mon = months[shifted.getUTCMonth()];
-  const yyyy = shifted.getUTCFullYear();
-  const hh = p2(shifted.getUTCHours());
-  const mi = p2(shifted.getUTCMinutes());
-  const ss = p2(shifted.getUTCSeconds());
-  return `${dd}/${mon}/${yyyy}:${hh}:${mi}:${ss} +0200`;
 }
 
-// ===========================================================================
-// 6. Parser-Fuzzing — echte Tests, sollen PASSEN (NIE eine Exception)
-// ===========================================================================
-section("Parser-Fuzzing (Robustheit, keine Exceptions)");
+function assertBuiltResultInvariants(result) {
+  assertAggregatorInvariants(result);
+  assert.ok(result.diagnostics.recognitionRate >= 0);
+  assert.ok(result.diagnostics.recognitionRate <= 1);
+  assert.ok(["high", "medium", "limited"].includes(result.diagnostics.pageviewReliability));
+  assert.ok(["high", "medium", "limited"].includes(result.diagnostics.visitorReliability));
+  assert.ok(["high", "medium", "limited"].includes(result.diagnostics.ga4Reliability));
+  assert.ok(["high", "medium", "limited", "none"].includes(result.diagnostics.conversionReliability));
+  assert.ok(["high", "medium"].includes(result.diagnostics.trackingReliability));
+  assert.ok(result.visitorRange.low <= result.visitorRange.high);
+  assert.ok(result.visitorRange.low >= 1 || result.visits === 0);
+}
 
-test("kaputte/randständige Zeilen werfen nie eine Exception", () => {
-  const agg = makeAggregator({});
-  const garbage = [
-    "",                                            // leer
-    "   ",                                          // nur Whitespace
-    "\t\t",                                         // nur Tabs
-    "völliger Müll ohne Struktur 12345",            // Unicode + Müll
-    "10.0.0.1 - - [kaputt] \"GET / HTTP/1.1\" 200", // unvollständig
-    "10.0.0.1 - - [05/Jun/2026:12:00:00 +0200] \"GET /",  // abgeschnitten
-    "{\"json\":true}",                              // JSON
-    "GET /ohne/alles HTTP/1.1 200",                 // ohne Klammern/Quotes
-    "   ",                           // NUL-Bytes
-    "a".repeat(200000),                             // sehr lange Zeile
-    combined({ time: "31/Foo/2026:99:99:99 +9999" }), // unparsbare Zeit
-    combined({ status: 999 }),                      // exotischer Status (3 Ziffern)
-    combined({ method: "PROPFIND" }),               // exotische Methode
-    combined({ ua: "" }),                           // leere UA
-    combined({ ua: "-" }),                          // UA "-"
-    combined({ ua: "ab" }),                         // zu kurze UA (< 8)
-    combined({ target: "/pfad mit leerzeichen" }),  // Leerzeichen im Pfad
-    combined({ target: "/ünïcödé/path/ß" }),        // Unicode im Pfad
-    combined({ ip: "::1" }) + "\r",                 // CRLF + IPv6-Loopback
-    "10.0.0.1 - - [05/Jun/2026:12:00:00 +0200] \"\" 200 1 \"-\" \"-\"", // leere Request-Line
-    "🦊🦊🦊 emoji only line 🦊",                    // reine Emojis
-    "10.0.0.1 - - [05/Jun/2026:12:00:00 +0200] \"GET / HTTP/1.1\" 20 1 \"-\" \"" + BROWSER_UA + "\"", // 2-stelliger Status
-  ];
-  assert.doesNotThrow(() => {
-    for (const l of garbage) agg.processLine(l);
-  });
-  const r = agg.finalize();
-  // Konsistenz: total == parsed + unrecognized + (leere Zeilen wurden gar nicht
-  // gezählt, weil processLine vor stats.total++ bei leer/whitespace returnt).
-  assert.strictEqual(r.total, r.parsed + r.unrecognized, "total = parsed + unrecognized");
-  // kept + filtered darf parsed nie übersteigen.
-  assert.ok(r.kept + r.filtered <= r.parsed, "kept + filtered <= parsed");
-});
+function createElement() {
+  const classes = new Set();
+  const listeners = new Map();
+  return {
+    textContent: "",
+    innerHTML: "",
+    value: "",
+    checked: false,
+    files: [],
+    open: false,
+    disabled: false,
+    style: {},
+    className: "",
+    classList: {
+      add: (...names) => names.forEach((name) => classes.add(name)),
+      remove: (...names) => names.forEach((name) => classes.delete(name)),
+      toggle: (name, force) => {
+        const shouldAdd = force === undefined ? !classes.has(name) : !!force;
+        if (shouldAdd) classes.add(name);
+        else classes.delete(name);
+        return shouldAdd;
+      },
+      contains: (name) => classes.has(name)
+    },
+    addEventListener(type, fn) { listeners.set(type, fn); },
+    click() { if (listeners.has("click")) return listeners.get("click")(); },
+    scrollIntoView() {}
+  };
+}
 
-test("leere und reine Whitespace-Zeilen erhöhen total nicht", () => {
-  const agg = makeAggregator({});
-  const r = feed(agg, ["", "   ", "\t", "\r"]);
-  assert.strictEqual(r.total, 0);
-  assert.strictEqual(r.parsed, 0);
-  assert.strictEqual(r.unrecognized, 0);
-});
+function createRenderContext() {
+  const elements = new Map();
+  const get = (name) => {
+    if (!elements.has(name)) elements.set(name, createElement());
+    return elements.get(name);
+  };
+  const renderCtx = {
+    console,
+    URL,
+    Blob,
+    TextDecoderStream,
+    DecompressionStream,
+    setTimeout,
+    clearTimeout,
+    location: { protocol: "file:" },
+    window: { matchMedia: () => ({ matches: true }) },
+    document: {
+      getElementById: get,
+      querySelectorAll: () => []
+    },
+    navigator: { clipboard: { writeText: async (text) => { renderCtx.__clipboard = text; } } },
+    __clipboard: ""
+  };
+  vm.createContext(renderCtx);
+  vm.runInContext(script, renderCtx);
+  return { ctx: renderCtx, get };
+}
 
-test("CRLF am Zeilenende wird abgeschnitten und stört das Parsen nicht", () => {
-  const agg = makeAggregator({});
-  const r = feed(agg, [combined({ ua: BROWSER_UA }) + "\r"]);
-  assert.strictEqual(r.parsed, 1);
-  assert.strictEqual(r.kept, 1);
-});
+function stableReport(report) {
+  const copy = JSON.parse(JSON.stringify(report));
+  delete copy.generatedAt;
+  delete copy.timeRange;
+  return copy;
+}
 
-test("massenhaftes Fuzzing (1000 zufällig-zerstörte Zeilen) bleibt exceptionfrei und konsistent", () => {
-  const agg = makeAggregator({});
-  // Deterministischer Pseudo-Zufall (linearer Kongruenzgenerator), kein Math.random.
-  let seed = 1234567;
-  const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
-  const valid = combined({ ua: BROWSER_UA });
-  assert.doesNotThrow(() => {
-    for (let i = 0; i < 1000; i++) {
-      // Eine valide Zeile zufällig an einer Stelle beschädigen.
-      const cut = Math.floor(rnd() * valid.length);
-      let line = valid.slice(0, cut) + String.fromCharCode(Math.floor(rnd() * 60)) + valid.slice(cut);
-      if (rnd() < 0.1) line = line + " ";
-      if (rnd() < 0.1) line = line.repeat(1 + Math.floor(rnd() * 3));
-      agg.processLine(line);
+const baselineCombined = [
+  combined("203.0.113.10", "05/Jun/2026:10:00:00 +0000", "/preise?gclid=abc"),
+  combined("203.0.113.10", "05/Jun/2026:10:02:00 +0000", "/assets/app.css"),
+  combined("203.0.113.10", "05/Jun/2026:10:10:00 +0000", "/checkout/danke?order_id=A1"),
+  combined("203.0.113.10", "05/Jun/2026:10:12:00 +0000", "/checkout/danke?order_id=A1"),
+  combined("203.0.113.11", "05/Jun/2026:11:00:00 +0000", "/preise"),
+  combined("203.0.113.12", "05/Jun/2026:11:05:00 +0000", "/api/ping", 500)
+].join("\n");
+
+const baselineCloudflare = [
+  cloudflareEvent("203.0.113.10", "2026-06-05T10:00:00Z", "/preise?gclid=abc"),
+  cloudflareEvent("203.0.113.10", "2026-06-05T10:02:00Z", "/assets/app.css"),
+  cloudflareEvent("203.0.113.10", "2026-06-05T10:10:00Z", "/checkout/danke?order_id=A1"),
+  cloudflareEvent("203.0.113.10", "2026-06-05T10:12:00Z", "/checkout/danke?order_id=A1"),
+  cloudflareEvent("203.0.113.11", "2026-06-05T11:00:00Z", "/preise"),
+  cloudflareEvent("203.0.113.12", "2026-06-05T11:05:00Z", "/api/ping", 500)
+].join("\n");
+
+const baselineFastly = [
+  fastlyEvent("203.0.113.10", "2026-06-05T10:00:00Z", "/preise?gclid=abc"),
+  fastlyEvent("203.0.113.10", "2026-06-05T10:02:00Z", "/assets/app.css"),
+  fastlyEvent("203.0.113.10", "2026-06-05T10:10:00Z", "/checkout/danke?order_id=A1"),
+  fastlyEvent("203.0.113.10", "2026-06-05T10:12:00Z", "/checkout/danke?order_id=A1"),
+  fastlyEvent("203.0.113.11", "2026-06-05T11:00:00Z", "/preise"),
+  fastlyEvent("203.0.113.12", "2026-06-05T11:05:00Z", "/api/ping", 500)
+].join("\n");
+
+const baselineAkamai = [
+  akamaiEvent("203.0.113.10", "2026-06-05T10:00:00Z", "/preise?gclid=abc"),
+  akamaiEvent("203.0.113.10", "2026-06-05T10:02:00Z", "/assets/app.css"),
+  akamaiEvent("203.0.113.10", "2026-06-05T10:10:00Z", "/checkout/danke?order_id=A1"),
+  akamaiEvent("203.0.113.10", "2026-06-05T10:12:00Z", "/checkout/danke?order_id=A1"),
+  akamaiEvent("203.0.113.11", "2026-06-05T11:00:00Z", "/preise"),
+  akamaiEvent("203.0.113.12", "2026-06-05T11:05:00Z", "/api/ping", 500)
+].join("\n");
+
+const tests = [];
+function test(name, fn) {
+  tests.push([name, fn, false]);
+}
+
+function expectedFailure(name, fn) {
+  tests.push([name, fn, true]);
+}
+
+async function run() {
+  for (const [name, fn, xfail] of tests) {
+    try {
+      await fn();
+      if (xfail) {
+        console.error("unexpected ok - " + name);
+        process.exitCode = 1;
+        continue;
+      }
+      console.log("ok - " + name);
+    } catch (err) {
+      if (xfail) {
+        console.log("expected fail - " + name);
+        console.log("  " + err.message.split("\n")[0]);
+        continue;
+      }
+      console.error("not ok - " + name);
+      console.error(err);
+      process.exitCode = 1;
     }
-  });
-  const r = agg.finalize();
-  assert.strictEqual(r.total, r.parsed + r.unrecognized);
-});
-
-// ===========================================================================
-// Zusätzliche echte Sanity-Tests gegen den Combined-Parser
-// ===========================================================================
-section("Combined-Parser Grundverhalten");
-
-test("Datumsbereich-Filter zählt range hoch", () => {
-  const agg = makeAggregator({ dateFrom: "2026-06-10", dateTo: "2026-06-20" });
-  const r = feed(agg, [
-    combined({ time: "05/Jun/2026:12:00:00 +0200" }), // vor Bereich
-    combined({ time: "15/Jun/2026:12:00:00 +0200" }), // im Bereich
-    combined({ time: "25/Jun/2026:12:00:00 +0200" }), // nach Bereich
-  ]);
-  assert.strictEqual(r.reasons.range, 2);
-  assert.strictEqual(r.kept, 1);
-});
-
-test("nicht-ok-Status (404) wird per reasons.status gefiltert", () => {
-  const agg = makeAggregator({});
-  const r = feed(agg, [combined({ status: 404 })]);
-  assert.strictEqual(r.reasons.status, 1);
-  assert.strictEqual(r.kept, 0);
-});
-
-test("PUT/DELETE werden per reasons.method gefiltert, POST nicht", () => {
-  const agg = makeAggregator({});
-  const r = feed(agg, [
-    combined({ method: "PUT" }),
-    combined({ method: "DELETE" }),
-    combined({ method: "POST" }),
-  ]);
-  assert.strictEqual(r.reasons.method, 2);
-  assert.strictEqual(r.kept, 1);
-});
-
-test("successUrl zählt Conversions (success/successRaw)", () => {
-  const agg = makeAggregator({ successUrl: "/danke" });
-  const r = feed(agg, [
-    combined({ ip: "203.0.113.1", target: "/danke", ua: BROWSER_UA, time: "05/Jun/2026:12:00:00 +0200" }),
-    // gleicher Besucher erneut innerhalb 60min -> successRaw++ aber nicht success
-    combined({ ip: "203.0.113.1", target: "/danke", ua: BROWSER_UA, time: "05/Jun/2026:12:10:00 +0200" }),
-  ]);
-  assert.strictEqual(r.successRaw, 2);
-  assert.strictEqual(r.success, 1);
-});
-
-test("Asset-Pfade zählen nicht als pageView, aber als pathCount", () => {
-  const agg = makeAggregator({ assetRe: /\.(css|js|png|jpg|svg|woff2?)$/i });
-  const r = feed(agg, [
-    combined({ target: "/style.css", ua: BROWSER_UA }),
-    combined({ target: "/start", ua: BROWSER_UA }),
-  ]);
-  assert.strictEqual(r.pageViews, 1, "nur /start ist ein Seitenaufruf");
-  assert.ok(r.pathCounts.get("/style.css") >= 1, "Asset taucht in pathCounts auf");
-});
-
-test("Zeit-Regression (Zeitstempel springt zurück) wird erkannt", () => {
-  const agg = makeAggregator({});
-  const r = feed(agg, [
-    combined({ time: "05/Jun/2026:12:00:00 +0200", ua: BROWSER_UA }),
-    combined({ time: "05/Jun/2026:11:00:00 +0200", ua: BROWSER_UA }), // zurück
-  ]);
-  assert.strictEqual(r.timeRegressions, 1);
-});
-
-test("useXff: Client-IP wird aus X-Forwarded-For-Trailing gelesen", () => {
-  const agg = makeAggregator({ useXff: true });
-  // Spalte 1 ist die private Proxy-IP; echte IP steht im Trailing-Feld.
-  const line = combined({
-    ip: "10.0.0.1",
-    ua: BROWSER_UA,
-    trailing: ' "198.51.100.23, 10.0.0.1"',
-  });
-  const r = feed(agg, [line]);
-  assert.strictEqual(r.kept, 1);
-  // privateClientHits zählt nur ohne XFF; mit XFF nicht.
-  assert.strictEqual(r.privateClientHits, 0);
-});
-
-// ===========================================================================
-// Abschlussbericht
-// ===========================================================================
-console.log("\n" + "=".repeat(60));
-console.log("ZUSAMMENFASSUNG");
-console.log("=".repeat(60));
-console.log(`  PASS (echte Tests bestanden):        ${results.pass}`);
-console.log(`  EXPECTED FAILURE (Produktcode fehlt): ${results.expectedFailure}`);
-console.log(`  UNEXPECTED PASS (Test veraltet):      ${results.unexpectedPass}`);
-console.log(`  FAIL (echte Fehler):                  ${results.fail}`);
-
-const exitCode = results.fail > 0 || results.unexpectedPass > 0 ? 1 : 0;
-if (exitCode !== 0) {
-  console.log("\nHandlungsbedarf:");
-  for (const f of failures) console.log(`  - ${f.name}: ${f.err.message.split("\n")[0]}`);
+  }
 }
-console.log(`\nExit-Code: ${exitCode}`);
-process.exit(exitCode);
+
+test("normalisiert Log-Pfade und filtert Assets/Bots", () => {
+  const result = analyze(fixture("combined.log"), { successUrl: "/bestellung/danke", hasSuccessUrl: true });
+  assert.strictEqual(result.formatKind, "combined");
+  assert.strictEqual(result.pathCounts.get("/preise"), 1);
+  assert.strictEqual(result.pageViews, 2);
+  assert.strictEqual(result.success, 1);
+  assert.strictEqual(result.reasons.bot, 1);
+});
+
+test("Goldstandard-Combined liefert feste Sollwerte fuer Kernkennzahlen", () => {
+  const result = buildResultFor(baselineCombined, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  });
+  assertBuiltResultInvariants(result);
+  assert.strictEqual(result.formatKind, "combined");
+  assert.strictEqual(result.total, 6);
+  assert.strictEqual(result.parsed, 6);
+  assert.strictEqual(result.filtered, 1);
+  assert.strictEqual(result.reasons.status, 1);
+  assert.strictEqual(result.kept, 5);
+  assert.strictEqual(result.pageViews, 4);
+  assert.strictEqual(result.visits, 2);
+  assert.strictEqual(result.successRaw, 2);
+  assert.strictEqual(result.success, 1);
+  assert.strictEqual(result.adVisitors, 1);
+  assert.strictEqual(result.pathCounts.get("/preise"), 2);
+  assert.strictEqual(result.pathCounts.get("/assets/app.css"), 1);
+  assert.strictEqual(result.pathCounts.get("/checkout/danke"), 2);
+  assert.strictEqual(result.diagnostics.pageviewReliability, "high");
+  assert.strictEqual(result.diagnostics.conversionReliability, "high");
+});
+
+test("dieselbe Besuchsrealitaet zaehlt ueber Edge-Formate gleich", () => {
+  const cases = [
+    ["combined", baselineCombined],
+    ["cloudflare", baselineCloudflare],
+    ["cloudfront", cloudfrontFixture()],
+    ["fastly", baselineFastly],
+    ["akamai", baselineAkamai]
+  ];
+  for (const [kind, text] of cases) {
+    const result = buildResultFor(text, {
+      successPattern: "/checkout/*",
+      orderParam: "order_id",
+      hasSuccessUrl: true
+    });
+    assertBuiltResultInvariants(result);
+    assert.strictEqual(result.formatKind, kind);
+    assert.strictEqual(result.pageViews, 4);
+    assert.strictEqual(result.visits, 2);
+    assert.strictEqual(result.successRaw, 2);
+    assert.strictEqual(result.success, 1);
+    assert.strictEqual(result.pathCounts.get("/preise"), 2);
+    assert.strictEqual(result.pathCounts.get("/checkout/danke"), 2);
+  }
+});
+
+test("liest GA4-Werte mit Semikolon, Tab und Tausenderzeichen", () => {
+  const values = {
+    "ga4-url-views": { value: "/preise; 1.234\n/produkt\t840\n/,1,234\nhttps://example.test/a,b,12" }
+  };
+  ctx.document.getElementById = (name) => values[name] || { value: "", checked: false };
+  const rows = ctx.ga4UrlViews();
+  assert.strictEqual(rows.get("/preise"), 1234);
+  assert.strictEqual(rows.get("/produkt"), 840);
+  assert.strictEqual(rows.get("/"), 1234);
+  assert.strictEqual(rows.get("/a,b"), 12);
+});
+
+test("nutzt X-Forwarded-For nur bei plausibler IP-Liste", () => {
+  const result = analyze(fixture("x-forwarded-for.log"), { useXff: true });
+  assert.strictEqual(result.visits, 3);
+  assert.strictEqual(result.xffUsed, 2);
+  assert.strictEqual(result.xffMissing, 1);
+});
+
+test("erkennt nicht unterstuetzte IIS- und JSON-Logs", () => {
+  assert.strictEqual(analyze(fixture("iis.log")).formatKind, "iis");
+  assert.strictEqual(analyze(fixture("json.log")).formatKind, "json");
+});
+
+test("liest gzip-komprimierte Logs", async () => {
+  const gz = zlib.gzipSync(Buffer.from(fixture("combined.log")));
+  const result = await ctx.processOnMainThread(
+    new Blob([gz]),
+    { assetRe: /\.(css|js|png)(\?|$)/i, gzip: true },
+    () => {}
+  );
+  assert.strictEqual(result.formatKind, "combined");
+  assert.strictEqual(result.pathCounts.get("/preise"), 1);
+});
+
+test("normalisiert URLs mit Query-Parametern, absoluten URLs und Slash-Varianten", () => {
+  const result = analyze(fixture("url-normalization.log"));
+  assert.strictEqual(result.formatKind, "combined");
+  assert.strictEqual(result.pathCounts.get("/preise"), 4);
+  assert.strictEqual(result.pathCounts.get("/landing"), 2);
+  assert.strictEqual(result.pageViews, 6);
+});
+
+test("kanonisiert index.html und index.php auf das Verzeichnis", () => {
+  const result = analyze(fixture("index-documents.log"));
+  assert.strictEqual(result.pathCounts.get("/"), 3);
+  assert.strictEqual(result.pathCounts.get("/shop"), 3);
+  assert.strictEqual(result.pageViews, 6);
+});
+
+test("nutzt IPv6-Adressen aus X-Forwarded-For inklusive Port-Schreibweise", () => {
+  const result = analyze(fixture("ipv6-x-forwarded-for.log"), { useXff: true });
+  assert.strictEqual(result.xffUsed, 2);
+  assert.strictEqual(result.xffPrivate, 1);
+  assert.strictEqual(result.xffMissing, 1);
+  assert.strictEqual(result.visits, 4);
+  assert.strictEqual(result.privateClientHits, 0);
+});
+
+test("zaehlt Zeitrueckspruenge in unsortierten Logs", () => {
+  const result = analyze(fixture("unsorted.log"));
+  assert.strictEqual(result.timeRegressions, 2);
+  assert.strictEqual(result.parsed, 4);
+  assert.strictEqual(result.pageViews, 4);
+});
+
+test("filtert Bots und verdaechtige Non-Browser-Clients im strengen Modus", () => {
+  const result = analyze(fixture("suspicious-traffic.log"), { strictBot: true });
+  assert.strictEqual(result.reasons.bot, 3);
+  assert.strictEqual(result.reasons.strict, 2);
+  assert.strictEqual(result.kept, 1);
+  assert.strictEqual(result.pageViews, 1);
+});
+
+test("dedupliziert Conversion-Reloads pro Besucher innerhalb einer Stunde", () => {
+  const result = analyze(fixture("conversion-dedup.log"), { successUrl: "/bestellung/danke", hasSuccessUrl: true });
+  assert.strictEqual(result.successRaw, 5);
+  assert.strictEqual(result.success, 3);
+  assert.strictEqual(result.adVisitors, 1);
+  assert.strictEqual(result.adSuccess, 1);
+});
+
+test("behaelt ausgewaehlte Query-Parameter fuer Seitenvarianten", () => {
+  const result = analyze(fixture("url-normalization.log"), { keptQueryParams: ["variant"] });
+  assert.strictEqual(result.pathCounts.get("/landing?variant=a"), 1);
+  assert.strictEqual(result.pathCounts.get("/landing?variant=b"), 1);
+});
+
+test("zaehlt Conversion-Muster und dedupliziert per Order-ID", () => {
+  const result = analyze(fixture("conversion-pattern-order.log"), {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  });
+  assert.strictEqual(result.successRaw, 4);
+  assert.strictEqual(result.success, 2);
+});
+
+test("behandelt Regex-Sonderzeichen in Conversion-Mustern als normale Zeichen", () => {
+  const text = [
+    '203.0.113.10 - - [05/Jun/2026:10:00:00 +0200] "GET /checkout.v2/success HTTP/1.1" 200 100 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"',
+    '203.0.113.11 - - [05/Jun/2026:10:01:00 +0200] "GET /checkoutXv2/success HTTP/1.1" 200 100 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"'
+  ].join("\n");
+  const result = analyze(text, { successPattern: "/checkout.v2/*", hasSuccessUrl: true });
+  assert.strictEqual(result.successRaw, 1);
+  assert.strictEqual(result.success, 1);
+});
+
+test("erkennt verdaechtige Clients mit vielen Pageviews ohne Assets", () => {
+  const result = analyze(fixture("suspicious-volume.log"));
+  assert.strictEqual(result.suspiciousClients, 1);
+});
+
+test("filtert gemischte Hosts auf erlaubte Domains", () => {
+  const result = analyze(fixture("mixed-hosts.log"), { hostFilter: ["example.test"] });
+  assert.strictEqual(result.pageViews, 2);
+  assert.strictEqual(result.pathCounts.get("/preise"), 1);
+  assert.strictEqual(result.pathCounts.get("/kontakt"), 1);
+  assert.strictEqual(result.pathCounts.has("/landing"), false);
+  assert.strictEqual(result.reasons.host, 2);
+});
+
+test("meldet gemischte Hosts als Quality-Risiko ohne Hostfilter", () => {
+  const result = buildResultFor(fixture("mixed-hosts.log"));
+  assert.strictEqual(result.diagnostics.hostReliability, "limited");
+  assert.strictEqual(result.hosts.total, 3);
+  assert.strictEqual(result.hosts.top[0].name, "example.test");
+});
+
+test("liest GA4 CSV Export mit Headern und Views-Spalte", () => {
+  const values = {
+    "ga4-url-views": {
+      value: fixture("ga4-page-views.csv")
+    }
+  };
+  const rows = withDomValues(values, () => ctx.ga4UrlViews());
+  assert.strictEqual(rows.get("/preise"), 1234);
+  assert.strictEqual(rows.get("/landing"), 42);
+  assert.strictEqual(rows.get("/checkout/danke"), 7);
+});
+
+test("liest GA4 TSV Export mit Headern und Page-Path-Spalte", () => {
+  const values = {
+    "ga4-url-views": {
+      value: fixture("ga4-page-views.tsv")
+    }
+  };
+  const rows = withDomValues(values, () => ctx.ga4UrlViews());
+  assert.strictEqual(rows.get("/preise"), 1234);
+  assert.strictEqual(rows.get("/produkt"), 840);
+});
+
+test("liest GA4 Export trotz BOM, Metazeilen und Summenzeilen", () => {
+  const values = {
+    "ga4-url-views": {
+      value: "\uFEFF# Export aus GA4\n# Zeitraum: 2026-06-05\nPage path and screen class,Views\n/preise,1.234\n/landing,42\nTotal,1.276\n"
+    }
+  };
+  const rows = withDomValues(values, () => ctx.ga4UrlViews());
+  assert.strictEqual(rows.get("/preise"), 1234);
+  assert.strictEqual(rows.get("/landing"), 42);
+  assert.strictEqual(rows.has("/total"), false);
+});
+
+test("warnt bei GA4 CSV mit falscher Metrik statt Views", () => {
+  const result = buildResultFor(fixture("mixed-hosts.log"), {}, {
+    "ga4-url-views": { value: fixture("ga4-users-wrong-metric.csv") }
+  });
+  assert.strictEqual(result.diagnostics.ga4Reliability, "limited");
+  assert.match(result.ga4Import.warning, /Nutzer|Users|falsche Metrik/i);
+});
+
+test("liefert Preflight-Beispiele fuer Format, Host und XFF vor der Analyse", () => {
+  const preflight = ctx.preflightLogSample(fixture("preflight-xff-mixed-hosts.log"), {
+    sampleLines: 10,
+    useXff: true
+  });
+  assert.strictEqual(preflight.formatKind, "combined");
+  assert.strictEqual(preflight.recognitionRate, 1);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(preflight.fields)), {
+    ip: "10.0.0.5",
+    xff: "203.0.113.55",
+    method: "GET",
+    path: "/preise",
+    host: "example.test",
+    status: 200
+  });
+  assert.strictEqual(preflight.quality.pageviews, "high");
+  assert.strictEqual(preflight.quality.visitors, "high");
+  assert.strictEqual(preflight.warnings.some((warning) => /mehrere Hosts/i.test(warning)), true);
+});
+
+test("liest Cloudflare Edge JSON als CDN-Format", () => {
+  const result = analyze(fixture("cloudflare-edge.jsonl"));
+  assert.strictEqual(result.formatKind, "cloudflare");
+  assert.strictEqual(result.pageViews, 2);
+  assert.strictEqual(result.hostCounts.get("www.example.de"), 2);
+  assert.strictEqual(result.pathCounts.get("/preise"), 1);
+});
+
+test("liest CloudFront W3C/TSV als CDN-Format", () => {
+  const result = buildResultFor(fixture("cloudfront.tsv"));
+  assert.strictEqual(result.formatKind, "cloudfront");
+  assert.strictEqual(result.pageViews, 1);
+  assert.strictEqual(result.hosts.total, 1);
+  assert.strictEqual(result.diagnostics.pageviewReliability, "high");
+});
+
+test("liest Fastly-nahe JSON Logs als CDN-Format", () => {
+  const result = buildResultFor(fixture("fastly-json.log"));
+  assert.strictEqual(result.formatKind, "fastly");
+  assert.strictEqual(result.pageViews, 1);
+  assert.strictEqual(result.diagnostics.pageviewReliability, "high");
+});
+
+test("liest Akamai-nahe JSON Logs als CDN-Format", () => {
+  const result = buildResultFor(fixture("akamai-json.log"));
+  assert.strictEqual(result.formatKind, "akamai");
+  assert.strictEqual(result.pageViews, 1);
+  assert.strictEqual(result.diagnostics.pageviewReliability, "high");
+});
+
+test("liest Akamai-Matrix mit alternativen Feldnamen und Edge-Feldern", () => {
+  const result = buildResultFor(fixture("akamai-matrix.jsonl"), {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  });
+  assertBuiltResultInvariants(result);
+  assert.strictEqual(result.formatKind, "akamai");
+  assert.strictEqual(result.total, 5);
+  assert.strictEqual(result.parsed, 5);
+  assert.strictEqual(result.filtered, 1);
+  assert.strictEqual(result.reasons.status, 1);
+  assert.strictEqual(result.pageViews, 2);
+  assert.strictEqual(result.success, 1);
+  assert.strictEqual(result.pathCounts.get("/preise"), 1);
+  assert.strictEqual(result.pathCounts.get("/checkout/danke"), 1);
+  assert.strictEqual(result.hosts.top[0].name, "www.example.test");
+});
+
+test("liest dokumentationsnahes CloudFront Standard-Log mit voller Feldliste", () => {
+  const result = buildResultFor(fixturePath("provider-docs/cloudfront-standard.tsv"), {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  });
+  assertBuiltResultInvariants(result);
+  assert.strictEqual(result.formatKind, "cloudfront");
+  assert.strictEqual(result.total, 5);
+  assert.strictEqual(result.meta, 2);
+  assert.strictEqual(result.pageViews, 2);
+  assert.strictEqual(result.successRaw, 1);
+  assert.strictEqual(result.success, 1);
+  assert.strictEqual(result.pathCounts.get("/preise"), 1);
+  assert.strictEqual(result.pathCounts.get("/checkout/danke"), 1);
+});
+
+test("liest dokumentationsnahes Cloudflare Logpush HTTP JSON", () => {
+  const result = buildResultFor(fixturePath("provider-docs/cloudflare-logpush-http.jsonl"), {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  });
+  assertBuiltResultInvariants(result);
+  assert.strictEqual(result.formatKind, "cloudflare");
+  assert.strictEqual(result.hosts.top[0].name, "www.example.test");
+  assert.strictEqual(result.pageViews, 2);
+  assert.strictEqual(result.success, 1);
+});
+
+test("liest dokumentationsnahes IIS/W3C Log mit variabler Feldreihenfolge", () => {
+  const result = buildResultFor(fixturePath("provider-docs/iis-w3c-custom.txt"), {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  });
+  assertBuiltResultInvariants(result);
+  assert.strictEqual(result.formatKind, "iis");
+  assert.strictEqual(result.meta, 3);
+  assert.strictEqual(result.pageViews, 2);
+  assert.strictEqual(result.success, 1);
+});
+
+test("liest dokumentationsnahes Fastly Custom-JSON", () => {
+  const result = buildResultFor(fixturePath("provider-docs/fastly-custom-json.jsonl"), {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  });
+  assertBuiltResultInvariants(result);
+  assert.strictEqual(result.formatKind, "fastly");
+  assert.strictEqual(result.pageViews, 2);
+  assert.strictEqual(result.success, 1);
+});
+
+test("nutzt konfigurierbare Bot-Anomalie-Schwellen", () => {
+  const low = analyze(fixture("suspicious-volume.log"), { suspiciousHitThreshold: 50, suspiciousAssetShare: 0.1 });
+  const high = analyze(fixture("suspicious-volume.log"), { suspiciousHitThreshold: 200, suspiciousAssetShare: 0.1 });
+  assert.strictEqual(low.suspiciousClients, 1);
+  assert.strictEqual(high.suspiciousClients, 0);
+});
+
+test("meldet Tracking-Cap bei sehr niedrigem Speicherlimit", () => {
+  const lines = [];
+  for (let i = 0; i < 1005; i++) {
+    lines.push(`198.51.${Math.floor(i / 250)}.${i % 250} - - [05/Jun/2026:10:00:00 +0200] "GET /p${i} HTTP/1.1" 200 100 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"`);
+  }
+  const capped = analyze(lines.join("\n"), { maxTrackedClients: 1000 });
+  assert.strictEqual(capped.trackingCapped, true);
+});
+
+test("fuzzige Parser-Eingaben crashen nicht und werden gefiltert", () => {
+  const result = analyze(fixture("fuzz-lines.log"));
+  assert.strictEqual(result.total, 5);
+  assertAggregatorInvariants(result);
+  assert.ok(result.unrecognized >= 3);
+  assert.ok(result.filtered >= 1);
+});
+
+test("gezielte Parser-Mutationen crashen nicht und bleiben numerisch stabil", () => {
+  const mutated = [
+    "",
+    "   ",
+    "not a log line",
+    combined("203.0.113.10", "99/Jun/2026:10:00:00 +0000", "/kaputt"),
+    combined("203.0.113.10", "05/Jun/2026:10:00:00 +0000", "/normal"),
+    '203.0.113.11 - - [05/Jun/2026:10:01:00 +0000] "GET /quote\\"break HTTP/1.1" 200 123 "-" "Mozilla/5.0"',
+    '{"time":"not-a-date","status":200,"request":"/bad-date","user_agent":"Mozilla/5.0"}',
+    '{"timestamp":"2026-06-05T10:02:00Z","client_ip":"203.0.113.12","method":"GET","request":"/json","status":"200","user_agent":"Mozilla/5.0"}',
+    '{"timestamp":"2026-06-05T10:03:00Z","client_ip":"203.0.113.13","method":"GET","request":"/asset.js","status":200,"user_agent":"Mozilla/5.0"}',
+    "#Fields: date time c-ip cs-method cs-uri-stem sc-status cs(User-Agent)",
+    "2026-06-05 10:04:00 203.0.113.14 GET /w3c 200 Mozilla/5.0",
+    "2026-06-05 10:05:00 too-few-fields",
+    combined("203.0.113.15", "05/Jun/2026:10:06:00 +0000", "/encoded/%E2%9C%93"),
+    combined("203.0.113.16", "05/Jun/2026:10:07:00 +0000", "/very/" + "long".repeat(500)),
+    combined("203.0.113.17", "05/Jun/2026:10:08:00 +0000", "/bot", 200, "Googlebot/2.1")
+  ].join("\n");
+  const result = buildResultFor(mutated);
+  assertBuiltResultInvariants(result);
+  assert.ok(result.unrecognized >= 4);
+  assert.ok(result.filtered >= 1);
+  assert.ok(result.pageViews >= 3);
+});
+
+test("alle Fixture-Auswertungen erfuellen Aggregator-Invarianten", () => {
+  const names = fixtureNames()
+    .filter((name) => /\.(log|jsonl|json|tsv|txt)$/i.test(name));
+  for (const name of names) {
+    assertAggregatorInvariants(analyze(fixturePath(name)));
+  }
+});
+
+test("Befund-Diagnosen und Report-Kernfelder bleiben konsistent", () => {
+  const result = buildResultFor(baselineCombined, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/preise,1\n/checkout/danke,1" },
+    "ga4-conversions": { value: "1" }
+  });
+  assertBuiltResultInvariants(result);
+  assert.strictEqual(result.ga4Import.warning, "");
+  assert.strictEqual(result.ga4Conversions, 1);
+  assert.strictEqual(result.convDiff, 0);
+  assert.strictEqual(result.overall.totalServer, 4);
+  assert.strictEqual(result.overall.totalGa4, 2);
+  assert.strictEqual(result.overall.difference, 2);
+  const report = {
+    format: result.formatKind,
+    totals: {
+      total: result.total,
+      parsed: result.parsed,
+      pageViews: result.pageViews,
+      visits: result.visits,
+      success: result.success
+    },
+    quality: result.diagnostics,
+    topPages: result.tableRows.slice(0, 3).map((row) => ({
+      path: row.name,
+      serverViews: row.serverViews,
+      ga4Views: row.ga4Views
+    }))
+  };
+  assert.deepStrictEqual(report.totals, { total: 6, parsed: 6, pageViews: 4, visits: 2, success: 1 });
+  assert.strictEqual(report.quality.pageviewReliability, "high");
+  assert.strictEqual(report.quality.conversionReliability, "high");
+  assert.deepStrictEqual(report.topPages[0], { path: "/preise", serverViews: 2, ga4Views: 1 });
+});
+
+test("Render setzt Ampeln und sichtbare Gruende pro Kennzahl", () => {
+  const data = buildResultFor(baselineCombined, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/preise,1\n/checkout/danke,1" },
+    "ga4-conversions": { value: "1" }
+  });
+  const ui = createRenderContext();
+  ui.ctx.render(data);
+  assert.strictEqual(ui.get("q-views").textContent, "Belastbarkeit hoch");
+  assert.match(ui.get("q-views-reason").textContent, /100.*Datenzeilen erkannt|100.*erkannt/i);
+  assert.match(ui.get("q-visits-reason").textContent, /Keine starke Proxy-Verzerrung/i);
+  assert.match(ui.get("q-purchases-reason").textContent, /GA4-Kaufvergleich aktiv/i);
+  assert.match(ui.get("q-ga4-reason").textContent, /GA4-Werte mit Server-Seiten abgeglichen/i);
+  assert.match(ui.get("precision-checklist").innerHTML, /Host-Scope wirkt eindeutig/i);
+  assert.match(ui.get("precision-checklist").innerHTML, /Logformat combined/i);
+  assert.strictEqual(ui.get("n-views").textContent, "4");
+  assert.strictEqual(ui.get("n-purchases").textContent, "1");
+});
+
+test("Render zeigt Limitierungsgruende bei gemischten Hosts und falscher GA4-Metrik", () => {
+  const data = buildResultFor(fixture("mixed-hosts.log"), {}, {
+    "ga4-url-views": { value: fixture("ga4-users-wrong-metric.csv") }
+  });
+  const ui = createRenderContext();
+  ui.ctx.render(data);
+  assert.strictEqual(ui.get("q-ga4").textContent, "Belastbarkeit niedrig");
+  assert.match(ui.get("q-ga4-reason").textContent, /Nutzer|Users|falsche Metrik/i);
+  assert.match(ui.get("recognition-hint").textContent, /mehrere Hosts\/Domains/i);
+  assert.match(ui.get("recognition-hint").textContent, /Nutzer|Users|falsche Metrik/i);
+  assert.match(ui.get("precision-checklist").innerHTML, /Mehrere Hosts\/Domains erkannt/i);
+});
+
+test("Copy-Report liefert versioniertes Schema mit Genauigkeitshinweisen", async () => {
+  const data = buildResultFor(baselineCombined, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/preise,1\n/checkout/danke,1" },
+    "ga4-conversions": { value: "1" }
+  });
+  const ui = createRenderContext();
+  ui.ctx.render(data);
+  await ui.get("copy-report").click();
+  const report = JSON.parse(ui.ctx.__clipboard);
+  assert.strictEqual(report.schema, "serverstory.analysis.v1");
+  assert.strictEqual(report.schemaVersion, 1);
+  assert.deepStrictEqual(report.totals.visitorRange, { low: 2, high: 2 });
+  assert.strictEqual(report.quality.pageviewReliability, "high");
+  assert.strictEqual(report.parser.dataRows, 6);
+  assert.strictEqual(report.parser.statusCounts[0].name, "200");
+  assert.strictEqual(report.parser.methodCounts[0].name, "GET");
+  assert.match(report.accuracyNotes.pageViews, /Datenzeilen erkannt/i);
+  assert.match(report.accuracyNotes.visits, /Proxy-Verzerrung/i);
+  assert.match(report.accuracyNotes.hostScope, /Host-Scope wirkt eindeutig/i);
+  assert.strictEqual(report.topPages[0].name, "/preise");
+});
+
+test("Analyse-Protokoll v1 bleibt snapshot-stabil", async () => {
+  const data = buildResultFor(baselineCombined, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/preise,1\n/checkout/danke,1" },
+    "ga4-conversions": { value: "1" }
+  });
+  const ui = createRenderContext();
+  ui.ctx.render(data);
+  await ui.get("copy-report").click();
+  const expected = JSON.parse(fs.readFileSync(path.join(__dirname, "snapshots", "analysis-report-v1.json"), "utf8"));
+  assert.deepStrictEqual(stableReport(JSON.parse(ui.ctx.__clipboard)), expected);
+});
+
+test("separate Source-Dateien fuer Build existieren", () => {
+  assert.ok(fs.existsSync(path.join(root, "scripts", "build.js")));
+  assert.ok(fs.existsSync(path.join(root, "scripts", "build-single-html.js")));
+  assert.ok(fs.existsSync(path.join(root, "src", "inline-script.js")));
+  assert.ok(fs.existsSync(path.join(root, "src", "inline-style.css")));
+  assert.ok(fs.existsSync(path.join(root, "src", "app.js")));
+  assert.ok(fs.existsSync(path.join(root, "src", "styles.css")));
+  assert.ok(fs.existsSync(path.join(root, "src", "index.template.html")));
+  assert.strictEqual(script.includes("\\{{SCRIPT}}"), false);
+  assert.strictEqual(script.includes("\\$&"), true);
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  assert.strictEqual(pkg.scripts.test, "node tests/serverstory.test.js");
+  assert.match(pkg.scripts.build, /scripts\/build/);
+});
+
+test("CSP blockiert Netzwerkverbindungen und breite Default-Quellen", () => {
+  const csp = html.match(/Content-Security-Policy" content="([^"]+)"/)[1];
+  assert.match(csp, /connect-src 'none'/);
+  assert.match(csp, /default-src 'none'/);
+  assert.doesNotMatch(csp, /default-src \*/);
+});
+
+run();

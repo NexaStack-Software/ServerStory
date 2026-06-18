@@ -1,0 +1,4 @@
+203.0.113.10 - - [05/Jun/2026:10:00:00 +0200] "GET /checkout/success?order_id=A100 HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"
+203.0.113.10 - - [05/Jun/2026:10:01:00 +0200] "GET /checkout/success?order_id=A100 HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"
+203.0.113.10 - - [05/Jun/2026:10:02:00 +0200] "GET /checkout/thank-you?order_id=A101 HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"
+198.51.100.20 - - [05/Jun/2026:10:03:00 +0200] "GET /checkout/success?order_id=A100 HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Firefox/126.0"

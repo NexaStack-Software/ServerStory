@@ -1,0 +1,2 @@
+{"start":"2026-06-05T12:00:00Z","ip":"203.0.113.40","reqMethod":"GET","reqPath":"/preise","reqHost":"example.test","statusCode":200,"userAgent":"Mozilla/5.0 Chrome/125.0","cp":"edge"}
+{"start":"2026-06-05T12:01:00Z","ip":"203.0.113.41","reqMethod":"GET","reqPath":"/assets/app.css","reqHost":"example.test","statusCode":200,"userAgent":"Mozilla/5.0 Chrome/125.0","cp":"edge"}

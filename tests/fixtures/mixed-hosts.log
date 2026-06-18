@@ -1,0 +1,4 @@
+203.0.113.10 - - [05/Jun/2026:10:00:00 +0200] "GET https://example.test/preise HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"
+203.0.113.11 - - [05/Jun/2026:10:01:00 +0200] "GET https://example.test/kontakt HTTP/1.1" 200 4321 "-" "Mozilla/5.0 Firefox/126.0"
+203.0.113.12 - - [05/Jun/2026:10:02:00 +0200] "GET https://shop.example.test/preise HTTP/1.1" 200 3321 "-" "Mozilla/5.0 Safari/605.1.15"
+203.0.113.13 - - [05/Jun/2026:10:03:00 +0200] "GET https://other.test/landing HTTP/1.1" 200 2321 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"

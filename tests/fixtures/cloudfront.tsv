@@ -1,0 +1,4 @@
+#Version: 1.0
+#Fields: date time x-edge-location sc-bytes c-ip cs-method cs(Host) cs-uri-stem sc-status cs(Referer) cs(User-Agent) cs-uri-query
+2026-06-05 12:00:00 FRA56-P1 5321 203.0.113.20 GET example.test /preise 200 - Mozilla/5.0 -
+2026-06-05 12:01:00 FRA56-P1 612 203.0.113.21 GET example.test /assets/app.css 200 - Mozilla/5.0 -

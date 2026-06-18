@@ -1,0 +1,5 @@
+{"reqTime":"2026-06-05T10:00:00Z","clientIP":"203.0.113.60","requestMethod":"GET","reqURL":"/preise?gclid=abc","requestHost":"www.example.test","rspStatus":200,"requestUserAgent":"Mozilla/5.0 Chrome/124.0 Safari/537.36","cacheStatus":"1","edgeIP":"198.51.100.10"}
+{"requestTime":"2026-06-05T10:02:00Z","cliIP":"2001:db8::60","method":"GET","urlPath":"/assets/app.css","hostname":"www.example.test","responseStatus":200,"ua":"Mozilla/5.0 Chrome/124.0 Safari/537.36","cacheStatus":"HIT"}
+{"datetime":"2026-06-05T10:10:00Z","requestIP":"203.0.113.61","reqMethod":"GET","requestPath":"/checkout/danke?order_id=A1","reqHost":"www.example.test","statusCode":200,"reqUserAgent":"Mozilla/5.0 Firefox/126.0","cp":"edge"}
+{"dateTime":"2026-06-05T10:15:00Z","ip":"203.0.113.62","reqMethod":"POST","reqPath":"/api/submit","reqHost":"www.example.test","status":204,"userAgent":"Mozilla/5.0 Safari/605.1","cacheStatus":"MISS"}
+{"start":"2026-06-05T10:20:00Z","ip":"203.0.113.63","reqMethod":"GET","reqPath":"/kaputt","reqHost":"www.example.test","statusCode":500,"userAgent":"Mozilla/5.0 Safari/605.1","cacheStatus":"ERROR"}

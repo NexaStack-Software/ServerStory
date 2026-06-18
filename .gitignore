@@ -1,5 +1,6 @@
 # Echte Server-Logs (enthalten personenbezogene Daten) - nur lokal, niemals committen
 serverstory-logs/
+dist/
 *.log
 *.zip
 .DS_Store

@@ -1,0 +1,5 @@
+not a log line
+{"broken":
+203.0.113.10 - - [bad-date] "GET /preise HTTP/1.1" 200 1 "-" "Mozilla/5.0 Chrome/124.0"
+203.0.113.10 - - [05/Jun/2026:10:00:00 +0200] "GET /preise HTTP/1.1" 999 1 "-" "Mozilla/5.0 Chrome/124.0"
+203.0.113.10 - - [05/Jun/2026:10:01:00 +0200] "PATCH /preise HTTP/1.1" 200 1 "-" "Mozilla/5.0 Chrome/124.0"

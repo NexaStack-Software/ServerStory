@@ -1,0 +1,4 @@
+fd00::10 - - [05/Jun/2026:10:00:00 +0200] "GET /preise HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36" "[2001:db8::1234]:443, fd00::10"
+fd00::10 - - [05/Jun/2026:10:35:00 +0200] "GET /preise HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36" "for=2001:db8::5678, for=fd00::10"
+fd00::10 - - [05/Jun/2026:10:36:00 +0200] "GET /preise HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Firefox/126.0" "fd00::20, fe80::1"
+fd00::10 - - [05/Jun/2026:10:37:00 +0200] "GET /preise HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Safari/605.1.15" "not an ip"

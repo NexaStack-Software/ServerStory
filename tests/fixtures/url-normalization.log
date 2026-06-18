@@ -1,0 +1,6 @@
+203.0.113.10 - - [05/Jun/2026:10:00:00 +0200] "GET /preise?utm_source=google&utm_medium=cpc HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"
+203.0.113.11 - - [05/Jun/2026:10:01:00 +0200] "GET /preise/?gclid=test-123 HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"
+203.0.113.12 - - [05/Jun/2026:10:02:00 +0200] "GET https://example.test/preise?fbclid=abc HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Firefox/126.0"
+203.0.113.13 - - [05/Jun/2026:10:03:00 +0200] "GET /preise/ HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Safari/605.1.15"
+203.0.113.14 - - [05/Jun/2026:10:04:00 +0200] "GET /landing?variant=a HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"
+203.0.113.15 - - [05/Jun/2026:10:05:00 +0200] "GET /landing/?variant=b HTTP/1.1" 200 5321 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"

@@ -1,0 +1,106 @@
+{
+  "schema": "serverstory.analysis.v1",
+  "schemaVersion": 1,
+  "format": "combined",
+  "totals": {
+    "rows": 6,
+    "parsed": 6,
+    "kept": 5,
+    "filtered": 1,
+    "pageViews": 4,
+    "visits": 2,
+    "visitorRange": {
+      "low": 2,
+      "high": 2
+    },
+    "success": 1
+  },
+  "quality": {
+    "recognitionRate": 1,
+    "pageviewReliability": "high",
+    "visitorReliability": "high",
+    "ga4Reliability": "medium",
+    "conversionReliability": "high",
+    "cacheRisk": "normal",
+    "chronologyIssue": false,
+    "botReliability": "high",
+    "hostReliability": "high",
+    "trackingReliability": "high"
+  },
+  "xForwardedFor": {
+    "used": 0,
+    "missing": 0,
+    "privateOnly": 0
+  },
+  "suspiciousClients": 0,
+  "trackingCapped": false,
+  "filterReasons": {
+    "bot": 0,
+    "status": 1,
+    "range": 0,
+    "method": 0,
+    "emptyUa": 0,
+    "strict": 0,
+    "host": 0
+  },
+  "parser": {
+    "dataRows": 6,
+    "metaRows": 0,
+    "unrecognizedRows": 0,
+    "unrecognizedPct": 0,
+    "formatCounters": {
+      "checked": 6,
+      "combined": 12,
+      "detected": "combined"
+    },
+    "hosts": {
+      "total": 0,
+      "top": []
+    },
+    "statusCounts": [
+      {
+        "name": "200",
+        "count": 5
+      }
+    ],
+    "methodCounts": [
+      {
+        "name": "GET",
+        "count": 5
+      }
+    ],
+    "filterReasonPct": {
+      "bot": 0,
+      "status": 16.666666666666664,
+      "range": 0,
+      "method": 0,
+      "emptyUa": 0,
+      "strict": 0,
+      "host": 0
+    }
+  },
+  "accuracyNotes": {
+    "pageViews": "100,0 % der Datenzeilen erkannt; Format combined.",
+    "visits": "Keine starke Proxy-Verzerrung erkannt.",
+    "conversions": "Danke-Seite erkannt; GA4-Kaufvergleich aktiv.",
+    "ga4": "GA4-Werte mit Server-Seiten abgeglichen; Zeitraum/Seiten muessen identisch sein.",
+    "hostScope": "Host-Scope wirkt eindeutig.",
+    "botAnomaly": "Keine auffaellige Bot-/Monitoring-Konzentration erkannt."
+  },
+  "topPages": [
+    {
+      "name": "/preise",
+      "serverViews": 2,
+      "ga4Views": 1,
+      "difference": 1,
+      "coverage": 50
+    },
+    {
+      "name": "/checkout/danke",
+      "serverViews": 2,
+      "ga4Views": 1,
+      "difference": 1,
+      "coverage": 50
+    }
+  ]
+}
