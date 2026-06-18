@@ -89,6 +89,29 @@ unterschiedliche Hosts, Filter in GA4 oder stark gecachte Seiten können den Ver
 trotzdem verzerren. Wenn deine Website mehrere Domains oder Subdomains im selben Log
 hat, solltest du denselben Host auswerten, den du auch in GA4 betrachtest.
 
+## Belastbarkeit der Befunde
+
+ServerStory soll keine falsche Sicherheit erzeugen. Wenn eine Zahl rechnerisch
+ermittelbar ist, aber die Datenbasis schwach wirkt, markiert das Tool den Befund als
+mittel oder niedrig belastbar und nennt den konkreten Grund.
+
+Direkt neben den wichtigsten Kennzahlen stehen deshalb Ampeln und Kurzgruende fuer:
+
+- Seitenaufrufe
+- Besucher
+- Conversions/Kaeufe
+- GA4-Abgleich
+- Host-Scope
+- Bot-/Anomalie-Erkennung
+- Tracking-Speicher
+
+Typische Gruende sind zum Beispiel: viele Zugriffe von einer Proxy-IP, fehlendes oder
+nicht plausibles X-Forwarded-For, mehrere Hosts in einer Datei, niedrige
+Recognition-Rate, unsortierte Logs, falsche GA4-Metrik, unlesbarer GA4-Export oder ein
+erreichtes Tracking-Speicherlimit. Der Copy-Report exportiert dieselbe Unsicherheit
+maschinenlesbar, unter anderem mit `visitorRange`, `visitorReliability`,
+`accuracyNotes`, `proxyKind`, `recognitionRate` und `hostReliability`.
+
 ## Entwicklung und Qualitätssicherung
 
 Wenn du am Tool etwas änderst, nutze das komplette Prüf-Gate:
