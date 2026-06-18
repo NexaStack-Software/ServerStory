@@ -791,6 +791,20 @@ test("warnt bei GA4 CSV mit falscher Metrik statt Views", () => {
   assert.match(result.ga4Import.warning, /Nutzer|Users|falsche Metrik/i);
 });
 
+test("warnt bei unlesbarer GA4-Eingabe statt still falsche Sicherheit zu geben", async () => {
+  const result = buildResultFor(baselineCombined, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "Dies ist kein GA4 Export\nfoo bar baz" }
+  });
+  assert.strictEqual(result.diagnostics.ga4Reliability, "limited");
+  assert.match(result.ga4Import.warning, /konnte nicht als Seitenaufrufe gelesen werden/i);
+  const report = await copyReportFor(result);
+  assert.match(report.accuracyNotes.ga4, /konnte nicht als Seitenaufrufe gelesen werden/i);
+});
+
 test("liefert Preflight-Beispiele fuer Format, Host und XFF vor der Analyse", () => {
   const preflight = ctx.preflightLogSample(fixture("preflight-xff-mixed-hosts.log"), {
     sampleLines: 10,
@@ -809,6 +823,33 @@ test("liefert Preflight-Beispiele fuer Format, Host und XFF vor der Analyse", ()
   assert.strictEqual(preflight.quality.pageviews, "high");
   assert.strictEqual(preflight.quality.visitors, "high");
   assert.strictEqual(preflight.warnings.some((warning) => /mehrere Hosts/i.test(warning)), true);
+});
+
+test("Preflight nutzt dieselbe Format- und Recognition-Logik wie die Analyse", () => {
+  const cases = [
+    ["cloudflare", fixture("cloudflare-edge.jsonl")],
+    ["cloudfront", fixture("cloudfront.tsv")],
+    ["iis", fixture("iis.log")]
+  ];
+  for (const [kind, text] of cases) {
+    const preflight = ctx.preflightLogSample(text, { sampleLines: 20 });
+    const full = analyze(text);
+    assert.strictEqual(preflight.formatKind, kind);
+    assert.strictEqual(preflight.formatKind, full.formatKind);
+    assert.strictEqual(preflight.recognitionRate, full.dataRows ? full.parsed / full.dataRows : 0);
+    assert.strictEqual(preflight.quality.pageviews, full.parsed / Math.max(1, full.dataRows) >= 0.95 ? "high" : "medium");
+  }
+});
+
+test("Preflight warnt bei kaputten Zeilen und fehlendem XFF vor der Analyse", () => {
+  const noisy = fixture("combined.log") + "\nkaputt 1";
+  const preflight = ctx.preflightLogSample(noisy, { sampleLines: 20, useXff: true });
+  assert.strictEqual(preflight.formatKind, "combined");
+  assert.ok(preflight.recognitionRate < 0.95);
+  assert.strictEqual(preflight.quality.pageviews, "medium");
+  assert.strictEqual(preflight.quality.visitors, "limited");
+  assert.strictEqual(preflight.warnings.some((warning) => /Nur .*Datenzeilen/i.test(warning)), true);
+  assert.strictEqual(preflight.warnings.some((warning) => /X-Forwarded-For aktiviert/i.test(warning)), true);
 });
 
 test("liest Cloudflare Edge JSON als CDN-Format", () => {
@@ -1085,6 +1126,7 @@ test("Copy-Report macht Proxy-XFF-Risiko mit Besucher-Bandbreite sichtbar", asyn
 
   assert.strictEqual(report.quality.visitorReliability, "limited");
   assert.strictEqual(report.quality.cacheRisk, "elevated");
+  assert.strictEqual(report.proxyKind, "private");
   assert.deepStrictEqual(report.xForwardedFor, { used: 0, missing: 0, privateOnly: 0 });
   assert.strictEqual(report.totals.visits, 1);
   assert.ok(report.totals.visitorRange.high > report.totals.visits);

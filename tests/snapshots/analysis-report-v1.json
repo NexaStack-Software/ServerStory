@@ -34,6 +34,7 @@
   },
   "suspiciousClients": 0,
   "trackingCapped": false,
+  "proxyKind": "",
   "filterReasons": {
     "bot": 0,
     "status": 1,

@@ -1499,6 +1499,9 @@
           if (!path || views === null) continue;
           values.set(path, views);
         }
+        if (lines.length && values.size === 0 && !lastGa4Import.warning) {
+          lastGa4Import.warning = "Die GA4-Eingabe konnte nicht als Seitenaufrufe gelesen werden. Bitte Export mit Page path und Views/Page Views verwenden.";
+        }
         return values;
       }
       function topEntries(map, limit) {
@@ -1550,8 +1553,7 @@
       function preflightLogSample(text, options = {}) {
         const sampleLines = options.sampleLines || 500;
         const reLine = /^(\S+)[ \t]+\S+[ \t]+\S+[ \t]+\[([^\]]+)\][ \t]+"([A-Z]+)[ \t]+([^"]*?)[ \t]+(HTTP\/[0-9.]+)"[ \t]+(\d{3})[ \t]+\S+[ \t]+"([^"]*)"[ \t]+"([^"]*)"(.*)$/;
-        const hosts = new Map();
-        let checked = 0, parsed = 0, first = null, xffUsed = 0;
+        let first = null;
         function norm(value) {
           try {
             const u = new URL(value, "http://x.invalid");
@@ -1573,30 +1575,37 @@
           }
           return "";
         }
-        for (const line of String(text || "").split(/\r?\n/).filter(Boolean).slice(0, sampleLines)) {
-          checked++;
+        const lines = String(text || "").split(/\r?\n/).filter(Boolean).slice(0, sampleLines);
+        const agg = makeAggregator({
+          assetRe: ASSET_RE,
+          useXff: !!options.useXff,
+          strictBot: false,
+          keptQueryParams: [],
+          hostFilter: [],
+          maxTrackedClients: 100000
+        });
+        for (const line of lines) {
+          agg.processLine(line);
           const m = reLine.exec(line);
           if (!m) continue;
-          parsed++;
           const target = norm(m[4]);
-          const host = target.host;
-          if (host) hosts.set(host, (hosts.get(host) || 0) + 1);
           const xff = options.useXff ? firstXff(m[9] || "") : "";
-          if (xff) xffUsed++;
-          if (!first) first = { ip: m[1], xff, method: m[3], path: target.path, host, status: Number(m[6]) };
+          if (!first) first = { ip: m[1], xff, method: m[3], path: target.path, host: target.host, status: Number(m[6]) };
         }
-        const recognitionRate = checked ? parsed / checked : 0;
+        const result = agg.finalize();
+        const recognitionRate = result.dataRows ? result.parsed / result.dataRows : 0;
         const warnings = [];
-        if (hosts.size > 1) warnings.push("Mehrere Hosts/Domains in der Stichprobe erkannt.");
-        if (options.useXff && !xffUsed) warnings.push("X-Forwarded-For aktiviert, aber in der Stichprobe nicht plausibel gefunden.");
+        if (result.hostCounts.size > 1) warnings.push("Mehrere Hosts/Domains in der Stichprobe erkannt.");
+        if (options.useXff && !result.xffUsed) warnings.push("X-Forwarded-For aktiviert, aber in der Stichprobe nicht plausibel gefunden.");
+        if (recognitionRate < 0.95) warnings.push(`Nur ${percent(recognitionRate * 100)} der Datenzeilen in der Stichprobe erkannt.`);
         return {
-          formatKind: parsed ? "combined" : "unknown",
+          formatKind: result.formatKind,
           recognitionRate,
           fields: first || {},
-          hosts: { total: hosts.size, top: topEntries(hosts, 5) },
+          hosts: { total: result.hostCounts.size, top: topEntries(result.hostCounts, 5) },
           quality: {
             pageviews: recognitionRate >= 0.95 ? "high" : recognitionRate >= 0.8 ? "medium" : "limited",
-            visitors: options.useXff && xffUsed ? "high" : "medium"
+            visitors: options.useXff ? (result.xffUsed && !result.xffMissing ? "high" : "limited") : "medium"
           },
           warnings
         };
@@ -2257,8 +2266,8 @@
           return "Danke-Seite erkannt; ohne Order-ID koennen Reloads/Mehrfachaufrufe stoeren.";
         }
         if (metric === "ga4") {
-          if (!hasGa4) return "Keine GA4-Seitenaufrufe eingetragen.";
           if (data.ga4Import && data.ga4Import.warning) return data.ga4Import.warning;
+          if (!hasGa4) return "Keine GA4-Seitenaufrufe eingetragen.";
           if (data.diagnostics.ga4Reliability === "medium") return "GA4-Werte mit Server-Seiten abgeglichen; Zeitraum/Seiten muessen identisch sein.";
           return "GA4-Vergleich eingeschraenkt; Eingabe oder Server-Erkennung pruefen.";
         }
@@ -2658,6 +2667,7 @@
           },
           suspiciousClients: lastResult.suspiciousClients,
           trackingCapped: lastResult.trackingCapped,
+          proxyKind: lastResult.proxyKind,
           filterReasons: lastResult.reasons,
           parser: {
             dataRows: lastResult.dataRows,
