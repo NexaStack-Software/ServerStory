@@ -157,6 +157,14 @@ function assertBuiltResultInvariants(result) {
   assert.ok(["high", "medium"].includes(result.diagnostics.trackingReliability));
   assert.ok(result.visitorRange.low <= result.visitorRange.high);
   assert.ok(result.visitorRange.low >= 1 || result.visits === 0);
+  assert.ok(Array.isArray(result.conflicts));
+  for (const conflict of result.conflicts) {
+    assert.strictEqual(typeof conflict.id, "string");
+    assert.ok(["medium", "high"].includes(conflict.severity));
+    assert.strictEqual(typeof conflict.text, "string");
+    assert.strictEqual(typeof conflict.check, "string");
+    assert.ok(Array.isArray(conflict.blocks));
+  }
   assert.ok(result.claims);
   for (const key of ["pageViews", "visits", "ga4", "hostScope", "conversions"]) {
     assert.ok(result.claims[key]);
@@ -654,8 +662,10 @@ test("Ground Truth: fehlende Zeitbloecke bleiben im Report als Exportluecke sich
 
   assert.strictEqual(report.totals.pageViews, 240);
   assert.ok(report.timeRange.maxGapHours >= 7);
+  assert.ok(report.conflicts.some((conflict) => conflict.id === "large_time_gap"));
   assert.match(report.accuracyNotes.pageViews, /Datei wurde sauber gelesen/i);
   assert.strictEqual(report.claims.pageViews.claimAllowed, true);
+  assert.match(report.claims.pageViews.recommendedChecks.join(" "), /Teil-Dateien fehlen/i);
   assert.match(report.claims.ga4.recommendedChecks.join(" "), /Zeitraum/i);
 });
 
@@ -669,10 +679,11 @@ test("Ground Truth: Cache-Origin-Unterzaehlung darf nicht als vollstaendige Serv
     orderParam: "order_id",
     hasSuccessUrl: true
   }, {
-    "ga4-url-views": { value: "/landing,1250\n/checkout/danke,125" }
+    "ga4-url-views": { value: "/landing,2500\n/checkout/danke,300" }
   }));
 
   assert.strictEqual(report.quality.cacheRisk, "elevated");
+  assert.ok(report.conflicts.some((conflict) => conflict.id === "ga4_above_server_with_cache_risk"));
   assert.strictEqual(report.evidence.pageViews.type, "lower_bound");
   assert.match(report.claims.pageViews.statement, /Mindestwert/i);
   assert.match(report.claims.pageViews.blockingReasons.join(" "), /Cache/i);
@@ -690,6 +701,7 @@ test("Ground Truth: falsche GA4-Seitenauswahl bleibt nur Vergleich mit Pruefpfli
   }));
 
   assert.ok(report.topPages.find((row) => row.name === "/landing").coverage > 100);
+  assert.strictEqual(report.conflicts.length, 0);
   assert.strictEqual(report.claims.ga4.claimAllowed, true);
   assert.match(report.claims.ga4.statement, /gleicher Website, gleichem Zeitraum und gleichen Seiten/i);
   assert.match(report.claims.ga4.recommendedChecks.join(" "), /Seitenaufrufe/i);
@@ -713,6 +725,7 @@ test("Ground Truth: Danke-Seiten-Reloads ohne Bestellnummer senken Kauf-Sicherhe
   assertBuiltResultInvariants(result);
   assert.strictEqual(result.successRaw, 90);
   assert.strictEqual(result.success, 30);
+  assert.strictEqual(result.conflicts.length, 0);
   assert.strictEqual(result.diagnostics.conversionReliability, "medium");
   assert.strictEqual(result.claims.conversions.claimAllowed, true);
   assert.match(result.claims.conversions.blockingReasons.join(" "), /Ohne Bestellnummer/i);
@@ -728,10 +741,44 @@ test("Ground Truth: interner Test-Traffic darf nicht automatisch als Proxy-Risik
 
   assertBuiltResultInvariants(result);
   assert.strictEqual(result.proxyKind, "concentrated");
+  assert.strictEqual(result.conflicts.length, 0);
   assert.strictEqual(result.diagnostics.visitorReliability, "limited");
   assert.strictEqual(result.claims.visits.claimAllowed, false);
   assert.match(result.claims.visits.blockingReasons.join(" "), /Proxy oder Cache/i);
   assert.doesNotMatch(result.claims.pageViews.blockingReasons.join(" "), /Zu viel der Datei/i);
+});
+
+test("Konflikt-Engine: Host-Mix blockiert GA4-Entscheidung", async () => {
+  const { text } = createLargeGoldenCorpus("cloudflare", {
+    hostFor: (i) => (i % 3 === 0 ? "other.example.test" : "example.test")
+  });
+  const report = await copyReportFor(buildResultFor(text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/landing,1250" }
+  }));
+
+  assert.ok(report.conflicts.some((conflict) => conflict.id === "ga4_compare_with_multiple_websites"));
+  assert.strictEqual(report.claims.ga4.claimAllowed, false);
+  assert.match(report.claims.ga4.blockingReasons.join(" "), /mehrere Websites/i);
+  assert.match(report.claims.ga4.recommendedChecks.join(" "), /Website-Filter/i);
+});
+
+test("Konflikt-Engine: GA4-Kaeufe ueber Danke-Seiten-Aufrufen blockieren Kaufvergleich", async () => {
+  const data = buildResultFor(baselineCombined, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-conversions": { value: "99" }
+  });
+  const report = await copyReportFor(data);
+
+  assert.ok(report.conflicts.some((conflict) => conflict.id === "ga4_purchases_exceed_server_success_page"));
+  assert.match(report.claims.conversions.blockingReasons.join(" "), /mehr Käufe/i);
+  assert.match(report.claims.conversions.forbiddenConclusions.join(" "), /Keinen Kaufvergleich/i);
 });
 
 test("liest GA4-Werte mit Semikolon, Tab und Tausenderzeichen", () => {

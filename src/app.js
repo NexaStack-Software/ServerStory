@@ -877,6 +877,53 @@
         const botReliability = agg.suspiciousClients > 0 ? "medium" : "high";
         const isEdgeLog = edgeKinds.has(agg.formatKind);
         const originCacheRisk = !!(proxyKind && !isEdgeLog);
+        const conflicts = [];
+        const addConflict = (id, severity, text, check, blocks = []) => conflicts.push({ id, severity, text, check, blocks });
+        if (overall && overall.coverage !== null && overall.coverage > 110 && originCacheRisk) {
+          addConflict(
+            "ga4_above_server_with_cache_risk",
+            "medium",
+            "GA4 liegt über der Server-Datei, gleichzeitig kann ein Cache Aufrufe vor dieser Datei abfangen.",
+            "Prüfen, ob Cloudflare oder ein anderer Cache vor der Website sitzt.",
+            ["complete_server_pageviews", "tracking_loss_claim"]
+          );
+        }
+        if (overall && hostReliability === "limited") {
+          addConflict(
+            "ga4_compare_with_multiple_websites",
+            "high",
+            "GA4 wird mit einer Server-Datei verglichen, die mehrere Websites oder Subdomains enthält.",
+            "Website-Filter setzen und erneut auswerten.",
+            ["ga4_decision"]
+          );
+        }
+        if (ga4Conversions !== null && config.hasSuccessUrl && ga4Conversions > agg.successRaw) {
+          addConflict(
+            "ga4_purchases_exceed_server_success_page",
+            "high",
+            "Google Analytics meldet mehr Käufe, als die Server-Datei Aufrufe der Kauf-/Danke-Seite enthält.",
+            "Prüfen, ob GA4 eine andere Kaufdefinition, einen anderen Zeitraum oder eine andere Website nutzt.",
+            ["purchase_comparison"]
+          );
+        }
+        if (recognitionRate < 0.95 && overall) {
+          addConflict(
+            "ga4_compare_with_unread_rows",
+            pageviewReliability === "limited" ? "high" : "medium",
+            "Ein Teil der Server-Datei konnte nicht gelesen werden, trotzdem werden GA4-Zahlen verglichen.",
+            "Exportformat prüfen und Vergleich danach erneut auswerten.",
+            ["ga4_decision", "complete_server_pageviews"]
+          );
+        }
+        if (agg.maxGapMs >= 6 * 60 * 60 * 1000) {
+          addConflict(
+            "large_time_gap",
+            "medium",
+            "Die Server-Datei enthält eine große zeitliche Lücke.",
+            "Prüfen, ob im Export Stunden oder Teil-Dateien fehlen.",
+            ["complete_time_range"]
+          );
+        }
         const evidence = {
           pageViews: {
             type: originCacheRisk ? "lower_bound" : "measured",
@@ -931,15 +978,17 @@
               : (pageviewReliability === "high" ? "Seitenaufrufe sind gut nutzbar." : "Seitenaufrufe sind nur mit Vorsicht nutzbar."),
             blockingReasons: [
               ...(pageviewReliability === "limited" ? ["Zu viel der Datei konnte nicht gelesen werden."] : []),
-              ...(originCacheRisk ? ["Cache/CDN kann Aufrufe vor dieser Server-Datei abfangen."] : [])
+              ...(originCacheRisk ? ["Cache/CDN kann Aufrufe vor dieser Server-Datei abfangen."] : []),
+              ...conflicts.filter((conflict) => conflict.blocks.includes("complete_server_pageviews")).map((conflict) => conflict.text)
             ],
             recommendedChecks: [
               ...(pageviewReliability !== "high" ? ["Exportformat prüfen."] : []),
-              ...(originCacheRisk ? ["Prüfen, ob Cloudflare oder ein anderer Cache davor sitzt."] : [])
+              ...(originCacheRisk ? ["Prüfen, ob Cloudflare oder ein anderer Cache davor sitzt."] : []),
+              ...conflicts.filter((conflict) => conflict.blocks.includes("complete_server_pageviews") || conflict.blocks.includes("complete_time_range")).map((conflict) => conflict.check)
             ],
             forbiddenConclusions: pageviewReliability === "limited"
               ? ["Keine harte Aussage über die Gesamtzahl der Seitenaufrufe treffen."]
-              : (originCacheRisk ? ["Nicht behaupten, dass die Server-Datei alle Aufrufe enthält."] : [])
+              : (originCacheRisk || conflicts.some((conflict) => conflict.blocks.includes("complete_server_pageviews")) ? ["Nicht behaupten, dass die Server-Datei alle Aufrufe enthält."] : [])
           },
           visits: {
             claimAllowed: !(proxyKind && !config.useXff),
@@ -968,12 +1017,14 @@
               ...(lastGa4Import.warning ? [lastGa4Import.warning] : []),
               ...(!overall ? ["Keine GA4-Seitenzahlen eingetragen."] : []),
               ...(hostReliability === "limited" ? ["Die Server-Datei enthält mehrere Websites oder Subdomains."] : []),
-              ...(pageviewReliability === "limited" ? ["Die Server-Datei wurde nicht zuverlässig genug gelesen."] : [])
+              ...(pageviewReliability === "limited" ? ["Die Server-Datei wurde nicht zuverlässig genug gelesen."] : []),
+              ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.text)
             ],
             recommendedChecks: [
               "Zeitraum in Google Analytics und Server-Datei abgleichen.",
               "Prüfen, ob wirklich Seitenaufrufe aus Google Analytics eingetragen wurden.",
-              ...(hostReliability === "limited" ? ["Website-Filter setzen."] : [])
+              ...(hostReliability === "limited" ? ["Website-Filter setzen."] : []),
+              ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.check)
             ],
             forbiddenConclusions: !(overall && !lastGa4Import.warning && hostReliability !== "limited" && pageviewReliability !== "limited")
               ? ["Keine Budget- oder Tracking-Entscheidung aus dem GA4-Vergleich ableiten."]
@@ -995,13 +1046,17 @@
               : "Käufe sind ohne Kauf-/Danke-Seite nicht bestimmbar.",
             blockingReasons: [
               ...(!config.hasSuccessUrl ? ["Keine Kauf-/Danke-Seite angegeben."] : []),
-              ...(conversionReliability === "medium" ? ["Ohne Bestellnummer können Reloads oder Mehrfachaufrufe stören."] : [])
+              ...(conversionReliability === "medium" ? ["Ohne Bestellnummer können Reloads oder Mehrfachaufrufe stören."] : []),
+              ...conflicts.filter((conflict) => conflict.blocks.includes("purchase_comparison")).map((conflict) => conflict.text)
             ],
             recommendedChecks: [
               ...(!config.hasSuccessUrl ? ["Kauf-/Danke-Seite angeben."] : []),
-              ...(conversionReliability === "medium" ? ["Bestellnummer-Parameter angeben, falls vorhanden."] : [])
+              ...(conversionReliability === "medium" ? ["Bestellnummer-Parameter angeben, falls vorhanden."] : []),
+              ...conflicts.filter((conflict) => conflict.blocks.includes("purchase_comparison")).map((conflict) => conflict.check)
             ],
-            forbiddenConclusions: !config.hasSuccessUrl ? ["Keine Aussage über Käufe treffen."] : []
+            forbiddenConclusions: !config.hasSuccessUrl
+              ? ["Keine Aussage über Käufe treffen."]
+              : (conflicts.some((conflict) => conflict.blocks.includes("purchase_comparison")) ? ["Keinen Kaufvergleich entscheiden, bevor die GA4-Definition geprüft ist."] : [])
           }
         };
         return {
@@ -1018,6 +1073,7 @@
           hosts,
           evidence,
           claims,
+          conflicts,
           ga4Import: lastGa4Import,
           diagnostics: { recognitionRate, pageviewReliability, visitorReliability, ga4Reliability, conversionReliability, cacheRisk, chronologyIssue, botReliability, hostReliability, trackingReliability: agg.trackingCapped ? "medium" : "high" },
           hasSuccessUrl: config.hasSuccessUrl, ga4Conversions, convDiff, serverCr,
@@ -1513,6 +1569,7 @@
           },
           evidence: lastResult.evidence,
           claims: lastResult.claims,
+          conflicts: lastResult.conflicts,
           xForwardedFor: {
             used: lastResult.xffUsed,
             missing: lastResult.xffMissing,

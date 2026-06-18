@@ -116,6 +116,7 @@
       "forbiddenConclusions": []
     }
   },
+  "conflicts": [],
   "xForwardedFor": {
     "used": 0,
     "missing": 0,
