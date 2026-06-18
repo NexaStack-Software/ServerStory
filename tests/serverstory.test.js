@@ -167,6 +167,7 @@ function assertBuiltResultInvariants(result) {
   }
   assert.ok(result.claims);
   assert.ok(result.claimMatrix);
+  assert.ok(result.evidenceFailures);
   for (const key of ["pageViews", "visits", "ga4", "hostScope", "conversions"]) {
     assert.ok(result.claims[key]);
     assert.strictEqual(typeof result.claims[key].claimAllowed, "boolean");
@@ -174,6 +175,10 @@ function assertBuiltResultInvariants(result) {
     assert.ok(result.claimMatrix[key]);
     assert.strictEqual(result.claimMatrix[key].status, result.claims[key].status);
     assert.strictEqual(typeof result.claimMatrix[key].reason, "string");
+    assert.ok(Array.isArray(result.evidenceFailures[key]));
+    assert.deepStrictEqual(result.claimMatrix[key].evidenceFailures, result.evidenceFailures[key]);
+    if (result.evidenceFailures[key].length) assert.notStrictEqual(result.claimMatrix[key].status, "allowed");
+    if (result.claimMatrix[key].status === "blocked") assert.ok(result.claimMatrix[key].reason.length > 0);
     assert.ok(Array.isArray(result.claimMatrix[key].requiredEvidence));
     assert.ok(Array.isArray(result.claims[key].blockingReasons));
     assert.ok(Array.isArray(result.claims[key].recommendedChecks));
@@ -185,6 +190,7 @@ function assertBuiltResultInvariants(result) {
   assert.ok(Array.isArray(result.auditProtocol.blockedClaims));
   assert.ok(Array.isArray(result.auditProtocol.requiredChecks));
   assert.ok(Array.isArray(result.auditProtocol.cannotSay));
+  assert.deepStrictEqual(result.auditProtocol.evidenceFailures, result.evidenceFailures);
 }
 
 function createElement() {
@@ -1446,6 +1452,8 @@ test("Copy-Report liefert versioniertes Schema mit Genauigkeitshinweisen", async
   assert.match(ui.get("claim-forbidden").innerHTML, /Tracking-Verlust/i);
   assert.match(ui.get("claim-checks").innerHTML, /Zeitraum/i);
   assert.strictEqual(report.claimMatrix.pageViews.status, report.claims.pageViews.status);
+  assert.deepStrictEqual(report.evidenceFailures.pageViews, []);
+  assert.deepStrictEqual(report.claimMatrix.pageViews.evidenceFailures, []);
   assert.deepStrictEqual(report.claimMatrix.pageViews.requiredEvidence, [
     "Lesbare Server- oder CDN-Zeilen mit Zeitstempel",
     "Gewünschter Zeitraum vollständig exportiert",
@@ -1453,6 +1461,7 @@ test("Copy-Report liefert versioniertes Schema mit Genauigkeitshinweisen", async
   ]);
   assert.ok(report.auditProtocol.allowedClaims.includes("hostScope"));
   assert.ok(report.auditProtocol.limitedClaims.includes("ga4"));
+  assert.deepStrictEqual(report.auditProtocol.evidenceFailures, report.evidenceFailures);
   assert.match(report.auditProtocol.cannotSay.join(" "), /GA4-Abweichung/i);
   assert.strictEqual(report.topPages[0].name, "/preise");
 });
@@ -1461,9 +1470,16 @@ test("No False Confidence: Claim-Matrix blockiert harte Aussagen bei unsicherer 
   const proxyReport = await copyReportFor(buildResultFor(createLargeGoldenCorpus("combined", {
     proxyIp: "10.0.0.5",
     xff: true
-  }).text));
+  }).text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }));
   assert.strictEqual(proxyReport.claimMatrix.visits.status, "blocked");
   assert.strictEqual(proxyReport.claimMatrix.visits.allowed, false);
+  assert.match(proxyReport.evidenceFailures.visits.join(" "), /Proxy|Cache/i);
+  assert.strictEqual(proxyReport.claimMatrix.conversions.status, "limited");
+  assert.match(proxyReport.evidenceFailures.conversions.join(" "), /Conversion-Rate|Besucherzahl/i);
   assert.match(proxyReport.claimMatrix.visits.reason, /Proxy|Cache/i);
   assert.ok(proxyReport.auditProtocol.blockedClaims.includes("visits"));
   assert.match(proxyReport.auditProtocol.cannotSay.join(" "), /Keine feste Besucherzahl/i);
@@ -1473,11 +1489,15 @@ test("No False Confidence: Claim-Matrix blockiert harte Aussagen bei unsicherer 
   }));
   assert.strictEqual(mixedHostReport.claimMatrix.hostScope.status, "blocked");
   assert.strictEqual(mixedHostReport.claimMatrix.ga4.status, "blocked");
+  assert.match(mixedHostReport.evidenceFailures.hostScope.join(" "), /Mehrere Websites/i);
+  assert.match(mixedHostReport.evidenceFailures.ga4.join(" "), /mehrere Websites|Subdomains/i);
   assert.match(mixedHostReport.claimMatrix.ga4.reason, /mehrere Websites|Subdomains/i);
   assert.ok(mixedHostReport.auditProtocol.blockedClaims.includes("ga4"));
 
   const brokenReport = await copyReportFor(buildResultFor(`${baselineCombined}\n${Array.from({ length: 200 }, (_, i) => `kaputte zeile ${i}`).join("\n")}`));
   assert.strictEqual(brokenReport.claimMatrix.pageViews.status, "blocked");
+  assert.match(brokenReport.evidenceFailures.pageViews.join(" "), /Zeilen|Datei/i);
+  assert.match(brokenReport.evidenceFailures.ga4.join(" "), /Server-Datei|gelesen/i);
   assert.match(brokenReport.claimMatrix.pageViews.reason, /Datei konnte gelesen|harte Aussage|Zeilen/i);
   assert.ok(brokenReport.auditProtocol.blockedClaims.includes("pageViews"));
 });
@@ -1502,6 +1522,7 @@ test("Copy-Report macht Proxy-XFF-Risiko mit Besucher-Bandbreite sichtbar", asyn
   assert.match(report.evidence.visits.reason, /nicht verlaesslich bestimmbar/i);
   assert.strictEqual(report.claims.visits.claimAllowed, false);
   assert.strictEqual(report.claimMatrix.visits.status, "blocked");
+  assert.deepStrictEqual(report.claims.visits.evidenceFailures, report.evidenceFailures.visits);
   assert.ok(report.claimMatrix.visits.requiredEvidence.some((item) => /Client-IP|Proxy-Feld/i.test(item)));
   assert.match(report.claims.visits.blockingReasons.join(" "), /Proxy|Cache/i);
   assert.match(report.claims.visits.forbiddenConclusions.join(" "), /Keine feste Besucherzahl/i);

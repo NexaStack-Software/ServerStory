@@ -2586,13 +2586,47 @@
           ]
         };
         const dedupe = (items) => [...new Set((items || []).filter(Boolean))];
+        const evidenceFailures = {
+          pageViews: dedupe([
+            ...(!agg.minTime || !agg.maxTime ? ["Der Zeitraum der Datei ist nicht sicher lesbar."] : []),
+            ...(exportCompleteness.reliability === "limited" ? exportCompleteness.reasons : []),
+            ...(pageviewReliability === "limited" ? ["Zu viele Zeilen konnten nicht sicher gelesen werden."] : []),
+            ...(originCacheRisk ? ["Die Datei kommt wahrscheinlich vom Origin-Server hinter Cache/CDN; gecachte Aufrufe können fehlen."] : []),
+            ...conflicts.filter((conflict) => conflict.blocks.includes("complete_server_pageviews") || conflict.blocks.includes("complete_time_range")).map((conflict) => conflict.text)
+          ]),
+          visits: dedupe([
+            ...(exportCompleteness.reliability === "limited" ? ["Der Export ist nicht vollständig genug für feste Besucher-Aussagen."] : []),
+            ...(proxyKind && !config.useXff ? ["Proxy oder Cache verdeckt echte Besucheradressen."] : []),
+            ...(config.useXff && visitorReliability === "limited" ? ["Das Proxy-Feld enthält keine durchgehend brauchbaren Besucheradressen."] : []),
+            ...(chronologyIssue ? ["Die Datei ist nicht sauber zeitlich sortiert."] : [])
+          ]),
+          ga4: dedupe([
+            ...(!overall ? ["Keine GA4-Seitenaufrufe für einen Vergleich vorhanden."] : []),
+            ...(lastGa4Import.warning ? [lastGa4Import.warning] : []),
+            ...(ga4InputProblem ? ["Der GA4-Export enthält Duplikate oder viele Seiten ohne Treffer in der Server-Datei."] : []),
+            ...(hostReliability === "limited" ? ["Die Server-Datei enthält mehrere Websites oder Subdomains."] : []),
+            ...(pageviewReliability === "limited" ? ["Die Server-Datei wurde nicht zuverlässig genug gelesen."] : []),
+            ...(exportCompleteness.reliability === "limited" ? ["Der Server-Export ist nicht vollständig genug für einen belastbaren GA4-Vergleich."] : []),
+            ...(originCacheRisk ? ["Cache/CDN kann Server-Aufrufe vor dieser Datei abfangen; der GA4-Vergleich ist nur eingeschränkt nutzbar."] : []),
+            ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.text)
+          ]),
+          hostScope: dedupe([
+            ...(hostReliability === "limited" ? ["Mehrere Websites/Subdomains ohne Filter erkannt."] : [])
+          ]),
+          conversions: dedupe([
+            ...(!config.hasSuccessUrl ? ["Keine Kauf-/Danke-Seite angegeben."] : []),
+            ...(conversionReliability === "medium" ? ["Ohne Bestellnummer können Reloads oder Mehrfachaufrufe stören."] : []),
+            ...(visitorReliability === "limited" ? ["Eine Conversion-Rate auf Besucherbasis ist nicht belastbar, weil die Besucherzahl unsicher ist."] : []),
+            ...conflicts.filter((conflict) => conflict.blocks.includes("purchase_comparison")).map((conflict) => conflict.text)
+          ])
+        };
         const claimMatrix = Object.fromEntries(Object.entries(claims).map(([key, claim]) => {
           const status = !claim.claimAllowed
             ? "blocked"
-            : (claim.confidence === "high" && !(claim.blockingReasons || []).length && !(claim.forbiddenConclusions || []).length ? "allowed" : "limited");
+            : (claim.confidence === "high" && !(claim.blockingReasons || []).length && !(claim.forbiddenConclusions || []).length && !(evidenceFailures[key] || []).length ? "allowed" : "limited");
           const reason = status === "allowed"
             ? claim.statement
-            : dedupe([...(claim.blockingReasons || []), ...(claim.forbiddenConclusions || []), claim.statement])[0];
+            : dedupe([...(evidenceFailures[key] || []), ...(claim.blockingReasons || []), ...(claim.forbiddenConclusions || []), claim.statement])[0];
           return [key, {
             status,
             allowed: status === "allowed",
@@ -2601,6 +2635,7 @@
             confidence: claim.confidence,
             statement: claim.statement,
             reason,
+            evidenceFailures: evidenceFailures[key] || [],
             blockingReasons: claim.blockingReasons,
             requiredEvidence: claimEvidence[key] || [],
             recommendedChecks: dedupe(claim.recommendedChecks || []),
@@ -2612,6 +2647,7 @@
           status: claimMatrix[key].status,
           allowed: claimMatrix[key].allowed,
           reason: claimMatrix[key].reason,
+          evidenceFailures: claimMatrix[key].evidenceFailures,
           requiredEvidence: claimMatrix[key].requiredEvidence
         }]));
         const auditProtocol = {
@@ -2633,6 +2669,7 @@
           allowedClaims: Object.entries(claimMatrix).filter(([, claim]) => claim.status === "allowed").map(([key]) => key),
           limitedClaims: Object.entries(claimMatrix).filter(([, claim]) => claim.status === "limited").map(([key]) => key),
           blockedClaims: Object.entries(claimMatrix).filter(([, claim]) => claim.status === "blocked").map(([key]) => key),
+          evidenceFailures,
           requiredChecks: dedupe(Object.values(claimMatrix).flatMap((claim) => claim.recommendedChecks || [])),
           cannotSay: dedupe(Object.values(claimMatrix).flatMap((claim) => claim.forbiddenConclusions || []))
         };
@@ -2651,6 +2688,7 @@
           evidence,
           claims: claimsWithMatrix,
           claimMatrix,
+          evidenceFailures,
           auditProtocol,
           conflicts,
           ga4Validation,
@@ -3159,6 +3197,7 @@
             maxGapHours: lastResult.maxGapMs ? Math.round(lastResult.maxGapMs / 3600000) : 0
           },
           evidence: lastResult.evidence,
+          evidenceFailures: lastResult.evidenceFailures,
           claims: lastResult.claims,
           claimMatrix: lastResult.claimMatrix,
           auditProtocol: lastResult.auditProtocol,
