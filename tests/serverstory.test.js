@@ -166,13 +166,25 @@ function assertBuiltResultInvariants(result) {
     assert.ok(Array.isArray(conflict.blocks));
   }
   assert.ok(result.claims);
+  assert.ok(result.claimMatrix);
   for (const key of ["pageViews", "visits", "ga4", "hostScope", "conversions"]) {
     assert.ok(result.claims[key]);
     assert.strictEqual(typeof result.claims[key].claimAllowed, "boolean");
+    assert.ok(["allowed", "limited", "blocked"].includes(result.claims[key].status));
+    assert.ok(result.claimMatrix[key]);
+    assert.strictEqual(result.claimMatrix[key].status, result.claims[key].status);
+    assert.strictEqual(typeof result.claimMatrix[key].reason, "string");
+    assert.ok(Array.isArray(result.claimMatrix[key].requiredEvidence));
     assert.ok(Array.isArray(result.claims[key].blockingReasons));
     assert.ok(Array.isArray(result.claims[key].recommendedChecks));
     assert.ok(Array.isArray(result.claims[key].forbiddenConclusions));
   }
+  assert.ok(result.auditProtocol);
+  assert.ok(Array.isArray(result.auditProtocol.allowedClaims));
+  assert.ok(Array.isArray(result.auditProtocol.limitedClaims));
+  assert.ok(Array.isArray(result.auditProtocol.blockedClaims));
+  assert.ok(Array.isArray(result.auditProtocol.requiredChecks));
+  assert.ok(Array.isArray(result.auditProtocol.cannotSay));
 }
 
 function createElement() {
@@ -1433,7 +1445,41 @@ test("Copy-Report liefert versioniertes Schema mit Genauigkeitshinweisen", async
   assert.match(ui.get("claim-allowed").innerHTML, new RegExp(report.claims.pageViews.statement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(ui.get("claim-forbidden").innerHTML, /Tracking-Verlust/i);
   assert.match(ui.get("claim-checks").innerHTML, /Zeitraum/i);
+  assert.strictEqual(report.claimMatrix.pageViews.status, report.claims.pageViews.status);
+  assert.deepStrictEqual(report.claimMatrix.pageViews.requiredEvidence, [
+    "Lesbare Server- oder CDN-Zeilen mit Zeitstempel",
+    "Gewünschter Zeitraum vollständig exportiert",
+    "Bei Cache/CDN: Edge-Log statt nur Origin-Log"
+  ]);
+  assert.ok(report.auditProtocol.allowedClaims.includes("hostScope"));
+  assert.ok(report.auditProtocol.limitedClaims.includes("ga4"));
+  assert.match(report.auditProtocol.cannotSay.join(" "), /GA4-Abweichung/i);
   assert.strictEqual(report.topPages[0].name, "/preise");
+});
+
+test("No False Confidence: Claim-Matrix blockiert harte Aussagen bei unsicherer Datenbasis", async () => {
+  const proxyReport = await copyReportFor(buildResultFor(createLargeGoldenCorpus("combined", {
+    proxyIp: "10.0.0.5",
+    xff: true
+  }).text));
+  assert.strictEqual(proxyReport.claimMatrix.visits.status, "blocked");
+  assert.strictEqual(proxyReport.claimMatrix.visits.allowed, false);
+  assert.match(proxyReport.claimMatrix.visits.reason, /Proxy|Cache/i);
+  assert.ok(proxyReport.auditProtocol.blockedClaims.includes("visits"));
+  assert.match(proxyReport.auditProtocol.cannotSay.join(" "), /Keine feste Besucherzahl/i);
+
+  const mixedHostReport = await copyReportFor(buildResultFor(fixture("mixed-hosts.log"), {}, {
+    "ga4-url-views": { value: "/preise,10\n/landing,5" }
+  }));
+  assert.strictEqual(mixedHostReport.claimMatrix.hostScope.status, "blocked");
+  assert.strictEqual(mixedHostReport.claimMatrix.ga4.status, "blocked");
+  assert.match(mixedHostReport.claimMatrix.ga4.reason, /mehrere Websites|Subdomains/i);
+  assert.ok(mixedHostReport.auditProtocol.blockedClaims.includes("ga4"));
+
+  const brokenReport = await copyReportFor(buildResultFor(`${baselineCombined}\n${Array.from({ length: 200 }, (_, i) => `kaputte zeile ${i}`).join("\n")}`));
+  assert.strictEqual(brokenReport.claimMatrix.pageViews.status, "blocked");
+  assert.match(brokenReport.claimMatrix.pageViews.reason, /Datei konnte gelesen|harte Aussage|Zeilen/i);
+  assert.ok(brokenReport.auditProtocol.blockedClaims.includes("pageViews"));
 });
 
 test("Copy-Report macht Proxy-XFF-Risiko mit Besucher-Bandbreite sichtbar", async () => {
@@ -1455,6 +1501,8 @@ test("Copy-Report macht Proxy-XFF-Risiko mit Besucher-Bandbreite sichtbar", asyn
   assert.strictEqual(report.evidence.visits.canAnswer, false);
   assert.match(report.evidence.visits.reason, /nicht verlaesslich bestimmbar/i);
   assert.strictEqual(report.claims.visits.claimAllowed, false);
+  assert.strictEqual(report.claimMatrix.visits.status, "blocked");
+  assert.ok(report.claimMatrix.visits.requiredEvidence.some((item) => /Client-IP|Proxy-Feld/i.test(item)));
   assert.match(report.claims.visits.blockingReasons.join(" "), /Proxy|Cache/i);
   assert.match(report.claims.visits.forbiddenConclusions.join(" "), /Keine feste Besucherzahl/i);
   assert.match(report.claims.visits.forbiddenConclusions.join(" "), /Conversion-Rate/i);

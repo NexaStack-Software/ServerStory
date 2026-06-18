@@ -2,23 +2,6 @@
   "schema": "serverstory.analysis.v1",
   "schemaVersion": 1,
   "format": "combined",
-  "ga4Validation": {
-    "rows": 2,
-    "unmatchedRows": 0,
-    "unmatchedShare": 0,
-    "unmatchedPaths": [],
-    "duplicateCount": 0,
-    "duplicatePaths": []
-  },
-  "exportCompleteness": {
-    "reliability": "high",
-    "reasons": [],
-    "recommendedChecks": [],
-    "durationHours": 1.1,
-    "maxGapHours": 1,
-    "filterShare": 0.16666666666666666,
-    "recognitionRate": 1
-  },
   "totals": {
     "rows": 6,
     "parsed": 6,
@@ -94,7 +77,15 @@
       "statement": "Seitenaufrufe sind gut nutzbar.",
       "blockingReasons": [],
       "recommendedChecks": [],
-      "forbiddenConclusions": []
+      "forbiddenConclusions": [],
+      "status": "allowed",
+      "allowed": true,
+      "reason": "Seitenaufrufe sind gut nutzbar.",
+      "requiredEvidence": [
+        "Lesbare Server- oder CDN-Zeilen mit Zeitstempel",
+        "Gewünschter Zeitraum vollständig exportiert",
+        "Bei Cache/CDN: Edge-Log statt nur Origin-Log"
+      ]
     },
     "visits": {
       "claimAllowed": true,
@@ -102,7 +93,15 @@
       "statement": "Besucherzahl ist gut nutzbar.",
       "blockingReasons": [],
       "recommendedChecks": [],
-      "forbiddenConclusions": []
+      "forbiddenConclusions": [],
+      "status": "allowed",
+      "allowed": true,
+      "reason": "Besucherzahl ist gut nutzbar.",
+      "requiredEvidence": [
+        "Echte Client-IP oder vertrauenswürdiges Proxy-Feld",
+        "Zeitlich sortierte Logzeilen",
+        "Keine dominante Proxy-/Loadbalancer-Adresse"
+      ]
     },
     "ga4": {
       "claimAllowed": true,
@@ -115,6 +114,14 @@
       ],
       "forbiddenConclusions": [
         "GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."
+      ],
+      "status": "limited",
+      "allowed": false,
+      "reason": "GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen.",
+      "requiredEvidence": [
+        "GA4-Seitenaufrufe, keine Nutzer- oder Sitzungsmetrik",
+        "Gleicher Zeitraum, gleiche Website, gleiche Seitenauswahl",
+        "Server-Export ohne harte Vollständigkeits-Blocker"
       ]
     },
     "hostScope": {
@@ -123,7 +130,14 @@
       "statement": "Die Datei wirkt auf eine Website begrenzt.",
       "blockingReasons": [],
       "recommendedChecks": [],
-      "forbiddenConclusions": []
+      "forbiddenConclusions": [],
+      "status": "allowed",
+      "allowed": true,
+      "reason": "Die Datei wirkt auf eine Website begrenzt.",
+      "requiredEvidence": [
+        "Eine Website/Subdomain oder gesetzter Website-Filter",
+        "Keine fremden Hosts im analysierten Datensatz"
+      ]
     },
     "conversions": {
       "claimAllowed": true,
@@ -131,10 +145,160 @@
       "statement": "Käufe sind gut nutzbar.",
       "blockingReasons": [],
       "recommendedChecks": [],
+      "forbiddenConclusions": [],
+      "status": "allowed",
+      "allowed": true,
+      "reason": "Käufe sind gut nutzbar.",
+      "requiredEvidence": [
+        "Kauf-/Danke-Seite oder Conversion-Muster",
+        "Bestellnummer oder anderes Deduplizierungsmerkmal für hohe Sicherheit",
+        "Gleiche Kaufdefinition bei GA4-Vergleich"
+      ]
+    }
+  },
+  "claimMatrix": {
+    "pageViews": {
+      "status": "allowed",
+      "allowed": true,
+      "limited": false,
+      "blocked": false,
+      "confidence": "high",
+      "statement": "Seitenaufrufe sind gut nutzbar.",
+      "reason": "Seitenaufrufe sind gut nutzbar.",
+      "blockingReasons": [],
+      "requiredEvidence": [
+        "Lesbare Server- oder CDN-Zeilen mit Zeitstempel",
+        "Gewünschter Zeitraum vollständig exportiert",
+        "Bei Cache/CDN: Edge-Log statt nur Origin-Log"
+      ],
+      "recommendedChecks": [],
+      "forbiddenConclusions": []
+    },
+    "visits": {
+      "status": "allowed",
+      "allowed": true,
+      "limited": false,
+      "blocked": false,
+      "confidence": "high",
+      "statement": "Besucherzahl ist gut nutzbar.",
+      "reason": "Besucherzahl ist gut nutzbar.",
+      "blockingReasons": [],
+      "requiredEvidence": [
+        "Echte Client-IP oder vertrauenswürdiges Proxy-Feld",
+        "Zeitlich sortierte Logzeilen",
+        "Keine dominante Proxy-/Loadbalancer-Adresse"
+      ],
+      "recommendedChecks": [],
+      "forbiddenConclusions": []
+    },
+    "ga4": {
+      "status": "limited",
+      "allowed": false,
+      "limited": true,
+      "blocked": false,
+      "confidence": "medium",
+      "statement": "GA4-Vergleich ist nur mit gleicher Website, gleichem Zeitraum und gleichen Seiten belastbar.",
+      "reason": "GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen.",
+      "blockingReasons": [],
+      "requiredEvidence": [
+        "GA4-Seitenaufrufe, keine Nutzer- oder Sitzungsmetrik",
+        "Gleicher Zeitraum, gleiche Website, gleiche Seitenauswahl",
+        "Server-Export ohne harte Vollständigkeits-Blocker"
+      ],
+      "recommendedChecks": [
+        "Zeitraum in Google Analytics und Server-Datei abgleichen.",
+        "Prüfen, ob wirklich Seitenaufrufe aus Google Analytics eingetragen wurden."
+      ],
+      "forbiddenConclusions": [
+        "GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."
+      ]
+    },
+    "hostScope": {
+      "status": "allowed",
+      "allowed": true,
+      "limited": false,
+      "blocked": false,
+      "confidence": "high",
+      "statement": "Die Datei wirkt auf eine Website begrenzt.",
+      "reason": "Die Datei wirkt auf eine Website begrenzt.",
+      "blockingReasons": [],
+      "requiredEvidence": [
+        "Eine Website/Subdomain oder gesetzter Website-Filter",
+        "Keine fremden Hosts im analysierten Datensatz"
+      ],
+      "recommendedChecks": [],
+      "forbiddenConclusions": []
+    },
+    "conversions": {
+      "status": "allowed",
+      "allowed": true,
+      "limited": false,
+      "blocked": false,
+      "confidence": "high",
+      "statement": "Käufe sind gut nutzbar.",
+      "reason": "Käufe sind gut nutzbar.",
+      "blockingReasons": [],
+      "requiredEvidence": [
+        "Kauf-/Danke-Seite oder Conversion-Muster",
+        "Bestellnummer oder anderes Deduplizierungsmerkmal für hohe Sicherheit",
+        "Gleiche Kaufdefinition bei GA4-Vergleich"
+      ],
+      "recommendedChecks": [],
       "forbiddenConclusions": []
     }
   },
+  "auditProtocol": {
+    "dataBasis": {
+      "format": "combined",
+      "rows": 6,
+      "parsed": 6,
+      "kept": 5,
+      "recognitionRate": 1,
+      "timeRange": {
+        "from": "2026-06-05T10:00:00.000Z",
+        "to": "2026-06-05T11:05:00.000Z",
+        "maxGapHours": 1
+      },
+      "hostCount": 0,
+      "proxyKind": "none",
+      "exportCompleteness": "high"
+    },
+    "allowedClaims": [
+      "pageViews",
+      "visits",
+      "hostScope",
+      "conversions"
+    ],
+    "limitedClaims": [
+      "ga4"
+    ],
+    "blockedClaims": [],
+    "requiredChecks": [
+      "Zeitraum in Google Analytics und Server-Datei abgleichen.",
+      "Prüfen, ob wirklich Seitenaufrufe aus Google Analytics eingetragen wurden."
+    ],
+    "cannotSay": [
+      "GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."
+    ]
+  },
   "conflicts": [],
+  "ga4Validation": {
+    "rows": 2,
+    "unmatchedRows": 0,
+    "unmatchedShare": 0,
+    "unmatchedPaths": [],
+    "duplicateCount": 0,
+    "duplicatePaths": []
+  },
+  "exportCompleteness": {
+    "reliability": "high",
+    "reasons": [],
+    "recommendedChecks": [],
+    "durationHours": 1.1,
+    "maxGapHours": 1,
+    "filterShare": 0.16666666666666666,
+    "recognitionRate": 1
+  },
   "xForwardedFor": {
     "used": 0,
     "missing": 0,

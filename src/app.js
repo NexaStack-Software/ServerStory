@@ -1155,6 +1155,83 @@
               : (conflicts.some((conflict) => conflict.blocks.includes("purchase_comparison")) ? ["Keinen Kaufvergleich entscheiden, bevor die GA4-Definition geprüft ist."] : [])
           }
         };
+        const claimEvidence = {
+          pageViews: [
+            "Lesbare Server- oder CDN-Zeilen mit Zeitstempel",
+            "Gewünschter Zeitraum vollständig exportiert",
+            "Bei Cache/CDN: Edge-Log statt nur Origin-Log"
+          ],
+          visits: [
+            "Echte Client-IP oder vertrauenswürdiges Proxy-Feld",
+            "Zeitlich sortierte Logzeilen",
+            "Keine dominante Proxy-/Loadbalancer-Adresse"
+          ],
+          ga4: [
+            "GA4-Seitenaufrufe, keine Nutzer- oder Sitzungsmetrik",
+            "Gleicher Zeitraum, gleiche Website, gleiche Seitenauswahl",
+            "Server-Export ohne harte Vollständigkeits-Blocker"
+          ],
+          hostScope: [
+            "Eine Website/Subdomain oder gesetzter Website-Filter",
+            "Keine fremden Hosts im analysierten Datensatz"
+          ],
+          conversions: [
+            "Kauf-/Danke-Seite oder Conversion-Muster",
+            "Bestellnummer oder anderes Deduplizierungsmerkmal für hohe Sicherheit",
+            "Gleiche Kaufdefinition bei GA4-Vergleich"
+          ]
+        };
+        const dedupe = (items) => [...new Set((items || []).filter(Boolean))];
+        const claimMatrix = Object.fromEntries(Object.entries(claims).map(([key, claim]) => {
+          const status = !claim.claimAllowed
+            ? "blocked"
+            : (claim.confidence === "high" && !(claim.blockingReasons || []).length && !(claim.forbiddenConclusions || []).length ? "allowed" : "limited");
+          const reason = status === "allowed"
+            ? claim.statement
+            : dedupe([...(claim.blockingReasons || []), ...(claim.forbiddenConclusions || []), claim.statement])[0];
+          return [key, {
+            status,
+            allowed: status === "allowed",
+            limited: status === "limited",
+            blocked: status === "blocked",
+            confidence: claim.confidence,
+            statement: claim.statement,
+            reason,
+            blockingReasons: claim.blockingReasons,
+            requiredEvidence: claimEvidence[key] || [],
+            recommendedChecks: dedupe(claim.recommendedChecks || []),
+            forbiddenConclusions: dedupe(claim.forbiddenConclusions || [])
+          }];
+        }));
+        const claimsWithMatrix = Object.fromEntries(Object.entries(claims).map(([key, claim]) => [key, {
+          ...claim,
+          status: claimMatrix[key].status,
+          allowed: claimMatrix[key].allowed,
+          reason: claimMatrix[key].reason,
+          requiredEvidence: claimMatrix[key].requiredEvidence
+        }]));
+        const auditProtocol = {
+          dataBasis: {
+            format: agg.formatKind,
+            rows: agg.total,
+            parsed: agg.parsed,
+            kept: agg.kept,
+            recognitionRate,
+            timeRange: {
+              from: agg.minTime ? new Date(agg.minTime).toISOString() : null,
+              to: agg.maxTime ? new Date(agg.maxTime).toISOString() : null,
+              maxGapHours: agg.maxGapMs ? Math.round(agg.maxGapMs / 3600000) : 0
+            },
+            hostCount: hosts.total,
+            proxyKind: proxyKind || "none",
+            exportCompleteness: exportCompleteness.reliability
+          },
+          allowedClaims: Object.entries(claimMatrix).filter(([, claim]) => claim.status === "allowed").map(([key]) => key),
+          limitedClaims: Object.entries(claimMatrix).filter(([, claim]) => claim.status === "limited").map(([key]) => key),
+          blockedClaims: Object.entries(claimMatrix).filter(([, claim]) => claim.status === "blocked").map(([key]) => key),
+          requiredChecks: dedupe(Object.values(claimMatrix).flatMap((claim) => claim.recommendedChecks || [])),
+          cannotSay: dedupe(Object.values(claimMatrix).flatMap((claim) => claim.forbiddenConclusions || []))
+        };
         return {
           total: agg.total, dataRows: agg.dataRows, parsed: agg.parsed, unrecognized: agg.unrecognized, meta: agg.meta || 0,
           kept: agg.kept, pageViews: agg.pageViews, filtered: agg.filtered, reasons: agg.reasons,
@@ -1168,7 +1245,9 @@
           visitorRange: { low: visitorLow, high: visitorHigh },
           hosts,
           evidence,
-          claims,
+          claims: claimsWithMatrix,
+          claimMatrix,
+          auditProtocol,
           conflicts,
           ga4Validation,
           exportCompleteness,
@@ -1274,13 +1353,13 @@
       }
       function renderClaimBox(data, hasGa4, hasConv) {
         const relevant = [
-          data.claims.pageViews,
-          data.claims.visits,
-          ...(hasGa4 ? [data.claims.ga4] : []),
-          data.claims.hostScope,
-          ...(data.hasSuccessUrl || hasConv ? [data.claims.conversions] : [])
+          data.claimMatrix.pageViews,
+          data.claimMatrix.visits,
+          ...(hasGa4 ? [data.claimMatrix.ga4] : []),
+          data.claimMatrix.hostScope,
+          ...(data.hasSuccessUrl || hasConv ? [data.claimMatrix.conversions] : [])
         ].filter(Boolean);
-        const allowed = unique(relevant.filter((claim) => claim.claimAllowed).map((claim) => claim.statement)).slice(0, 4);
+        const allowed = unique(relevant.filter((claim) => claim.status !== "blocked").map((claim) => claim.statement)).slice(0, 4);
         const forbidden = unique(relevant.flatMap((claim) => claim.forbiddenConclusions || [])).slice(0, 4);
         const checks = unique(relevant.flatMap((claim) => claim.recommendedChecks || [])).slice(0, 4);
         const listHtml = (items, fallback) => (items.length ? items : [fallback]).map((text) => `<li>${escapeHtml(text)}</li>`).join("");
@@ -1677,6 +1756,8 @@
           },
           evidence: lastResult.evidence,
           claims: lastResult.claims,
+          claimMatrix: lastResult.claimMatrix,
+          auditProtocol: lastResult.auditProtocol,
           conflicts: lastResult.conflicts,
           ga4Validation: lastResult.ga4Validation,
           exportCompleteness: lastResult.exportCompleteness,
