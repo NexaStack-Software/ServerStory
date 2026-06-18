@@ -240,7 +240,7 @@ function visibleDecisionText(ui) {
     "claim-allowed", "claim-forbidden", "claim-checks",
     "q-visits", "q-visits-reason", "q-views", "q-views-reason",
     "q-purchases", "q-purchases-reason", "q-ga4", "q-ga4-reason",
-    "q-host", "q-host-reason", "q-bot", "q-bot-reason", "q-tracking", "q-tracking-reason"
+    "q-host", "q-host-reason", "q-export", "q-export-reason", "q-bot", "q-bot-reason", "q-tracking", "q-tracking-reason"
   ].map((key) => `${ui.get(key).textContent || ""} ${ui.get(key).innerHTML || ""}`).join("\n");
 }
 
@@ -662,11 +662,29 @@ test("Ground Truth: fehlende Zeitbloecke bleiben im Report als Exportluecke sich
 
   assert.strictEqual(report.totals.pageViews, 240);
   assert.ok(report.timeRange.maxGapHours >= 7);
+  assert.strictEqual(report.exportCompleteness.reliability, "medium");
+  assert.match(report.exportCompleteness.reasons.join(" "), /Große Lücke/i);
   assert.ok(report.conflicts.some((conflict) => conflict.id === "large_time_gap"));
   assert.match(report.accuracyNotes.pageViews, /Datei wurde sauber gelesen/i);
   assert.strictEqual(report.claims.pageViews.claimAllowed, true);
   assert.match(report.claims.pageViews.recommendedChecks.join(" "), /Teil-Dateien fehlen/i);
   assert.match(report.claims.ga4.recommendedChecks.join(" "), /Zeitraum/i);
+});
+
+test("Ground Truth: Export-Vollstaendigkeit bewertet normale und kurze Exporte", async () => {
+  const { text } = createLargeGoldenCorpus("combined");
+  const normalReport = await copyReportFor(buildResultFor(text));
+  assert.strictEqual(normalReport.exportCompleteness.reliability, "high");
+  assert.deepStrictEqual(normalReport.exportCompleteness.reasons, []);
+
+  const shortLines = [];
+  for (let i = 0; i < 20; i++) {
+    shortLines.push(combined(docIp(i), combinedStampAt(i * 60), `/kurz/${i}`));
+  }
+  const shortReport = await copyReportFor(buildResultFor(shortLines.join("\n")));
+  assert.strictEqual(shortReport.exportCompleteness.reliability, "medium");
+  assert.match(shortReport.exportCompleteness.reasons.join(" "), /weniger als eine Stunde/i);
+  assert.match(shortReport.claims.pageViews.recommendedChecks.join(" "), /gewünschte Zeitraum/i);
 });
 
 test("Ground Truth: Cache-Origin-Unterzaehlung darf nicht als vollstaendige Server-Wahrheit erscheinen", async () => {
@@ -683,6 +701,8 @@ test("Ground Truth: Cache-Origin-Unterzaehlung darf nicht als vollstaendige Serv
   }));
 
   assert.strictEqual(report.quality.cacheRisk, "elevated");
+  assert.strictEqual(report.exportCompleteness.reliability, "medium");
+  assert.match(report.exportCompleteness.reasons.join(" "), /Cache oder Proxy/i);
   assert.ok(report.conflicts.some((conflict) => conflict.id === "ga4_above_server_with_cache_risk"));
   assert.strictEqual(report.evidence.pageViews.type, "lower_bound");
   assert.match(report.claims.pageViews.statement, /Mindestwert/i);
@@ -707,6 +727,20 @@ test("Ground Truth: falsche GA4-Seitenauswahl bleibt nur Vergleich mit Pruefpfli
   assert.match(report.claims.ga4.statement, /gleicher Website, gleichem Zeitraum und gleichen Seiten/i);
   assert.match(report.claims.ga4.recommendedChecks.join(" "), /Seitenaufrufe/i);
   assert.match(report.claims.ga4.forbiddenConclusions.join(" "), /Keine Budget- oder Tracking-Entscheidung/i);
+});
+
+test("Ground Truth: sehr kaputter Export senkt Vollstaendigkeit und Claims", async () => {
+  const { text } = createLargeGoldenCorpus("combined");
+  const broken = `${text}\n${Array.from({ length: 2200 }, (_, i) => `kaputte zeile ${i}`).join("\n")}`;
+  const report = await copyReportFor(buildResultFor(broken, {}, {
+    "ga4-url-views": { value: "/landing,1250" }
+  }));
+
+  assert.strictEqual(report.exportCompleteness.reliability, "limited");
+  assert.match(report.exportCompleteness.reasons.join(" "), /konnte gelesen werden|Zeilen wurden aussortiert/i);
+  assert.strictEqual(report.claims.pageViews.claimAllowed, false);
+  assert.match(report.claims.pageViews.forbiddenConclusions.join(" "), /Keine harte Aussage/i);
+  assert.strictEqual(report.claims.ga4.claimAllowed, false);
 });
 
 test("Ground Truth: doppelte GA4-Zeilen blockieren glatten Vergleich", async () => {
@@ -1271,6 +1305,8 @@ test("Render setzt Ampeln und sichtbare Gruende pro Kennzahl", () => {
   assert.match(ui.get("q-ga4-reason").textContent, /Zeitraum und Seitenauswahl/i);
   assert.match(ui.get("precision-checklist").innerHTML, /eine Website begrenzt/i);
   assert.match(ui.get("precision-checklist").innerHTML, /Datei wurde verstanden/i);
+  assert.strictEqual(ui.get("q-export").textContent, "Gut nutzbar");
+  assert.match(ui.get("q-export-reason").textContent, /plausibel/i);
   assert.match(ui.get("claim-allowed").innerHTML, /Seitenaufrufe sind gut nutzbar/i);
   assert.match(ui.get("claim-forbidden").innerHTML, /Tracking-Verlust/i);
   assert.match(ui.get("claim-checks").innerHTML, /Zeitraum/i);

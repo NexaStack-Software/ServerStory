@@ -10,6 +10,15 @@
     "duplicateCount": 0,
     "duplicatePaths": []
   },
+  "exportCompleteness": {
+    "reliability": "high",
+    "reasons": [],
+    "recommendedChecks": [],
+    "durationHours": 1.1,
+    "maxGapHours": 1,
+    "filterShare": 0.16666666666666666,
+    "recognitionRate": 1
+  },
   "totals": {
     "rows": 6,
     "parsed": 6,
@@ -33,6 +42,7 @@
     "chronologyIssue": false,
     "botReliability": "high",
     "hostReliability": "high",
+    "exportCompletenessReliability": "high",
     "trackingReliability": "high"
   },
   "evidence": {

@@ -1261,6 +1261,11 @@
                 <p id="q-host-reason" class="helper"></p>
               </div>
               <div class="diagnostic-item">
+                <span>Export vollständig?</span>
+                <em id="q-export" class="quality-badge">-</em>
+                <p id="q-export-reason" class="helper"></p>
+              </div>
+              <div class="diagnostic-item">
                 <span>Bots & Auffälligkeiten</span>
                 <em id="q-bot" class="quality-badge">-</em>
                 <p id="q-bot-reason" class="helper"></p>
@@ -2387,6 +2392,27 @@
             ["complete_time_range"]
           );
         }
+        const durationHours = agg.minTime && agg.maxTime ? (agg.maxTime - agg.minTime) / 3600000 : 0;
+        const filterShare = agg.total ? (agg.filtered + agg.unrecognized) / agg.total : 0;
+        const exportReasons = [
+          ...(!agg.minTime || !agg.maxTime ? [{ level: "limited", text: "Zeitraum konnte aus der Datei nicht sicher gelesen werden.", check: "Export mit Zeitstempeln verwenden." }] : []),
+          ...(durationHours > 0 && durationHours < 1 ? [{ level: "medium", text: "Der Export deckt weniger als eine Stunde ab.", check: "Prüfen, ob der gewünschte Zeitraum vollständig exportiert wurde." }] : []),
+          ...(agg.maxGapMs >= 6 * 60 * 60 * 1000 ? [{ level: "medium", text: `Große Lücke von ${Math.round(agg.maxGapMs / 3600000)} Stunden gefunden.`, check: "Prüfen, ob im Export Stunden oder Teil-Dateien fehlen." }] : []),
+          ...(hostReliability === "limited" ? [{ level: "medium", text: "Mehrere Websites oder Subdomains in derselben Datei.", check: "Website-Filter setzen oder passende Datei exportieren." }] : []),
+          ...(originCacheRisk ? [{ level: "medium", text: "Cache oder Proxy kann Aufrufe vor dieser Server-Datei abfangen.", check: "Prüfen, ob ein CDN-/Cache-Export verfügbar ist." }] : []),
+          ...(recognitionRate < 0.8 ? [{ level: "limited", text: `Nur ${percent(recognitionRate * 100)} der Datei konnte gelesen werden.`, check: "Exportformat prüfen." }] : (recognitionRate < 0.95 ? [{ level: "medium", text: `${percent(recognitionRate * 100)} der Datei wurde gelesen.`, check: "Exportformat prüfen." }] : [])),
+          ...(filterShare >= 0.75 ? [{ level: "limited", text: "Sehr viele Zeilen wurden aussortiert.", check: "Prüfen, ob die Datei wirklich Besucheraufrufe enthält." }] : (filterShare >= 0.5 ? [{ level: "medium", text: "Viele Zeilen wurden aussortiert.", check: "Filtergründe prüfen." }] : []))
+        ];
+        const exportCompletenessReliability = exportReasons.some((reason) => reason.level === "limited") ? "limited" : (exportReasons.length ? "medium" : "high");
+        const exportCompleteness = {
+          reliability: exportCompletenessReliability,
+          reasons: exportReasons.map((reason) => reason.text),
+          recommendedChecks: [...new Set(exportReasons.map((reason) => reason.check).filter(Boolean))],
+          durationHours: Math.round(durationHours * 10) / 10,
+          maxGapHours: agg.maxGapMs ? Math.round(agg.maxGapMs / 3600000) : 0,
+          filterShare,
+          recognitionRate
+        };
         const ga4DecisionBlocked = conflicts.some((conflict) => conflict.blocks.includes("ga4_decision"));
         const evidence = {
           pageViews: {
@@ -2445,16 +2471,18 @@
               ? "Seitenaufrufe sind nur ein Mindestwert, weil ein Cache davor sitzen kann."
               : (pageviewReliability === "high" ? "Seitenaufrufe sind gut nutzbar." : "Seitenaufrufe sind nur mit Vorsicht nutzbar."),
             blockingReasons: [
+              ...(exportCompleteness.reliability === "limited" ? exportCompleteness.reasons : []),
               ...(pageviewReliability === "limited" ? ["Zu viel der Datei konnte nicht gelesen werden."] : []),
               ...(originCacheRisk ? ["Cache/CDN kann Aufrufe vor dieser Server-Datei abfangen."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("complete_server_pageviews")).map((conflict) => conflict.text)
             ],
             recommendedChecks: [
+              ...exportCompleteness.recommendedChecks,
               ...(pageviewReliability !== "high" ? ["Exportformat prüfen."] : []),
               ...(originCacheRisk ? ["Prüfen, ob Cloudflare oder ein anderer Cache davor sitzt."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("complete_server_pageviews") || conflict.blocks.includes("complete_time_range")).map((conflict) => conflict.check)
             ],
-            forbiddenConclusions: pageviewReliability === "limited"
+            forbiddenConclusions: exportCompleteness.reliability === "limited" || pageviewReliability === "limited"
               ? ["Keine harte Aussage über die Gesamtzahl der Seitenaufrufe treffen."]
               : (originCacheRisk || conflicts.some((conflict) => conflict.blocks.includes("complete_server_pageviews")) ? ["Nicht behaupten, dass die Server-Datei alle Aufrufe enthält."] : [])
           },
@@ -2465,11 +2493,13 @@
               ? "Besucher sind mit diesen Daten nicht verlässlich bestimmbar."
               : (visitorReliability === "high" ? "Besucherzahl ist gut nutzbar." : "Besucherzahl ist nur als Spanne nutzbar."),
             blockingReasons: [
+              ...(exportCompleteness.reliability === "limited" ? ["Der Export ist nicht vollständig genug für feste Besucher-Aussagen."] : []),
               ...(proxyKind && !config.useXff ? ["Proxy oder Cache verdeckt echte Besucheradressen."] : []),
               ...(chronologyIssue ? ["Die Datei ist nicht sauber zeitlich sortiert."] : []),
               ...(config.useXff && visitorReliability === "limited" ? ["Das Proxy-Feld enthält keine durchgehend brauchbaren Besucheradressen."] : [])
             ],
             recommendedChecks: [
+              ...exportCompleteness.recommendedChecks,
               ...(proxyKind && !config.useXff ? ["Echte Besucheradresse hinter Proxy verwenden, falls der Proxy vertrauenswürdig ist."] : []),
               ...(chronologyIssue ? ["Logdateien vor der Analyse zeitlich sortieren oder einzeln auswerten."] : [])
             ],
@@ -2478,10 +2508,11 @@
               : (visitorReliability === "medium" ? ["Besucherzahl nicht als exakten Wert behandeln."] : [])
           },
           ga4: {
-            claimAllowed: !!(overall && !lastGa4Import.warning && hostReliability !== "limited" && pageviewReliability !== "limited" && !ga4DecisionBlocked),
+            claimAllowed: !!(overall && !lastGa4Import.warning && hostReliability !== "limited" && pageviewReliability !== "limited" && exportCompleteness.reliability !== "limited" && !ga4DecisionBlocked),
             confidence: ga4Reliability,
             statement: overall ? "GA4-Vergleich ist nur mit gleicher Website, gleichem Zeitraum und gleichen Seiten belastbar." : "GA4-Vergleich nicht vorhanden.",
             blockingReasons: [
+              ...(exportCompleteness.reliability === "limited" ? ["Der Server-Export ist nicht vollständig genug für einen belastbaren GA4-Vergleich."] : []),
               ...(lastGa4Import.warning ? [lastGa4Import.warning] : []),
               ...(!overall ? ["Keine GA4-Seitenzahlen eingetragen."] : []),
               ...(hostReliability === "limited" ? ["Die Server-Datei enthält mehrere Websites oder Subdomains."] : []),
@@ -2489,12 +2520,13 @@
               ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.text)
             ],
             recommendedChecks: [
+              ...exportCompleteness.recommendedChecks,
               "Zeitraum in Google Analytics und Server-Datei abgleichen.",
               "Prüfen, ob wirklich Seitenaufrufe aus Google Analytics eingetragen wurden.",
               ...(hostReliability === "limited" ? ["Website-Filter setzen."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.check)
             ],
-            forbiddenConclusions: !(overall && !lastGa4Import.warning && hostReliability !== "limited" && pageviewReliability !== "limited" && !ga4DecisionBlocked)
+            forbiddenConclusions: !(overall && !lastGa4Import.warning && hostReliability !== "limited" && pageviewReliability !== "limited" && exportCompleteness.reliability !== "limited" && !ga4DecisionBlocked)
               ? ["Keine Budget- oder Tracking-Entscheidung aus dem GA4-Vergleich ableiten."]
               : ["GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."]
           },
@@ -2543,8 +2575,9 @@
           claims,
           conflicts,
           ga4Validation,
+          exportCompleteness,
           ga4Import: lastGa4Import,
-          diagnostics: { recognitionRate, pageviewReliability, visitorReliability, ga4Reliability, conversionReliability, cacheRisk, chronologyIssue, botReliability, hostReliability, trackingReliability: agg.trackingCapped ? "medium" : "high" },
+          diagnostics: { recognitionRate, pageviewReliability, visitorReliability, ga4Reliability, conversionReliability, cacheRisk, chronologyIssue, botReliability, hostReliability, exportCompletenessReliability, trackingReliability: agg.trackingCapped ? "medium" : "high" },
           hasSuccessUrl: config.hasSuccessUrl, ga4Conversions, convDiff, serverCr,
           proxyKind, hasChosen: chosen.length > 0, tableRows, overall, pathCounts: agg.pathCounts,
           statusCounts: topEntries(agg.statusCounts, 12), methodCounts: topEntries(agg.methodCounts, 6),
@@ -2607,6 +2640,10 @@
         if (metric === "host") {
           if (data.diagnostics.hostReliability === "limited") return `${format(data.hosts.total)} Domains/Subdomains gefunden. Ohne Filter können fremde Seiten mit drin sein.`;
           return "Die Datei wirkt auf eine Website begrenzt.";
+        }
+        if (metric === "export") {
+          if (!data.exportCompleteness || data.exportCompleteness.reliability === "high") return "Zeitraum, Lesbarkeit und Filterquote wirken plausibel.";
+          return data.exportCompleteness.reasons.slice(0, 2).join(" ");
         }
         if (metric === "bot") {
           if (data.diagnostics.botReliability === "medium") return `${format(data.suspiciousClients)} auffällige Muster gefunden. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
@@ -2685,6 +2722,7 @@
         setQuality("q-purchases", data.hasSuccessUrl ? data.diagnostics.conversionReliability : "none");
         setQuality("q-ga4", hasGa4 ? data.diagnostics.ga4Reliability : "none");
         setQuality("q-host", data.diagnostics.hostReliability);
+        setQuality("q-export", data.diagnostics.exportCompletenessReliability);
         setQuality("q-bot", data.diagnostics.botReliability);
         setQuality("q-tracking", data.diagnostics.trackingReliability);
         setQualityReason("q-visits", qualityReason(data, "visits", hasGa4));
@@ -2692,6 +2730,7 @@
         setQualityReason("q-purchases", qualityReason(data, "purchases", hasGa4));
         setQualityReason("q-ga4", qualityReason(data, "ga4", hasGa4));
         setQualityReason("q-host", qualityReason(data, "host", hasGa4));
+        setQualityReason("q-export", qualityReason(data, "export", hasGa4));
         setQualityReason("q-bot", qualityReason(data, "bot", hasGa4));
         setQualityReason("q-tracking", qualityReason(data, "tracking", hasGa4));
         setPrecisionChecklist(data, hasGa4);
@@ -3044,6 +3083,7 @@
           claims: lastResult.claims,
           conflicts: lastResult.conflicts,
           ga4Validation: lastResult.ga4Validation,
+          exportCompleteness: lastResult.exportCompleteness,
           xForwardedFor: {
             used: lastResult.xffUsed,
             missing: lastResult.xffMissing,
