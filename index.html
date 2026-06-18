@@ -2307,6 +2307,88 @@
             reason: agg.trackingCapped ? "Die Schutzgrenze fuer sehr grosse Dateien begrenzt Bot- und Auffaelligkeits-Hinweise." : (agg.suspiciousClients ? "Auffaellige Muster mit vielen Aufrufen fast ohne normale Seitenbestandteile gefunden." : "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar.")
           }
         };
+        const claims = {
+          pageViews: {
+            claimAllowed: pageviewReliability !== "limited",
+            confidence: pageviewReliability,
+            statement: originCacheRisk
+              ? "Seitenaufrufe sind nur ein Mindestwert, weil ein Cache davor sitzen kann."
+              : (pageviewReliability === "high" ? "Seitenaufrufe sind gut nutzbar." : "Seitenaufrufe sind nur mit Vorsicht nutzbar."),
+            blockingReasons: [
+              ...(pageviewReliability === "limited" ? ["Zu viel der Datei konnte nicht gelesen werden."] : []),
+              ...(originCacheRisk ? ["Cache/CDN kann Aufrufe vor dieser Server-Datei abfangen."] : [])
+            ],
+            recommendedChecks: [
+              ...(pageviewReliability !== "high" ? ["Exportformat prüfen."] : []),
+              ...(originCacheRisk ? ["Prüfen, ob Cloudflare oder ein anderer Cache davor sitzt."] : [])
+            ],
+            forbiddenConclusions: pageviewReliability === "limited"
+              ? ["Keine harte Aussage über die Gesamtzahl der Seitenaufrufe treffen."]
+              : (originCacheRisk ? ["Nicht behaupten, dass die Server-Datei alle Aufrufe enthält."] : [])
+          },
+          visits: {
+            claimAllowed: !(proxyKind && !config.useXff),
+            confidence: visitorReliability,
+            statement: proxyKind && !config.useXff
+              ? "Besucher sind mit diesen Daten nicht verlässlich bestimmbar."
+              : (visitorReliability === "high" ? "Besucherzahl ist gut nutzbar." : "Besucherzahl ist nur als Spanne nutzbar."),
+            blockingReasons: [
+              ...(proxyKind && !config.useXff ? ["Proxy oder Cache verdeckt echte Besucheradressen."] : []),
+              ...(chronologyIssue ? ["Die Datei ist nicht sauber zeitlich sortiert."] : []),
+              ...(config.useXff && visitorReliability === "limited" ? ["Das Proxy-Feld enthält keine durchgehend brauchbaren Besucheradressen."] : [])
+            ],
+            recommendedChecks: [
+              ...(proxyKind && !config.useXff ? ["Echte Besucheradresse hinter Proxy verwenden, falls der Proxy vertrauenswürdig ist."] : []),
+              ...(chronologyIssue ? ["Logdateien vor der Analyse zeitlich sortieren oder einzeln auswerten."] : [])
+            ],
+            forbiddenConclusions: visitorReliability === "limited"
+              ? ["Keine feste Besucherzahl behaupten.", "Keine Conversion-Rate auf Basis dieser Besucherzahl entscheiden."]
+              : (visitorReliability === "medium" ? ["Besucherzahl nicht als exakten Wert behandeln."] : [])
+          },
+          ga4: {
+            claimAllowed: !!(overall && !lastGa4Import.warning && hostReliability !== "limited" && pageviewReliability !== "limited"),
+            confidence: ga4Reliability,
+            statement: overall ? "GA4-Vergleich ist nur mit gleicher Website, gleichem Zeitraum und gleichen Seiten belastbar." : "GA4-Vergleich nicht vorhanden.",
+            blockingReasons: [
+              ...(lastGa4Import.warning ? [lastGa4Import.warning] : []),
+              ...(!overall ? ["Keine GA4-Seitenzahlen eingetragen."] : []),
+              ...(hostReliability === "limited" ? ["Die Server-Datei enthält mehrere Websites oder Subdomains."] : []),
+              ...(pageviewReliability === "limited" ? ["Die Server-Datei wurde nicht zuverlässig genug gelesen."] : [])
+            ],
+            recommendedChecks: [
+              "Zeitraum in Google Analytics und Server-Datei abgleichen.",
+              "Prüfen, ob wirklich Seitenaufrufe aus Google Analytics eingetragen wurden.",
+              ...(hostReliability === "limited" ? ["Website-Filter setzen."] : [])
+            ],
+            forbiddenConclusions: !(overall && !lastGa4Import.warning && hostReliability !== "limited" && pageviewReliability !== "limited")
+              ? ["Keine Budget- oder Tracking-Entscheidung aus dem GA4-Vergleich ableiten."]
+              : ["GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."]
+          },
+          hostScope: {
+            claimAllowed: hostReliability !== "limited",
+            confidence: hostReliability,
+            statement: hostReliability === "limited" ? "Die Datei enthält mehrere Websites oder Subdomains." : "Die Datei wirkt auf eine Website begrenzt.",
+            blockingReasons: hostReliability === "limited" ? ["Mehrere Websites/Subdomains ohne Filter erkannt."] : [],
+            recommendedChecks: hostReliability === "limited" ? ["Website-Filter setzen und erneut auswerten."] : [],
+            forbiddenConclusions: hostReliability === "limited" ? ["Nicht behaupten, dass die Analyse nur eine Website zeigt."] : []
+          },
+          conversions: {
+            claimAllowed: !!config.hasSuccessUrl,
+            confidence: conversionReliability,
+            statement: config.hasSuccessUrl
+              ? (conversionReliability === "high" ? "Käufe sind gut nutzbar." : "Käufe sind nur mit Vorsicht nutzbar.")
+              : "Käufe sind ohne Kauf-/Danke-Seite nicht bestimmbar.",
+            blockingReasons: [
+              ...(!config.hasSuccessUrl ? ["Keine Kauf-/Danke-Seite angegeben."] : []),
+              ...(conversionReliability === "medium" ? ["Ohne Bestellnummer können Reloads oder Mehrfachaufrufe stören."] : [])
+            ],
+            recommendedChecks: [
+              ...(!config.hasSuccessUrl ? ["Kauf-/Danke-Seite angeben."] : []),
+              ...(conversionReliability === "medium" ? ["Bestellnummer-Parameter angeben, falls vorhanden."] : [])
+            ],
+            forbiddenConclusions: !config.hasSuccessUrl ? ["Keine Aussage über Käufe treffen."] : []
+          }
+        };
         return {
           total: agg.total, dataRows: agg.dataRows, parsed: agg.parsed, unrecognized: agg.unrecognized, meta: agg.meta || 0,
           kept: agg.kept, pageViews: agg.pageViews, filtered: agg.filtered, reasons: agg.reasons,
@@ -2320,6 +2402,7 @@
           visitorRange: { low: visitorLow, high: visitorHigh },
           hosts,
           evidence,
+          claims,
           ga4Import: lastGa4Import,
           diagnostics: { recognitionRate, pageviewReliability, visitorReliability, ga4Reliability, conversionReliability, cacheRisk, chronologyIssue, botReliability, hostReliability, trackingReliability: agg.trackingCapped ? "medium" : "high" },
           hasSuccessUrl: config.hasSuccessUrl, ga4Conversions, convDiff, serverCr,
@@ -2793,6 +2876,7 @@
             maxGapHours: lastResult.maxGapMs ? Math.round(lastResult.maxGapMs / 3600000) : 0
           },
           evidence: lastResult.evidence,
+          claims: lastResult.claims,
           xForwardedFor: {
             used: lastResult.xffUsed,
             missing: lastResult.xffMissing,

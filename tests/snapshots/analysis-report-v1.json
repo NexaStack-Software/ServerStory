@@ -69,6 +69,53 @@
       "reason": "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."
     }
   },
+  "claims": {
+    "pageViews": {
+      "claimAllowed": true,
+      "confidence": "high",
+      "statement": "Seitenaufrufe sind gut nutzbar.",
+      "blockingReasons": [],
+      "recommendedChecks": [],
+      "forbiddenConclusions": []
+    },
+    "visits": {
+      "claimAllowed": true,
+      "confidence": "high",
+      "statement": "Besucherzahl ist gut nutzbar.",
+      "blockingReasons": [],
+      "recommendedChecks": [],
+      "forbiddenConclusions": []
+    },
+    "ga4": {
+      "claimAllowed": true,
+      "confidence": "medium",
+      "statement": "GA4-Vergleich ist nur mit gleicher Website, gleichem Zeitraum und gleichen Seiten belastbar.",
+      "blockingReasons": [],
+      "recommendedChecks": [
+        "Zeitraum in Google Analytics und Server-Datei abgleichen.",
+        "Prüfen, ob wirklich Seitenaufrufe aus Google Analytics eingetragen wurden."
+      ],
+      "forbiddenConclusions": [
+        "GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."
+      ]
+    },
+    "hostScope": {
+      "claimAllowed": true,
+      "confidence": "high",
+      "statement": "Die Datei wirkt auf eine Website begrenzt.",
+      "blockingReasons": [],
+      "recommendedChecks": [],
+      "forbiddenConclusions": []
+    },
+    "conversions": {
+      "claimAllowed": true,
+      "confidence": "high",
+      "statement": "Käufe sind gut nutzbar.",
+      "blockingReasons": [],
+      "recommendedChecks": [],
+      "forbiddenConclusions": []
+    }
+  },
   "xForwardedFor": {
     "used": 0,
     "missing": 0,

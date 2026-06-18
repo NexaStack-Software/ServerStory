@@ -157,6 +157,14 @@ function assertBuiltResultInvariants(result) {
   assert.ok(["high", "medium"].includes(result.diagnostics.trackingReliability));
   assert.ok(result.visitorRange.low <= result.visitorRange.high);
   assert.ok(result.visitorRange.low >= 1 || result.visits === 0);
+  assert.ok(result.claims);
+  for (const key of ["pageViews", "visits", "ga4", "hostScope", "conversions"]) {
+    assert.ok(result.claims[key]);
+    assert.strictEqual(typeof result.claims[key].claimAllowed, "boolean");
+    assert.ok(Array.isArray(result.claims[key].blockingReasons));
+    assert.ok(Array.isArray(result.claims[key].recommendedChecks));
+    assert.ok(Array.isArray(result.claims[key].forbiddenConclusions));
+  }
 }
 
 function createElement() {
@@ -1218,7 +1226,12 @@ test("Copy-Report macht Proxy-XFF-Risiko mit Besucher-Bandbreite sichtbar", asyn
   assert.strictEqual(report.evidence.visits.type, "not_determinable");
   assert.strictEqual(report.evidence.visits.canAnswer, false);
   assert.match(report.evidence.visits.reason, /nicht verlaesslich bestimmbar/i);
+  assert.strictEqual(report.claims.visits.claimAllowed, false);
+  assert.match(report.claims.visits.blockingReasons.join(" "), /Proxy|Cache/i);
+  assert.match(report.claims.visits.forbiddenConclusions.join(" "), /Keine feste Besucherzahl/i);
+  assert.match(report.claims.visits.forbiddenConclusions.join(" "), /Conversion-Rate/i);
   assert.strictEqual(report.evidence.pageViews.type, "lower_bound");
+  assert.match(report.claims.pageViews.forbiddenConclusions.join(" "), /alle Aufrufe/i);
   assert.deepStrictEqual(report.xForwardedFor, { used: 0, missing: 0, privateOnly: 0 });
   assert.strictEqual(report.totals.visits, 1);
   assert.ok(report.totals.visitorRange.high > report.totals.visits);
@@ -1238,14 +1251,18 @@ test("Copy-Report macht Host-Mix und Hostfilter-Wirkung sichtbar", async () => {
   assert.strictEqual(mixedReport.quality.hostReliability, "limited");
   assert.strictEqual(mixedReport.parser.hosts.total, 2);
   assert.strictEqual(mixedReport.evidence.hostScope.canAnswer, false);
+  assert.strictEqual(mixedReport.claims.hostScope.claimAllowed, false);
+  assert.strictEqual(mixedReport.claims.ga4.claimAllowed, false);
   assert.match(mixedReport.evidence.hostScope.reason, /Mehrere Websites\/Subdomains/i);
   assert.match(mixedReport.accuracyNotes.hostScope, /Mehrere Websites\/Subdomains erkannt/i);
+  assert.match(mixedReport.claims.ga4.forbiddenConclusions.join(" "), /Keine Budget- oder Tracking-Entscheidung/i);
 
   const filteredReport = await copyReportFor(buildResultFor(text, { ...config, hostFilter: ["example.test"] }));
   assert.strictEqual(filteredReport.quality.hostReliability, "high");
   assert.strictEqual(filteredReport.parser.hosts.total, 1);
   assert.strictEqual(filteredReport.filterReasons.host, 807);
   assert.match(filteredReport.accuracyNotes.hostScope, /eine Website begrenzt/i);
+  assert.strictEqual(filteredReport.claims.hostScope.claimAllowed, true);
 });
 
 test("Copy-Report verschweigt Chronologie- und Recognition-Risiken nicht", async () => {
@@ -1262,6 +1279,9 @@ test("Copy-Report verschweigt Chronologie- und Recognition-Risiken nicht", async
   assert.ok(unsortedReport.totals.visitorRange.low < unsortedReport.totals.visits);
   assert.ok(unsortedReport.totals.visitorRange.high > unsortedReport.totals.visits);
   assert.match(unsortedReport.accuracyNotes.visits, /Reihenfolge der Logs/i);
+  assert.strictEqual(unsortedReport.claims.visits.claimAllowed, true);
+  assert.match(unsortedReport.claims.visits.blockingReasons.join(" "), /zeitlich sortiert/i);
+  assert.match(unsortedReport.claims.visits.forbiddenConclusions.join(" "), /exakten Wert/i);
 
   const noisy = text + "\n" + Array.from({ length: 200 }, (_, i) => `kaputte zeile ${i} <script>alert(1)</script>`).join("\n");
   const noisyReport = await copyReportFor(buildResultFor(noisy, config));
@@ -1270,6 +1290,13 @@ test("Copy-Report verschweigt Chronologie- und Recognition-Risiken nicht", async
   assert.strictEqual(noisyReport.quality.pageviewReliability, "medium");
   assert.ok(noisyReport.quality.recognitionRate < 0.95);
   assert.match(noisyReport.accuracyNotes.pageViews, /Einzelne Zeilen passen nicht/i);
+  assert.strictEqual(noisyReport.claims.pageViews.claimAllowed, true);
+  assert.strictEqual(noisyReport.claims.pageViews.confidence, "medium");
+
+  const brokenReport = await copyReportFor(buildResultFor(`${text}\n${Array.from({ length: 2000 }, (_, i) => `kaputte zeile ${i}`).join("\n")}`, config));
+  assert.strictEqual(brokenReport.quality.pageviewReliability, "limited");
+  assert.strictEqual(brokenReport.claims.pageViews.claimAllowed, false);
+  assert.match(brokenReport.claims.pageViews.forbiddenConclusions.join(" "), /Keine harte Aussage/i);
 });
 
 test("Analyse-Protokoll v1 bleibt snapshot-stabil", async () => {
