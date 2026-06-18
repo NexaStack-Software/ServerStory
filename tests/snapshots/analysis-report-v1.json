@@ -32,7 +32,7 @@
       "type": "measured",
       "reliability": "high",
       "canAnswer": true,
-      "reason": "Seitenaufrufe wurden direkt aus erkannten Logzeilen gezaehlt."
+      "reason": "Seitenaufrufe wurden aus lesbaren Serverzeilen gezaehlt."
     },
     "visits": {
       "type": "estimated",
@@ -42,7 +42,7 @@
         "low": 2,
         "high": 2
       },
-      "reason": "Besucher werden aus IP, User-Agent und 30-Minuten-Fenster geschaetzt."
+      "reason": "Besucher werden aus Adresse, Browserkennung und 30-Minuten-Fenster geschaetzt."
     },
     "conversions": {
       "type": "measured",
@@ -54,19 +54,19 @@
       "type": "comparison",
       "reliability": "medium",
       "canAnswer": true,
-      "reason": "GA4-Seitenaufrufe wurden mit normalisierten Serverpfaden verglichen."
+      "reason": "GA4 wurde mit denselben Seitenadressen aus der Server-Datei verglichen."
     },
     "hostScope": {
       "type": "not_available",
       "reliability": "high",
       "canAnswer": true,
-      "reason": "Host-Scope wirkt eindeutig."
+      "reason": "Die Datei wirkt auf eine Website begrenzt."
     },
     "botAnomaly": {
       "type": "estimated",
       "reliability": "high",
       "canAnswer": true,
-      "reason": "Keine auffaellige Bot-/Monitoring-Konzentration erkannt."
+      "reason": "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."
     }
   },
   "xForwardedFor": {
@@ -123,12 +123,12 @@
     }
   },
   "accuracyNotes": {
-    "pageViews": "100,0 % der Datenzeilen erkannt; Format combined.",
-    "visits": "Keine starke Proxy-Verzerrung erkannt.",
-    "conversions": "Danke-Seite erkannt; GA4-Kaufvergleich aktiv.",
-    "ga4": "GA4-Werte mit Server-Seiten abgeglichen; Zeitraum/Seiten muessen identisch sein.",
-    "hostScope": "Host-Scope wirkt eindeutig.",
-    "botAnomaly": "Keine auffaellige Bot-/Monitoring-Konzentration erkannt."
+    "pageViews": "Die Datei wurde sauber gelesen (100,0 %).",
+    "visits": "Keine starke Proxy-Verzerrung sichtbar.",
+    "conversions": "Kaufseite erkannt und mit GA4-Käufen verglichen.",
+    "ga4": "Vergleich ist nutzbar, wenn Zeitraum und Seitenauswahl wirklich gleich sind.",
+    "hostScope": "Die Datei wirkt auf eine Website begrenzt.",
+    "botAnomaly": "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."
   },
   "topPages": [
     {

@@ -1167,9 +1167,9 @@
               <div class="ga4-fields">
                 <label class="check">
                   <input type="checkbox" id="use-xff">
-                  <span>Echte Besucher-IP aus „X-Forwarded-For“ verwenden</span>
+                  <span>Echte Besucher-IP aus Proxy-Feld verwenden</span>
                 </label>
-                <p class="helper">Nur sinnvoll, wenn ein vertrauenswürdiger Reverse-Proxy oder ein CDN vor deiner Website sitzt. Dann steht im ersten Feld oft nur die Proxy-IP, die echte Besucher-IP in „X-Forwarded-For“. Achtung: Dieser Wert ist fälschbar.</p>
+                <p class="helper">Nur sinnvoll, wenn ein vertrauenswürdiger Reverse-Proxy oder ein CDN vor deiner Website sitzt. Dann steht vorne oft nur die Proxy-IP; die echte Besucher-IP steht in einem Zusatzfeld. Achtung: Dieser Wert ist fälschbar.</p>
                 <label class="check">
                   <input type="checkbox" id="strict-bot">
                   <span>Strenger Bot-Filter (nur klare Browser zählen)</span>
@@ -1191,7 +1191,7 @@
                   </label>
                 </div>
                 <label>
-                  Tracking-Speicherlimit
+                  Schutzgrenze für sehr große Dateien
                   <input id="tracking-cap" type="number" min="1000" placeholder="100000">
                   <span class="helper">Schützt sehr große Dateien vor zu hohem Speicherverbrauch. Bei Überschreitung zeigt ServerStory einen Genauigkeitshinweis.</span>
                 </label>
@@ -1220,7 +1220,7 @@
             <div id="recognition-hint" class="hint-box hidden"></div>
             <div id="chrono-hint" class="hint-box hidden"></div>
             <div class="hint-box">
-              <strong>Präzisions-Check</strong>
+              <strong>Wie sicher sind die Zahlen?</strong>
               <ul id="precision-checklist" class="precision-checklist"></ul>
             </div>
             <div class="numbers">
@@ -1256,17 +1256,17 @@
 
             <div class="diagnostic-grid">
               <div class="diagnostic-item">
-                <span>Host-Scope</span>
+                <span>Website-Auswahl</span>
                 <em id="q-host" class="quality-badge">-</em>
                 <p id="q-host-reason" class="helper"></p>
               </div>
               <div class="diagnostic-item">
-                <span>Bot-/Anomalie-Erkennung</span>
+                <span>Bots & Auffälligkeiten</span>
                 <em id="q-bot" class="quality-badge">-</em>
                 <p id="q-bot-reason" class="helper"></p>
               </div>
               <div class="diagnostic-item">
-                <span>Tracking-Speicher</span>
+                <span>Große Dateien</span>
                 <em id="q-tracking" class="quality-badge">-</em>
                 <p id="q-tracking-reason" class="helper"></p>
               </div>
@@ -1300,7 +1300,7 @@
               <div class="table-wrap">
                 <table class="mini-table">
                   <thead>
-                    <tr><th>Seite</th><th>Webserver</th><th class="ga4-col">Google Analytics</th><th class="ga4-col">Differenz</th><th class="ga4-col">Abdeckung</th></tr>
+                    <tr><th>Seite</th><th>Webserver</th><th class="ga4-col">Google Analytics</th><th class="ga4-col">Differenz</th><th class="ga4-col">GA4 sieht</th></tr>
                   </thead>
                   <tbody id="page-table">
                     <tr><td>-</td><td>-</td><td class="ga4-col">-</td><td class="ga4-col">-</td><td class="ga4-col">-</td></tr>
@@ -1650,9 +1650,9 @@
         const result = agg.finalize();
         const recognitionRate = result.dataRows ? result.parsed / result.dataRows : 0;
         const warnings = [];
-        if (result.hostCounts.size > 1) warnings.push("Mehrere Hosts/Domains in der Stichprobe erkannt.");
-        if (options.useXff && !result.xffUsed) warnings.push("X-Forwarded-For aktiviert, aber in der Stichprobe nicht plausibel gefunden.");
-        if (recognitionRate < 0.95) warnings.push(`Nur ${percent(recognitionRate * 100)} der Datenzeilen in der Stichprobe erkannt.`);
+        if (result.hostCounts.size > 1) warnings.push("Die Stichprobe enthält mehrere Websites oder Subdomains.");
+        if (options.useXff && !result.xffUsed) warnings.push("Das Proxy-Feld wurde aktiviert, aber in der Stichprobe nicht brauchbar gefunden.");
+        if (recognitionRate < 0.95) warnings.push(`Nur ${percent(recognitionRate * 100)} der Stichprobe konnte gelesen werden.`);
         return {
           formatKind: result.formatKind,
           recognitionRate,
@@ -2268,8 +2268,8 @@
             reliability: pageviewReliability,
             canAnswer: pageviewReliability !== "limited",
             reason: originCacheRisk
-              ? "Origin-Log hinter Proxy/CDN: Seitenaufrufe sind fuer Origin-Traffic gemessen, koennen aber CDN-Cache-Hits verfehlen."
-              : (pageviewReliability === "limited" ? "Zu viele Datenzeilen wurden nicht sicher erkannt." : "Seitenaufrufe wurden direkt aus erkannten Logzeilen gezaehlt.")
+              ? "Die Datei kommt wahrscheinlich vom Server hinter Cache/CDN. Gecachte Aufrufe koennen fehlen."
+              : (pageviewReliability === "limited" ? "Zu viel der Datei konnte nicht sicher gelesen werden." : "Seitenaufrufe wurden aus lesbaren Serverzeilen gezaehlt.")
           },
           visits: {
             type: proxyKind && !config.useXff ? "not_determinable" : "estimated",
@@ -2277,8 +2277,8 @@
             canAnswer: !(proxyKind && !config.useXff),
             range: { low: visitorLow, high: visitorHigh },
             reason: proxyKind && !config.useXff
-              ? "Proxy/CDN-Muster ohne belastbare XFF-Auswertung: echte Besucherzahl ist mit diesen Daten nicht serioes bestimmbar."
-              : "Besucher werden aus IP, User-Agent und 30-Minuten-Fenster geschaetzt."
+              ? "Diese Datei zeigt vor allem Proxy-/CDN-Adressen. Echte Besucher sind damit nicht verlaesslich bestimmbar."
+              : "Besucher werden aus Adresse, Browserkennung und 30-Minuten-Fenster geschaetzt."
           },
           conversions: {
             type: config.hasSuccessUrl ? (config.orderParam ? "measured" : "estimated") : "not_determinable",
@@ -2292,19 +2292,19 @@
             type: overall && !lastGa4Import.warning && hostReliability !== "limited" ? "comparison" : "not_determinable",
             reliability: ga4Reliability,
             canAnswer: !!(overall && !lastGa4Import.warning && hostReliability !== "limited"),
-            reason: lastGa4Import.warning || (!overall ? "Keine belastbaren GA4-Seitenaufrufe eingetragen." : (hostReliability === "limited" ? "Mehrere Hosts ohne Hostfilter machen den GA4-Abgleich nicht sauber vergleichbar." : "GA4-Seitenaufrufe wurden mit normalisierten Serverpfaden verglichen."))
+            reason: lastGa4Import.warning || (!overall ? "Keine brauchbaren GA4-Seitenzahlen eingetragen." : (hostReliability === "limited" ? "Die Datei enthält mehrere Websites. Ohne Filter ist der GA4-Vergleich unsicher." : "GA4 wurde mit denselben Seitenadressen aus der Server-Datei verglichen."))
           },
           hostScope: {
             type: hosts.total ? "measured" : "not_available",
             reliability: hostReliability,
             canAnswer: hostReliability !== "limited",
-            reason: hostReliability === "limited" ? "Mehrere Hosts/Domains erkannt; ohne Hostfilter koennen fremde Domains enthalten sein." : "Host-Scope wirkt eindeutig."
+            reason: hostReliability === "limited" ? "Mehrere Websites/Subdomains erkannt; ohne Filter koennen fremde Seiten enthalten sein." : "Die Datei wirkt auf eine Website begrenzt."
           },
           botAnomaly: {
             type: "estimated",
             reliability: botReliability,
             canAnswer: !agg.trackingCapped,
-            reason: agg.trackingCapped ? "Tracking-Speicherlimit begrenzt Bot-/Anomalie-Erkennung." : (agg.suspiciousClients ? "Auffaellige Besucher-Schluessel mit vielen Aufrufen fast ohne Assets gefunden." : "Keine auffaellige Bot-/Monitoring-Konzentration erkannt.")
+            reason: agg.trackingCapped ? "Die Schutzgrenze fuer sehr grosse Dateien begrenzt Bot- und Auffaelligkeits-Hinweise." : (agg.suspiciousClients ? "Auffaellige Muster mit vielen Aufrufen fast ohne normale Seitenbestandteile gefunden." : "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar.")
           }
         };
         return {
@@ -2341,7 +2341,7 @@
         else { el.textContent = ""; el.classList.add("hidden"); }
       }
       function setQuality(elId, state) {
-        const labels = { high: "Belastbarkeit hoch", medium: "Belastbarkeit mittel", limited: "Belastbarkeit niedrig", none: "Nicht bewertet" };
+        const labels = { high: "Gut nutzbar", medium: "Mit Vorsicht", limited: "Nicht verlässlich", none: "Nicht geprüft" };
         const el = id(elId);
         el.className = `quality-badge ${state || "none"}`;
         el.textContent = labels[state] || labels.none;
@@ -2354,41 +2354,41 @@
       function qualityReason(data, metric, hasGa4) {
         if (metric === "views") {
           const recognized = percent(data.diagnostics.recognitionRate * 100);
-          if (data.evidence && data.evidence.pageViews && data.evidence.pageViews.type === "lower_bound") return `Nur Mindestwert fuer Origin-Traffic: ${recognized} erkannt, aber CDN-Cache-Hits koennen im Origin-Log fehlen.`;
-          if (data.diagnostics.pageviewReliability === "high") return `${recognized} der Datenzeilen erkannt; Format ${data.formatKind}.`;
-          if (data.diagnostics.pageviewReliability === "medium") return `${recognized} erkannt; einzelne Zeilen/Formate pruefen.`;
-          return `${recognized} erkannt; Befund nur eingeschraenkt belastbar.`;
+          if (data.evidence && data.evidence.pageViews && data.evidence.pageViews.type === "lower_bound") return `Nur Mindestwert: Deine Logdatei sieht wahrscheinlich nicht alle Aufrufe, weil ein Cache/CDN dazwischen sitzen kann.`;
+          if (data.diagnostics.pageviewReliability === "high") return `Die Datei wurde sauber gelesen (${recognized}).`;
+          if (data.diagnostics.pageviewReliability === "medium") return `${recognized} der Datei wurde gelesen. Einzelne Zeilen passen nicht zum erwarteten Format.`;
+          return `Zu viele Zeilen passen nicht zum erwarteten Format (${recognized} gelesen).`;
         }
         if (metric === "visits") {
-          if (data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable") return "Nicht serioes bestimmbar: Proxy-/CDN-Muster ohne belastbare XFF-Auswertung.";
-          if (data.diagnostics.visitorReliability === "high") return data.xffUsed ? `${format(data.xffUsed)} XFF-IP(s) genutzt.` : "Keine starke Proxy-Verzerrung erkannt.";
-          if (data.proxyKind) return "Proxy-/CDN-Muster erkannt; Besucherzahl als Bandbreite lesen.";
-          if (data.xffMissing || data.xffPrivate) return "XFF liefert keine voll belastbare Besucher-IP.";
-          return "Log-Reihenfolge oder Besucher-Schluessel begrenzen die Genauigkeit.";
+          if (data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable") return "Nicht verlässlich bestimmbar: Die Datei zeigt vor allem Proxy-/CDN-Adressen, nicht echte Besucher.";
+          if (data.diagnostics.visitorReliability === "high") return data.xffUsed ? "Echte Besucher-IPs aus dem Proxy-Feld wurden genutzt." : "Keine starke Proxy-Verzerrung sichtbar.";
+          if (data.proxyKind) return "Proxy oder CDN erkannt. Besucher nur als grobe Spanne lesen.";
+          if (data.xffMissing || data.xffPrivate) return "Das Proxy-Feld enthält keine brauchbaren Besucher-IPs.";
+          return "Die Reihenfolge der Logs oder die Besucher-Erkennung macht diese Zahl ungenauer.";
         }
         if (metric === "purchases") {
-          if (!data.hasSuccessUrl) return "Keine Danke-Seite oder kein Conversion-Muster gesetzt.";
-          if (data.diagnostics.conversionReliability === "high") return data.ga4Conversions === null ? "Danke-Seite erkannt; Reloads werden dedupliziert." : "Danke-Seite erkannt; GA4-Kaufvergleich aktiv.";
-          return "Danke-Seite erkannt; ohne Order-ID koennen Reloads/Mehrfachaufrufe stoeren.";
+          if (!data.hasSuccessUrl) return "Keine Kauf-/Danke-Seite angegeben.";
+          if (data.diagnostics.conversionReliability === "high") return data.ga4Conversions === null ? "Kaufseite erkannt; doppelte Reloads werden reduziert." : "Kaufseite erkannt und mit GA4-Käufen verglichen.";
+          return "Kaufseite erkannt, aber ohne Bestellnummer können Reloads die Zahl verzerren.";
         }
         if (metric === "ga4") {
           if (data.ga4Import && data.ga4Import.warning) return data.ga4Import.warning;
-          if (!hasGa4) return "Keine GA4-Seitenaufrufe eingetragen.";
+          if (!hasGa4) return "Keine GA4-Seitenzahlen eingetragen.";
           if (data.evidence && data.evidence.ga4 && !data.evidence.ga4.canAnswer) return data.evidence.ga4.reason;
-          if (data.diagnostics.ga4Reliability === "medium") return "GA4-Werte mit Server-Seiten abgeglichen; Zeitraum/Seiten muessen identisch sein.";
-          return "GA4-Vergleich eingeschraenkt; Eingabe oder Server-Erkennung pruefen.";
+          if (data.diagnostics.ga4Reliability === "medium") return "Vergleich ist nutzbar, wenn Zeitraum und Seitenauswahl wirklich gleich sind.";
+          return "Vergleich nur eingeschränkt nutzbar. Prüfe Zeitraum, Seiten und Metrik.";
         }
         if (metric === "host") {
-          if (data.diagnostics.hostReliability === "limited") return `Mehrere Hosts/Domains erkannt (${format(data.hosts.total)}). Ohne Hostfilter kann die Analyse fremde Domains enthalten.`;
-          return "Host-Scope wirkt eindeutig.";
+          if (data.diagnostics.hostReliability === "limited") return `${format(data.hosts.total)} Domains/Subdomains gefunden. Ohne Filter können fremde Seiten mit drin sein.`;
+          return "Die Datei wirkt auf eine Website begrenzt.";
         }
         if (metric === "bot") {
-          if (data.diagnostics.botReliability === "medium") return `${format(data.suspiciousClients)} Besucher-Schluessel mit auffaellig vielen Aufrufen fast ohne Assets. Bot-/Monitoring-Anteil pruefen.`;
-          return data.reasons.bot ? `${format(data.reasons.bot)} klare Bot-/Crawler-Zeilen gefiltert; keine auffaellige Restkonzentration erkannt.` : "Keine auffaellige Bot-/Monitoring-Konzentration erkannt.";
+          if (data.diagnostics.botReliability === "medium") return `${format(data.suspiciousClients)} auffällige Muster gefunden. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
+          return data.reasons.bot ? `${format(data.reasons.bot)} klare Bot-Zeilen entfernt. Danach keine starke Auffälligkeit.` : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar.";
         }
         if (metric === "tracking") {
-          if (data.diagnostics.trackingReliability === "medium") return "Tracking-Speicherlimit erreicht. Hauptzahlen bleiben nutzbar, aber Besucher-, Bot- und Deduplikationssignale koennen grober sein.";
-          return "Tracking-Speicherlimit nicht erreicht.";
+          if (data.diagnostics.trackingReliability === "medium") return "Interne Schutzgrenze erreicht. Hauptzahlen bleiben nutzbar, Detailsignale werden gröber.";
+          return "Keine interne Schutzgrenze erreicht.";
         }
         return "";
       }
@@ -2396,21 +2396,21 @@
         const item = (ok, text) => `<li class="${ok ? "ok" : "check"}"><span class="state">${ok ? "OK" : "Prüfen"}</span><span>${escapeHtml(text)}</span></li>`;
         const rows = [];
         rows.push(item(!!(data.minTime && data.maxTime), data.minTime && data.maxTime
-          ? `Zeitraum erkannt: ${formatDateTime(data.minTime)} bis ${formatDateTime(data.maxTime)}.`
-          : "Zeitraum konnte nicht sicher aus den Logs gelesen werden."));
+          ? `Zeitraum in der Datei: ${formatDateTime(data.minTime)} bis ${formatDateTime(data.maxTime)}.`
+          : "Der Zeitraum ist aus der Datei nicht sicher lesbar."));
         rows.push(item(data.diagnostics.hostReliability !== "limited", data.diagnostics.hostReliability !== "limited"
-          ? "Host-Scope wirkt eindeutig."
-          : `Mehrere Hosts/Domains erkannt (${format(data.hosts.total)}). Hostfilter setzen, wenn nur eine Domain verglichen werden soll.`));
-        rows.push(item(data.diagnostics.pageviewReliability !== "limited", `Logformat ${data.formatKind}, ${percent(data.diagnostics.recognitionRate * 100)} der Datenzeilen erkannt.`));
+          ? "Die Datei wirkt auf eine Website begrenzt."
+          : `${format(data.hosts.total)} Domains/Subdomains gefunden. Filter setzen, wenn du nur eine Website prüfen willst.`));
+        rows.push(item(data.diagnostics.pageviewReliability !== "limited", `${percent(data.diagnostics.recognitionRate * 100)} der Datei wurde verstanden.`));
         rows.push(item(!hasGa4 || !(data.ga4Import && data.ga4Import.warning), hasGa4
-          ? ((data.ga4Import && data.ga4Import.warning) || "GA4-Seitenaufrufe erkannt; Zeitraum und Seitenauswahl muessen identisch sein.")
-          : "Kein GA4-Seitenvergleich eingetragen."));
+          ? ((data.ga4Import && data.ga4Import.warning) || "GA4-Zahlen wurden gelesen. Zeitraum und Seitenauswahl müssen gleich sein.")
+          : "Keine GA4-Seitenzahlen eingetragen."));
         rows.push(item(data.diagnostics.visitorReliability !== "limited", data.diagnostics.visitorReliability !== "limited"
-          ? "XFF/Proxy-Signale begrenzen die Besucherzahl nicht stark."
-          : "XFF/Proxy/CDN kann die Besucherzahl verzerren; Seitenaufrufe staerker gewichten."));
+          ? "Keine starke Proxy-Verzerrung bei Besuchern sichtbar."
+          : "Proxy oder CDN kann die Besucherzahl verzerren. Seitenaufrufe stärker gewichten."));
         rows.push(item(!data.hasSuccessUrl || data.diagnostics.conversionReliability !== "medium", data.hasSuccessUrl
           ? qualityReason(data, "purchases", hasGa4)
-          : "Keine Conversion-Definition gesetzt."));
+          : "Keine Kauf-/Danke-Seite angegeben."));
         id("precision-checklist").innerHTML = rows.join("");
       }
       function render(data) {
@@ -2462,7 +2462,7 @@
         // Seiten-Tabelle
         id("table-title").textContent = data.hasChosen ? "Deine ausgewählten Seiten" : "Deine meistbesuchten Seiten";
         id("table-caption").textContent = hasGa4
-          ? "Webserver gegen Google Analytics. „Abdeckung“ = wie viel Prozent Google Analytics von den Webserver-Aufrufen sieht."
+          ? "Webserver gegen Google Analytics. Die letzte Spalte zeigt, wie viel Google Analytics im Vergleich zur Server-Datei sieht."
           : "So oft hat dein Webserver diese Seiten gesehen. Trag oben optional Google-Analytics-Zahlen ein, um zu vergleichen.";
         id("compare-note").textContent = hasGa4 ? diffNote(data.overall.difference) : "";
         renderPageTable(data.tableRows);
@@ -2470,45 +2470,45 @@
         // Hinweise
         showHint("proxy-hint",
           data.proxyKind === "private"
-            ? "Fast alle Zugriffe stammen von internen/privaten IP-Adressen. Das ist das typische Muster, wenn ein Reverse-Proxy oder Loadbalancer vor deiner Seite sitzt — dann steht die echte Besucher-IP nicht in der ersten Spalte deiner Logzeilen. Die Seitenaufrufe stimmen, aber die Besucherzahl ist so nicht belastbar. Aktiviere oben unter den erweiterten Filtern „X-Forwarded-For“ und werte erneut aus."
+            ? "Fast alle Zugriffe stammen von internen/privaten IP-Adressen. Das passiert oft, wenn ein Proxy, Loadbalancer oder CDN vor deiner Website sitzt. Dann steht vorne nicht der echte Besucher, sondern nur die Zwischenstation. Seitenaufrufe bleiben brauchbar; die Besucherzahl ist so nicht belastbar. Aktiviere oben „Echte Besucher-IP aus Proxy-Feld verwenden“ und werte erneut aus."
           : data.proxyKind === "concentrated"
-            ? "Mehr als die Hälfte der Zugriffe kommt von einer einzigen IP-Adresse. Das kann ein Reverse-Proxy oder CDN (z. B. Cloudflare) vor deiner Seite sein — dann steht die echte Besucher-IP nicht in der ersten Spalte; aktiviere in diesem Fall unter den erweiterten Filtern „X-Forwarded-For“. Es kann aber auch ein einzelner sehr aktiver Zugriff sein (z. B. du selbst beim Testen oder ein Scraper). Die Seitenaufrufe stimmen in beiden Fällen — die Besucherzahl solltest du hier mit Vorsicht lesen."
+            ? "Mehr als die Hälfte der Zugriffe kommt von einer einzigen IP-Adresse. Das kann ein Proxy/CDN sein, aber auch ein sehr aktiver Testzugriff oder Scraper. Seitenaufrufe bleiben brauchbar; die Besucherzahl bitte nur mit Vorsicht lesen. Wenn ein Proxy/CDN davor sitzt, aktiviere oben „Echte Besucher-IP aus Proxy-Feld verwenden“."
           : "");
         let recognitionText = "";
         if (["cloudflare", "cloudfront", "fastly", "akamai"].includes(data.formatKind)) {
           const names = { cloudflare: "Cloudflare", cloudfront: "CloudFront", fastly: "Fastly", akamai: "Akamai-nahe" };
-          recognitionText = `${names[data.formatKind]} Edge-Logs erkannt und ausgewertet. Das ist fuer gecachte Aufrufe robuster als reine Origin-Logs, sofern der Export denselben Zeitraum abdeckt.`;
+          recognitionText = `${names[data.formatKind]}-Datei gelesen. Gut: Damit sieht ServerStory auch Aufrufe, die ein Cache sonst vom Webserver fernhalten kann.`;
         } else if (data.formatKind === "json") {
-          recognitionText = "JSON-Logs erkannt und ausgewertet. Prüfe bei eigenen JSON-Logformaten kurz die technischen Details, weil Feldnamen je nach Server variieren können.";
+          recognitionText = "JSON-Datei gelesen. Bei eigenen Exporten kurz prüfen, ob Seite, Status und Besucheradresse richtig erkannt wurden.";
         } else if (data.formatKind === "iis") {
-          recognitionText = "IIS/W3C-Logs erkannt und ausgewertet. Die Zeitangaben werden als UTC gelesen, wie es bei W3C-Logs üblich ist.";
+          recognitionText = "IIS/W3C-Datei gelesen. Die Zeiten werden wie üblich als UTC gelesen.";
         } else if (data.formatKind === "unknown" && data.total) {
-          recognitionText = "Das Logformat wurde nicht sicher erkannt. ServerStory erwartet Apache/Nginx Combined Log.";
+          recognitionText = "Diese Datei passt nicht sicher zu den unterstützten Server-Logformaten.";
         } else if (data.unrecognizedPct >= 10) {
-          recognitionText = `${percent(data.unrecognizedPct)} der Zeilen wurden nicht als Apache/Nginx Combined Log erkannt. Prüfe, ob die Datei gemischte oder abweichende Logzeilen enthält.`;
+          recognitionText = `${percent(data.unrecognizedPct)} der Datei konnte nicht gelesen werden. Prüfe, ob der Export gemischt, gekürzt oder im falschen Format ist.`;
         }
         if (data.diagnostics.pageviewReliability === "high") {
-          recognitionText += (recognitionText ? " " : "") + "Die Seitenaufrufe wirken nach Format- und Erkennungsprüfung sehr belastbar.";
+          recognitionText += (recognitionText ? " " : "") + "Die Seitenaufrufe wirken gut nutzbar.";
         } else if (data.diagnostics.pageviewReliability === "medium") {
-          recognitionText += (recognitionText ? " " : "") + "Die Seitenaufrufe sind nutzbar, aber wegen Format-/Erkennungsquote mit etwas Vorsicht zu lesen.";
+          recognitionText += (recognitionText ? " " : "") + "Die Seitenaufrufe sind brauchbar, aber nicht perfekt.";
         } else if (data.total) {
-          recognitionText += (recognitionText ? " " : "") + "Die Seitenaufrufe sind nur eingeschränkt belastbar, weil zu viele Zeilen nicht sicher gelesen wurden.";
+          recognitionText += (recognitionText ? " " : "") + "Die Seitenaufrufe bitte nur vorsichtig verwenden, weil zu viel der Datei unklar ist.";
         }
         if (data.xffMissing > 0 && data.xffUsed === 0) {
-          recognitionText += (recognitionText ? " " : "") + "X-Forwarded-For ist aktiviert, aber ServerStory hat in den Zusatzfeldern keine plausible IP-Liste gefunden. Die Besucherzahl nutzt deshalb weiterhin die erste IP-Spalte.";
+          recognitionText += (recognitionText ? " " : "") + "Das Proxy-Feld wurde aktiviert, aber ServerStory hat dort keine brauchbaren Besucheradressen gefunden. Die Besucherzahl nutzt deshalb weiter die erste Adresse in der Zeile.";
         } else if (data.xffPrivate > 0 && data.xffUsed === 0) {
-          recognitionText += (recognitionText ? " " : "") + "X-Forwarded-For ist aktiviert, enthält aber nur private/interne IPs. Die Besucherzahl kann dadurch weiterhin proxy-verzerrt sein.";
+          recognitionText += (recognitionText ? " " : "") + "Das Proxy-Feld enthält nur interne Adressen. Die Besucherzahl kann deshalb weiter verzerrt sein.";
         } else if (data.diagnostics.visitorReliability === "limited") {
           recognitionText += (recognitionText ? " " : "") + "Die Besucherzahl ist eingeschränkt belastbar; Seitenaufrufe sind hier die robustere Kennzahl.";
         }
         if (data.suspiciousClients > 0) {
-          recognitionText += (recognitionText ? " " : "") + `${format(data.suspiciousClients)} Besucher-Schlüssel zeigen sehr viele Aufrufe fast ohne Asset-Abrufe. Das kann getarnter Bot- oder Monitoring-Traffic sein.`;
+          recognitionText += (recognitionText ? " " : "") + `${format(data.suspiciousClients)} auffällige Muster gefunden: sehr viele Aufrufe, aber kaum normale Seitenbestandteile. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
         }
         if (data.diagnostics.hostReliability === "limited") {
-          recognitionText += (recognitionText ? " " : "") + `Die Logdatei enthält mehrere Hosts/Domains (${format(data.hosts.total)} erkannt). Setze bei Bedarf oben einen Hostfilter, damit GA4- und Server-Zahlen dieselbe Domain meinen.`;
+          recognitionText += (recognitionText ? " " : "") + `Die Datei enthält mehrere Websites oder Subdomains (${format(data.hosts.total)} erkannt). Setze oben einen Filter, damit ServerStory und GA4 wirklich dieselbe Website vergleichen.`;
         }
         if (data.trackingCapped) {
-          recognitionText += (recognitionText ? " " : "") + "Das Tracking-Speicherlimit wurde erreicht. Hauptzählungen bleiben nutzbar, aber Bot-/Anomalie-Erkennung und Besucher-Bandbreite können gröber werden.";
+          recognitionText += (recognitionText ? " " : "") + "Die Datei ist sehr groß. Hauptzahlen bleiben nutzbar, aber Besucher-Spanne und Bot-Hinweise werden gröber.";
         }
         if (data.ga4Import && data.ga4Import.warning) {
           recognitionText += (recognitionText ? " " : "") + data.ga4Import.warning;
@@ -2529,7 +2529,7 @@
         id("server-filtered").textContent = format(data.filtered + data.unrecognized);
         id("server-ads").textContent = format(data.adVisitors);
         id("visits").textContent = data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable"
-          ? `Nicht serioes bestimmbar (technische Bandbreite ${format(data.visitorRange.low)}–${format(data.visitorRange.high)})`
+          ? `Nicht verlässlich bestimmbar (mögliche Spanne ${format(data.visitorRange.low)}–${format(data.visitorRange.high)})`
           : data.visitorRange && data.visitorRange.low !== data.visitorRange.high
           ? `${format(data.visits)} (Bandbreite ${format(data.visitorRange.low)}–${format(data.visitorRange.high)})`
           : format(data.visits);
@@ -2582,7 +2582,7 @@
           setSignal("good", "✓", "Ausgewertet");
           id("headline").textContent = "Das hat dein Webserver gesehen";
           const visitText = data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable"
-            ? "eine mit diesen Daten nicht serioes bestimmbare Besucherzahl"
+            ? "eine mit diesen Daten nicht verlässlich bestimmbare Besucherzahl"
             : `${format(data.visits)} Besuche`;
           let sub = `In ${zeitraumText()} zählt dein Webserver ${visitText} und ${format(data.pageViews)} Seitenaufrufe.`;
           if (data.hasSuccessUrl) sub += ` Davon ${kauf(data.success)} auf der Danke-Seite.`;
@@ -2601,23 +2601,23 @@
           const worstText = worst && worst.coverage < 85 ? ` Am wenigsten auf ${worst.name} (${percent(worst.coverage)}).` : "";
           if (cov < 85) {
             setSignal("warn", "!", "Achtung");
-            id("headline").textContent = "GA4-Abdeckung ist niedrig";
-            id("subline").textContent = `Auf den konkret verglichenen Seiten meldet GA4 ${percent(cov)} der Server-Log-Aufrufe.${worstText}`;
-            id("action").textContent = "Nächster Schritt: Keine Entscheidung nur aus dieser Zahl ableiten. Prüfe zuerst Zeitraum, Hostfilter, GA4-Metrik, Consent, Ad-Blocker und ob Server-/CDN-Logs dieselbe Traffic-Quelle abdecken.";
+            id("headline").textContent = "GA4 sieht deutlich weniger";
+            id("subline").textContent = `Für die ausgewählten Seiten findet GA4 nur ${percent(cov)} der Aufrufe, die in der Server-Datei stehen.${worstText}`;
+            id("action").textContent = "Nächster Schritt: Noch keine Budget-Entscheidung nur daraus ableiten. Prüfe zuerst: gleicher Zeitraum, richtige Website, richtige GA4-Metrik, Cookie-Banner, Ad-Blocker und ob ein CDN/Cache dazwischen sitzt.";
           } else if (cov < 95) {
             setSignal("medium", "~", "Kleine Lücke");
             id("headline").textContent = "Kleine Abweichung";
-            id("subline").textContent = `Google Analytics sieht ${percent(cov)} der Webserver-Aufrufe. Eine kleine Lücke ist normal.${worstText}`;
+            id("subline").textContent = `GA4 findet ${percent(cov)} der Aufrufe aus der Server-Datei. Eine kleine Lücke ist normal.${worstText}`;
             id("action").textContent = "Nächster Schritt: Im Auge behalten, aber keine große Entscheidung nur wegen dieser kleinen Abweichung treffen.";
           } else if (cov <= 110) {
             setSignal("good", "✓", "Passt");
             id("headline").textContent = "Die Zahlen passen zusammen";
-            id("subline").textContent = `Google Analytics und dein Webserver zählen fast gleich (${percent(cov)}).`;
+            id("subline").textContent = `GA4 und die Server-Datei liegen nah beieinander (${percent(cov)}).`;
             id("action").textContent = "Nächster Schritt: Kurz Zeitraum und Seiten prüfen — danach wirken die Google-Analytics-Zahlen verlässlich.";
           } else {
             setSignal("medium", "~", "GA4 zählt mehr");
-            id("headline").textContent = "GA4 liegt über dem Server-Log";
-            id("subline").textContent = `Für die verglichenen Seiten meldet GA4 mehr als das ausgewertete Server-Log (${percent(cov)}). Häufige Ursache: Caching/CDN — gecachte Aufrufe erreichen das Origin-Log gar nicht, das Tracking-Skript läuft aber trotzdem. Auch Mehrfachzählung oder Bots können GA4 aufblähen.`;
+            id("headline").textContent = "GA4 liegt über der Server-Datei";
+            id("subline").textContent = `Für die verglichenen Seiten meldet GA4 mehr als die Server-Datei (${percent(cov)}). Häufige Ursache: Cache/CDN — ein Teil der Aufrufe landet dann nicht in dieser Server-Datei. Auch Mehrfachzählung oder Bots können GA4 aufblähen.`;
             id("action").textContent = "Nächster Schritt: Prüfen, ob ein CDN oder Cache (z. B. Cloudflare) vor der Seite sitzt — dann fehlen Aufrufe im Server-Log. Sonst Bots oder Mehrfachzählung in Google Analytics prüfen.";
           }
           if (hasConv && data.convDiff > 0) {
@@ -2731,10 +2731,10 @@
         try {
           const text = await file.slice(0, 512 * 1024).text();
           const preflight = preflightLogSample(text, { sampleLines: 500, useXff: id("use-xff").checked });
-          const hostText = preflight.hosts.total ? `${format(preflight.hosts.total)} Host(s)` : "kein Host-Feld";
-          const xffText = preflight.fields.xff ? `, XFF-Beispiel ${preflight.fields.xff}` : "";
+          const hostText = preflight.hosts.total ? `${format(preflight.hosts.total)} Website(s)/Subdomain(s)` : "keine Website-Adresse erkannt";
+          const xffText = preflight.fields.xff ? ", Proxy-Feld gefunden" : "";
           const warnings = preflight.warnings.length ? ` Hinweise: ${preflight.warnings.join(" ")}` : "";
-          id("message").textContent = `Kurzprüfung: ${preflight.formatKind}, ${percent(preflight.recognitionRate * 100)} erkannt, ${hostText}${xffText}. Beispiel: ${preflight.fields.method || "-"} ${preflight.fields.path || "-"} → ${preflight.fields.status || "-"}.${warnings}`;
+          id("message").textContent = `Kurzprüfung: ${percent(preflight.recognitionRate * 100)} der Stichprobe lesbar, ${hostText}${xffText}. Beispiel: ${preflight.fields.method || "-"} ${preflight.fields.path || "-"} → ${preflight.fields.status || "-"}.${warnings}`;
         } catch (error) {
           id("message").textContent = error && error.message ? error.message : "Kurzprüfung fehlgeschlagen.";
         }
@@ -2822,8 +2822,8 @@
             visits: qualityReason(lastResult, "visits", !!(lastResult.overall && lastResult.overall.coverage !== null)),
             conversions: qualityReason(lastResult, "purchases", !!(lastResult.overall && lastResult.overall.coverage !== null)),
             ga4: qualityReason(lastResult, "ga4", !!(lastResult.overall && lastResult.overall.coverage !== null)),
-            hostScope: lastResult.diagnostics.hostReliability === "limited" ? `Mehrere Hosts/Domains erkannt (${format(lastResult.hosts.total)}). Hostfilter empfohlen.` : "Host-Scope wirkt eindeutig.",
-            botAnomaly: lastResult.suspiciousClients ? `${format(lastResult.suspiciousClients)} Besucher-Schluessel mit Bot-/Monitoring-Verdacht.` : "Keine auffaellige Bot-/Monitoring-Konzentration erkannt."
+            hostScope: lastResult.diagnostics.hostReliability === "limited" ? `Mehrere Websites/Subdomains erkannt (${format(lastResult.hosts.total)}). Filter empfohlen, sonst kann der Vergleich fremde Seiten enthalten.` : "Die Datei wirkt auf eine Website begrenzt.",
+            botAnomaly: lastResult.suspiciousClients ? `${format(lastResult.suspiciousClients)} auffaellige Muster mit Bot-/Monitoring-Verdacht.` : "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."
           },
           topPages: lastResult.tableRows
         };

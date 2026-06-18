@@ -129,9 +129,9 @@
               <div class="ga4-fields">
                 <label class="check">
                   <input type="checkbox" id="use-xff">
-                  <span>Echte Besucher-IP aus „X-Forwarded-For“ verwenden</span>
+                  <span>Echte Besucher-IP aus Proxy-Feld verwenden</span>
                 </label>
-                <p class="helper">Nur sinnvoll, wenn ein vertrauenswürdiger Reverse-Proxy oder ein CDN vor deiner Website sitzt. Dann steht im ersten Feld oft nur die Proxy-IP, die echte Besucher-IP in „X-Forwarded-For“. Achtung: Dieser Wert ist fälschbar.</p>
+                <p class="helper">Nur sinnvoll, wenn ein vertrauenswürdiger Reverse-Proxy oder ein CDN vor deiner Website sitzt. Dann steht vorne oft nur die Proxy-IP; die echte Besucher-IP steht in einem Zusatzfeld. Achtung: Dieser Wert ist fälschbar.</p>
                 <label class="check">
                   <input type="checkbox" id="strict-bot">
                   <span>Strenger Bot-Filter (nur klare Browser zählen)</span>
@@ -153,7 +153,7 @@
                   </label>
                 </div>
                 <label>
-                  Tracking-Speicherlimit
+                  Schutzgrenze für sehr große Dateien
                   <input id="tracking-cap" type="number" min="1000" placeholder="100000">
                   <span class="helper">Schützt sehr große Dateien vor zu hohem Speicherverbrauch. Bei Überschreitung zeigt ServerStory einen Genauigkeitshinweis.</span>
                 </label>
@@ -182,7 +182,7 @@
             <div id="recognition-hint" class="hint-box hidden"></div>
             <div id="chrono-hint" class="hint-box hidden"></div>
             <div class="hint-box">
-              <strong>Präzisions-Check</strong>
+              <strong>Wie sicher sind die Zahlen?</strong>
               <ul id="precision-checklist" class="precision-checklist"></ul>
             </div>
             <div class="numbers">
@@ -218,17 +218,17 @@
 
             <div class="diagnostic-grid">
               <div class="diagnostic-item">
-                <span>Host-Scope</span>
+                <span>Website-Auswahl</span>
                 <em id="q-host" class="quality-badge">-</em>
                 <p id="q-host-reason" class="helper"></p>
               </div>
               <div class="diagnostic-item">
-                <span>Bot-/Anomalie-Erkennung</span>
+                <span>Bots & Auffälligkeiten</span>
                 <em id="q-bot" class="quality-badge">-</em>
                 <p id="q-bot-reason" class="helper"></p>
               </div>
               <div class="diagnostic-item">
-                <span>Tracking-Speicher</span>
+                <span>Große Dateien</span>
                 <em id="q-tracking" class="quality-badge">-</em>
                 <p id="q-tracking-reason" class="helper"></p>
               </div>
@@ -262,7 +262,7 @@
               <div class="table-wrap">
                 <table class="mini-table">
                   <thead>
-                    <tr><th>Seite</th><th>Webserver</th><th class="ga4-col">Google Analytics</th><th class="ga4-col">Differenz</th><th class="ga4-col">Abdeckung</th></tr>
+                    <tr><th>Seite</th><th>Webserver</th><th class="ga4-col">Google Analytics</th><th class="ga4-col">Differenz</th><th class="ga4-col">GA4 sieht</th></tr>
                   </thead>
                   <tbody id="page-table">
                     <tr><td>-</td><td>-</td><td class="ga4-col">-</td><td class="ga4-col">-</td><td class="ga4-col">-</td></tr>

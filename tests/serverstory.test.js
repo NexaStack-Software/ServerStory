@@ -822,7 +822,7 @@ test("liefert Preflight-Beispiele fuer Format, Host und XFF vor der Analyse", ()
   });
   assert.strictEqual(preflight.quality.pageviews, "high");
   assert.strictEqual(preflight.quality.visitors, "high");
-  assert.strictEqual(preflight.warnings.some((warning) => /mehrere Hosts/i.test(warning)), true);
+  assert.strictEqual(preflight.warnings.some((warning) => /mehrere Websites/i.test(warning)), true);
 });
 
 test("Preflight nutzt dieselbe Format- und Recognition-Logik wie die Analyse", () => {
@@ -848,8 +848,8 @@ test("Preflight warnt bei kaputten Zeilen und fehlendem XFF vor der Analyse", ()
   assert.ok(preflight.recognitionRate < 0.95);
   assert.strictEqual(preflight.quality.pageviews, "medium");
   assert.strictEqual(preflight.quality.visitors, "limited");
-  assert.strictEqual(preflight.warnings.some((warning) => /Nur .*Datenzeilen/i.test(warning)), true);
-  assert.strictEqual(preflight.warnings.some((warning) => /X-Forwarded-For aktiviert/i.test(warning)), true);
+  assert.strictEqual(preflight.warnings.some((warning) => /Nur .*Stichprobe/i.test(warning)), true);
+  assert.strictEqual(preflight.warnings.some((warning) => /Proxy-Feld/i.test(warning)), true);
 });
 
 test("liest Cloudflare Edge JSON als CDN-Format", () => {
@@ -1062,13 +1062,13 @@ test("Render setzt Ampeln und sichtbare Gruende pro Kennzahl", () => {
   });
   const ui = createRenderContext();
   ui.ctx.render(data);
-  assert.strictEqual(ui.get("q-views").textContent, "Belastbarkeit hoch");
-  assert.match(ui.get("q-views-reason").textContent, /100.*Datenzeilen erkannt|100.*erkannt/i);
+  assert.strictEqual(ui.get("q-views").textContent, "Gut nutzbar");
+  assert.match(ui.get("q-views-reason").textContent, /Datei wurde sauber gelesen.*100/i);
   assert.match(ui.get("q-visits-reason").textContent, /Keine starke Proxy-Verzerrung/i);
-  assert.match(ui.get("q-purchases-reason").textContent, /GA4-Kaufvergleich aktiv/i);
-  assert.match(ui.get("q-ga4-reason").textContent, /GA4-Werte mit Server-Seiten abgeglichen/i);
-  assert.match(ui.get("precision-checklist").innerHTML, /Host-Scope wirkt eindeutig/i);
-  assert.match(ui.get("precision-checklist").innerHTML, /Logformat combined/i);
+  assert.match(ui.get("q-purchases-reason").textContent, /mit GA4-Käufen verglichen/i);
+  assert.match(ui.get("q-ga4-reason").textContent, /Zeitraum und Seitenauswahl/i);
+  assert.match(ui.get("precision-checklist").innerHTML, /eine Website begrenzt/i);
+  assert.match(ui.get("precision-checklist").innerHTML, /Datei wurde verstanden/i);
   assert.strictEqual(ui.get("n-views").textContent, "4");
   assert.strictEqual(ui.get("n-purchases").textContent, "1");
 });
@@ -1079,13 +1079,13 @@ test("Render zeigt Limitierungsgruende bei gemischten Hosts und falscher GA4-Met
   });
   const ui = createRenderContext();
   ui.ctx.render(data);
-  assert.strictEqual(ui.get("q-ga4").textContent, "Belastbarkeit niedrig");
+  assert.strictEqual(ui.get("q-ga4").textContent, "Nicht verlässlich");
   assert.match(ui.get("q-ga4-reason").textContent, /Nutzer|Users|falsche Metrik/i);
-  assert.strictEqual(ui.get("q-host").textContent, "Belastbarkeit niedrig");
-  assert.match(ui.get("q-host-reason").textContent, /Mehrere Hosts\/Domains erkannt/i);
-  assert.match(ui.get("recognition-hint").textContent, /mehrere Hosts\/Domains/i);
+  assert.strictEqual(ui.get("q-host").textContent, "Nicht verlässlich");
+  assert.match(ui.get("q-host-reason").textContent, /Domains\/Subdomains gefunden/i);
+  assert.match(ui.get("recognition-hint").textContent, /mehrere Websites oder Subdomains/i);
   assert.match(ui.get("recognition-hint").textContent, /Nutzer|Users|falsche Metrik/i);
-  assert.match(ui.get("precision-checklist").innerHTML, /Mehrere Hosts\/Domains erkannt/i);
+  assert.match(ui.get("precision-checklist").innerHTML, /Domains\/Subdomains gefunden/i);
 });
 
 test("Render verhindert falsche Sicherheit bei Proxy, Bot-Anomalien und Tracking-Cap", () => {
@@ -1100,15 +1100,15 @@ test("Render verhindert falsche Sicherheit bei Proxy, Bot-Anomalien und Tracking
   const proxyUi = createRenderContext();
   proxyUi.ctx.render(proxyData);
   assert.strictEqual(proxyUi.get("n-visits").textContent, "Nicht bestimmbar");
-  assert.strictEqual(proxyUi.get("q-visits").textContent, "Belastbarkeit niedrig");
-  assert.match(proxyUi.get("q-visits-reason").textContent, /Nicht serioes bestimmbar/i);
+  assert.strictEqual(proxyUi.get("q-visits").textContent, "Nicht verlässlich");
+  assert.match(proxyUi.get("q-visits-reason").textContent, /Nicht verlässlich bestimmbar/i);
   assert.doesNotMatch(proxyUi.get("subline").textContent, /1 Besuche|1 Besuch/i);
-  assert.match(proxyUi.get("proxy-hint").textContent, /Reverse-Proxy|Loadbalancer/i);
+  assert.match(proxyUi.get("proxy-hint").textContent, /Proxy|Loadbalancer|CDN/i);
 
   const botUi = createRenderContext();
   botUi.ctx.render(buildResultFor(fixture("suspicious-volume.log")));
-  assert.strictEqual(botUi.get("q-bot").textContent, "Belastbarkeit mittel");
-  assert.match(botUi.get("q-bot-reason").textContent, /auffaellig vielen Aufrufen/i);
+  assert.strictEqual(botUi.get("q-bot").textContent, "Mit Vorsicht");
+  assert.match(botUi.get("q-bot-reason").textContent, /auffällige Muster/i);
 
   const cappedLines = [];
   for (let i = 0; i < 1005; i++) {
@@ -1116,9 +1116,9 @@ test("Render verhindert falsche Sicherheit bei Proxy, Bot-Anomalien und Tracking
   }
   const capUi = createRenderContext();
   capUi.ctx.render(buildResultFor(cappedLines.join("\n"), { maxTrackedClients: 1000 }));
-  assert.strictEqual(capUi.get("q-tracking").textContent, "Belastbarkeit mittel");
-  assert.match(capUi.get("q-tracking-reason").textContent, /Speicherlimit erreicht/i);
-  assert.match(capUi.get("recognition-hint").textContent, /Tracking-Speicherlimit wurde erreicht/i);
+  assert.strictEqual(capUi.get("q-tracking").textContent, "Mit Vorsicht");
+  assert.match(capUi.get("q-tracking-reason").textContent, /Schutzgrenze erreicht/i);
+  assert.match(capUi.get("recognition-hint").textContent, /sehr groß/i);
 });
 
 test("Copy-Report liefert versioniertes Schema mit Genauigkeitshinweisen", async () => {
@@ -1141,9 +1141,9 @@ test("Copy-Report liefert versioniertes Schema mit Genauigkeitshinweisen", async
   assert.strictEqual(report.parser.dataRows, 6);
   assert.strictEqual(report.parser.statusCounts[0].name, "200");
   assert.strictEqual(report.parser.methodCounts[0].name, "GET");
-  assert.match(report.accuracyNotes.pageViews, /Datenzeilen erkannt/i);
+  assert.match(report.accuracyNotes.pageViews, /Datei wurde sauber gelesen/i);
   assert.match(report.accuracyNotes.visits, /Proxy-Verzerrung/i);
-  assert.match(report.accuracyNotes.hostScope, /Host-Scope wirkt eindeutig/i);
+  assert.match(report.accuracyNotes.hostScope, /eine Website begrenzt/i);
   assert.strictEqual(report.topPages[0].name, "/preise");
 });
 
@@ -1164,12 +1164,12 @@ test("Copy-Report macht Proxy-XFF-Risiko mit Besucher-Bandbreite sichtbar", asyn
   assert.strictEqual(report.proxyKind, "private");
   assert.strictEqual(report.evidence.visits.type, "not_determinable");
   assert.strictEqual(report.evidence.visits.canAnswer, false);
-  assert.match(report.evidence.visits.reason, /nicht serioes bestimmbar/i);
+  assert.match(report.evidence.visits.reason, /nicht verlaesslich bestimmbar/i);
   assert.strictEqual(report.evidence.pageViews.type, "lower_bound");
   assert.deepStrictEqual(report.xForwardedFor, { used: 0, missing: 0, privateOnly: 0 });
   assert.strictEqual(report.totals.visits, 1);
   assert.ok(report.totals.visitorRange.high > report.totals.visits);
-  assert.match(report.accuracyNotes.visits, /Nicht serioes bestimmbar/i);
+  assert.match(report.accuracyNotes.visits, /Nicht verlässlich bestimmbar/i);
 });
 
 test("Copy-Report macht Host-Mix und Hostfilter-Wirkung sichtbar", async () => {
@@ -1185,14 +1185,14 @@ test("Copy-Report macht Host-Mix und Hostfilter-Wirkung sichtbar", async () => {
   assert.strictEqual(mixedReport.quality.hostReliability, "limited");
   assert.strictEqual(mixedReport.parser.hosts.total, 2);
   assert.strictEqual(mixedReport.evidence.hostScope.canAnswer, false);
-  assert.match(mixedReport.evidence.hostScope.reason, /Mehrere Hosts/i);
-  assert.match(mixedReport.accuracyNotes.hostScope, /Mehrere Hosts\/Domains erkannt/i);
+  assert.match(mixedReport.evidence.hostScope.reason, /Mehrere Websites\/Subdomains/i);
+  assert.match(mixedReport.accuracyNotes.hostScope, /Mehrere Websites\/Subdomains erkannt/i);
 
   const filteredReport = await copyReportFor(buildResultFor(text, { ...config, hostFilter: ["example.test"] }));
   assert.strictEqual(filteredReport.quality.hostReliability, "high");
   assert.strictEqual(filteredReport.parser.hosts.total, 1);
   assert.strictEqual(filteredReport.filterReasons.host, 807);
-  assert.match(filteredReport.accuracyNotes.hostScope, /Host-Scope wirkt eindeutig/i);
+  assert.match(filteredReport.accuracyNotes.hostScope, /eine Website begrenzt/i);
 });
 
 test("Copy-Report verschweigt Chronologie- und Recognition-Risiken nicht", async () => {
@@ -1208,7 +1208,7 @@ test("Copy-Report verschweigt Chronologie- und Recognition-Risiken nicht", async
   assert.strictEqual(unsortedReport.quality.visitorReliability, "medium");
   assert.ok(unsortedReport.totals.visitorRange.low < unsortedReport.totals.visits);
   assert.ok(unsortedReport.totals.visitorRange.high > unsortedReport.totals.visits);
-  assert.match(unsortedReport.accuracyNotes.visits, /Log-Reihenfolge/i);
+  assert.match(unsortedReport.accuracyNotes.visits, /Reihenfolge der Logs/i);
 
   const noisy = text + "\n" + Array.from({ length: 200 }, (_, i) => `kaputte zeile ${i} <script>alert(1)</script>`).join("\n");
   const noisyReport = await copyReportFor(buildResultFor(noisy, config));
@@ -1216,7 +1216,7 @@ test("Copy-Report verschweigt Chronologie- und Recognition-Risiken nicht", async
   assert.strictEqual(noisyReport.totals.pageViews, expected.pageViews);
   assert.strictEqual(noisyReport.quality.pageviewReliability, "medium");
   assert.ok(noisyReport.quality.recognitionRate < 0.95);
-  assert.match(noisyReport.accuracyNotes.pageViews, /einzelne Zeilen\/Formate pruefen/i);
+  assert.match(noisyReport.accuracyNotes.pageViews, /Einzelne Zeilen passen nicht/i);
 });
 
 test("Analyse-Protokoll v1 bleibt snapshot-stabil", async () => {
@@ -1271,7 +1271,8 @@ test("Demo nutzt realistische Groessenordnung und keine harte GA4-zu-wenig-Headl
   assert.ok(result.success >= 200);
   assert.doesNotMatch(script, /Google Analytics zählt zu wenig/);
   assert.doesNotMatch(script, /Google Analytics sieht weniger Käufe/);
-  assert.match(script, /GA4-Abdeckung ist niedrig/);
+  assert.doesNotMatch(script, /GA4-Abdeckung ist niedrig/);
+  assert.match(script, /GA4 sieht deutlich weniger/);
 });
 
 run();
