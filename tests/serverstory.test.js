@@ -48,16 +48,17 @@ function combined(ip, stamp, target, status = 200, ua = "Mozilla/5.0 Chrome/124.
   return `${ip} - - [${stamp}] "${method} ${target} HTTP/1.1" ${status} 123 "-" "${ua}"${extra}`;
 }
 
-function cloudflareEvent(ip, iso, target, status = 200, ua = "Mozilla/5.0 Chrome/124.0 Safari/537.36") {
+function cloudflareEvent(ip, iso, target, status = 200, ua = "Mozilla/5.0 Chrome/124.0 Safari/537.36", options = {}) {
+  const host = options.host || "example.test";
   return JSON.stringify({
     EdgeStartTimestamp: iso,
     ClientIP: ip,
     ClientRequestMethod: "GET",
-    ClientRequestURI: `https://example.test${target}`,
-    ClientRequestHost: "example.test",
+    ClientRequestURI: `https://${host}${target}`,
+    ClientRequestHost: host,
     EdgeResponseStatus: status,
     ClientRequestUserAgent: ua,
-    ClientRequestHeaderXForwardedFor: ip
+    ClientRequestHeaderXForwardedFor: options.xff || ip
   });
 }
 
@@ -283,7 +284,7 @@ function splitTarget(target) {
   return { stem, query: query || "-" };
 }
 
-function createLargeGoldenCorpus(format = "combined") {
+function createLargeGoldenCorpus(format = "combined", options = {}) {
   const lines = [];
   const expected = {
     visitors: 1250,
@@ -298,6 +299,9 @@ function createLargeGoldenCorpus(format = "combined") {
   };
   const browserUa = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
   const botUa = "Googlebot/2.1";
+  const proxyIp = options.proxyIp || "";
+  const xff = !!options.xff;
+  const hostFor = options.hostFor || (() => "example.test");
   if (format === "cloudfront") {
     lines.push("#Version: 1.0");
     lines.push("#Fields: date time x-edge-location sc-bytes c-ip cs-method cs(Host) cs-uri-stem sc-status cs(Referer) cs(User-Agent) cs-uri-query");
@@ -307,22 +311,26 @@ function createLargeGoldenCorpus(format = "combined") {
     lines.push("#Fields: date time c-ip cs-method cs-uri-stem cs-uri-query sc-status cs(User-Agent) cs-host");
     expected.meta = 2;
   }
-  const emit = (ip, seconds, target, status = 200, ua = browserUa) => {
+  const emit = (ip, seconds, target, status = 200, ua = browserUa, eventOptions = {}) => {
     const { date, time } = w3cDateTimeAt(seconds);
     const { stem, query } = splitTarget(target);
     const encodedUa = encodeURIComponent(ua);
+    const logIp = proxyIp || ip;
+    const host = eventOptions.host || "example.test";
+    const xffValue = xff ? ip : "";
     if (format === "cloudflare") {
-      lines.push(cloudflareEvent(ip, isoAt(seconds), target, status, ua));
+      lines.push(cloudflareEvent(logIp, isoAt(seconds), target, status, ua, { host, xff: xffValue || logIp }));
     } else if (format === "cloudfront") {
-      lines.push(`${date} ${time} FRA56-P1 100 ${ip} GET example.test ${stem} ${status} - ${encodedUa} ${query}`);
+      lines.push(`${date} ${time} FRA56-P1 100 ${logIp} GET ${host} ${stem} ${status} - ${encodedUa} ${query}`);
     } else if (format === "fastly") {
-      lines.push(fastlyEvent(ip, isoAt(seconds), target, status, ua));
+      lines.push(fastlyEvent(logIp, isoAt(seconds), target, status, ua));
     } else if (format === "akamai") {
-      lines.push(akamaiEvent(ip, isoAt(seconds), target, status, ua));
+      lines.push(akamaiEvent(logIp, isoAt(seconds), target, status, ua));
     } else if (format === "iis") {
-      lines.push(`${date} ${time} ${ip} GET ${stem} ${query} ${status} ${encodedUa} example.test`);
+      lines.push(`${date} ${time} ${logIp} GET ${stem} ${query} ${status} ${encodedUa} ${host}`);
     } else {
-      lines.push(combined(ip, combinedStampAt(seconds), target, status, ua));
+      const extra = xffValue ? ` "${xffValue}"` : "";
+      lines.push(combined(logIp, combinedStampAt(seconds), target, status, ua, "GET", extra));
     }
   };
 
@@ -330,32 +338,33 @@ function createLargeGoldenCorpus(format = "combined") {
     const ip = docIp(i);
     const base = i * 6;
     const ad = i % 5 === 0;
+    const eventOptions = { host: hostFor(i) };
     if (ad) expected.adVisitors++;
-    emit(ip, base, `/landing${ad ? "?gclid=ad-" + i : ""}`);
+    emit(ip, base, `/landing${ad ? "?gclid=ad-" + i : ""}`, 200, browserUa, eventOptions);
 
     if (i % 2 === 0) {
       expected.productViews++;
-      emit(ip, base + 1, `/produkt/${i % 20}`);
+      emit(ip, base + 1, `/produkt/${i % 20}`, 200, browserUa, eventOptions);
     }
     if (i % 3 === 0) {
       expected.assetHits++;
-      emit(ip, base + 2, "/assets/app.css");
+      emit(ip, base + 2, "/assets/app.css", 200, browserUa, eventOptions);
     }
     if (i % 10 === 0) {
       expected.conversions++;
-      emit(ip, base + 3, `/checkout/danke?order_id=G${i}`);
+      emit(ip, base + 3, `/checkout/danke?order_id=G${i}`, 200, browserUa, eventOptions);
     }
     if (i % 50 === 0) {
       expected.duplicateConversions++;
-      emit(ip, base + 4, `/checkout/danke?order_id=G${i}`);
+      emit(ip, base + 4, `/checkout/danke?order_id=G${i}`, 200, browserUa, eventOptions);
     }
   }
 
   for (let i = 0; i < expected.botFiltered; i++) {
-    emit(`203.0.113.${i}`, 9000 + i, `/bot/${i}`, 200, botUa);
+    emit(`203.0.113.${i}`, 9000 + i, `/bot/${i}`, 200, botUa, { host: "example.test" });
   }
   for (let i = 0; i < expected.statusFiltered; i++) {
-    emit(`192.0.2.${i}`, 9100 + i, `/fehler/${i}`, 500);
+    emit(`192.0.2.${i}`, 9100 + i, `/fehler/${i}`, 500, browserUa, { host: "example.test" });
   }
 
   expected.total = lines.length;
@@ -368,6 +377,16 @@ function createLargeGoldenCorpus(format = "combined") {
   expected.adSuccess = expected.conversions;
   expected.landingViews = expected.visitors;
   return { text: lines.join("\n"), expected };
+}
+
+function shuffledEveryOtherBlock(text, blockSize = 50) {
+  const lines = text.split("\n");
+  const out = [];
+  for (let i = 0; i < lines.length; i += blockSize) {
+    const block = lines.slice(i, i + blockSize);
+    out.push(...(((i / blockSize) % 2) ? block.reverse() : block));
+  }
+  return out.join("\n");
 }
 
 const tests = [];
@@ -499,6 +518,98 @@ test("grosser Golden-Corpus mit ueber 1000 Besuchern liefert feste Sollwerte", (
     assert.strictEqual(result.diagnostics.trackingReliability, "high");
     assert.strictEqual(result.trackingCapped, false);
   }
+});
+
+test("grosser Proxy-Corpus markiert Besucher ohne XFF als unsicher und zaehlt mit XFF exakt", () => {
+  const { text, expected } = createLargeGoldenCorpus("combined", {
+    proxyIp: "10.0.0.5",
+    xff: true
+  });
+  const config = {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  };
+
+  const withoutXff = buildResultFor(text, config);
+  assertBuiltResultInvariants(withoutXff);
+  assert.strictEqual(withoutXff.visits, 1);
+  assert.strictEqual(withoutXff.proxyKind, "private");
+  assert.strictEqual(withoutXff.diagnostics.visitorReliability, "limited");
+  assert.ok(withoutXff.visitorRange.high > withoutXff.visits);
+
+  const withXff = buildResultFor(text, { ...config, useXff: true });
+  assertBuiltResultInvariants(withXff);
+  assert.strictEqual(withXff.visits, expected.visitors);
+  assert.strictEqual(withXff.xffUsed, expected.kept);
+  assert.strictEqual(withXff.diagnostics.visitorReliability, "high");
+  assert.strictEqual(withXff.pageViews, expected.pageViews);
+  assert.strictEqual(withXff.success, expected.success);
+});
+
+test("grosser Host-Mix-Corpus zeigt Host-Risiko und wird per Hostfilter exakt eingegrenzt", () => {
+  const { text, expected } = createLargeGoldenCorpus("cloudflare", {
+    hostFor: (i) => (i % 4 === 0 ? "other.example.test" : "example.test")
+  });
+  const config = {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  };
+
+  const mixed = buildResultFor(text, config);
+  assertBuiltResultInvariants(mixed);
+  assert.strictEqual(mixed.hosts.total, 2);
+  assert.strictEqual(mixed.diagnostics.hostReliability, "limited");
+  assert.strictEqual(mixed.pageViews, expected.pageViews);
+
+  const filtered = buildResultFor(text, { ...config, hostFilter: ["example.test"] });
+  assertBuiltResultInvariants(filtered);
+  assert.strictEqual(filtered.hosts.total, 1);
+  assert.strictEqual(filtered.diagnostics.hostReliability, "high");
+  assert.strictEqual(filtered.reasons.host, 807);
+  assert.strictEqual(filtered.visits, 937);
+  assert.strictEqual(filtered.pageViews, 1323);
+  assert.strictEqual(filtered.successRaw, 74);
+  assert.strictEqual(filtered.success, 62);
+});
+
+test("grosser unsortierter Corpus senkt Besucher-Belastbarkeit statt falsche Sicherheit zu geben", () => {
+  const { text, expected } = createLargeGoldenCorpus("combined");
+  const result = buildResultFor(shuffledEveryOtherBlock(text), {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  });
+
+  assertBuiltResultInvariants(result);
+  assert.strictEqual(result.pageViews, expected.pageViews);
+  assert.strictEqual(result.success, expected.success);
+  assert.ok(result.timeRegressions >= 5);
+  assert.strictEqual(result.diagnostics.chronologyIssue, true);
+  assert.strictEqual(result.diagnostics.visitorReliability, "medium");
+  assert.ok(result.visitorRange.low < result.visits);
+  assert.ok(result.visitorRange.high > result.visits);
+});
+
+test("grosser Corpus mit kaputten Zeilen senkt Recognition-Ampel und behaelt erkannte Zaehler stabil", () => {
+  const { text, expected } = createLargeGoldenCorpus("combined");
+  const noisy = text + "\n" + Array.from({ length: 200 }, (_, i) => `kaputte zeile ${i} <script>alert(1)</script>`).join("\n");
+  const result = buildResultFor(noisy, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  });
+
+  assertBuiltResultInvariants(result);
+  assert.strictEqual(result.parsed, expected.parsed);
+  assert.strictEqual(result.unrecognized, 200);
+  assert.strictEqual(result.pageViews, expected.pageViews);
+  assert.strictEqual(result.visits, expected.visitors);
+  assert.strictEqual(result.success, expected.success);
+  assert.ok(result.diagnostics.recognitionRate < 0.95);
+  assert.ok(result.diagnostics.recognitionRate >= 0.8);
+  assert.strictEqual(result.diagnostics.pageviewReliability, "medium");
 });
 
 test("liest GA4-Werte mit Semikolon, Tab und Tausenderzeichen", () => {

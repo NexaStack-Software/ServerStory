@@ -2187,8 +2187,9 @@
           : "none";
         let visitorLow = agg.visits, visitorHigh = agg.visits;
         if (visitorReliability === "limited") {
+          const rangeBase = proxyKind ? Math.max(agg.visits, agg.pageViews) : agg.visits;
           visitorLow = Math.max(1, Math.round(agg.visits * 0.55));
-          visitorHigh = Math.max(visitorLow, Math.round(agg.visits * 1.45));
+          visitorHigh = Math.max(visitorLow, Math.round(rangeBase * 1.45));
         } else if (visitorReliability === "medium") {
           visitorLow = Math.max(1, Math.round(agg.visits * 0.8));
           visitorHigh = Math.max(visitorLow, Math.round(agg.visits * 1.2));
