@@ -985,6 +985,8 @@ test("liefert Preflight-Beispiele fuer Format, Host und XFF vor der Analyse", ()
   assert.strictEqual(preflight.quality.pageviews, "high");
   assert.strictEqual(preflight.quality.visitors, "high");
   assert.strictEqual(preflight.warnings.some((warning) => /mehrere Websites/i.test(warning)), true);
+  assert.match(preflight.claimBlockers.join(" "), /Mehrere Websites/i);
+  assert.match(preflight.recommendedChecks.join(" "), /Website-Filter/i);
 });
 
 test("Preflight nutzt dieselbe Format- und Recognition-Logik wie die Analyse", () => {
@@ -1012,6 +1014,27 @@ test("Preflight warnt bei kaputten Zeilen und fehlendem XFF vor der Analyse", ()
   assert.strictEqual(preflight.quality.visitors, "limited");
   assert.strictEqual(preflight.warnings.some((warning) => /Nur .*Stichprobe/i.test(warning)), true);
   assert.strictEqual(preflight.warnings.some((warning) => /Proxy-Feld/i.test(warning)), true);
+  assert.match(preflight.recommendedChecks.join(" "), /Exportformat/i);
+  assert.match(preflight.claimBlockers.join(" "), /Proxy-Feld/i);
+});
+
+test("Preflight erkennt Proxy-Signal und grosse Zeitluecken vor der Analyse", () => {
+  const lines = [];
+  for (let i = 0; i < 130; i++) {
+    lines.push(combined("10.0.0.5", combinedStampAt(i * 10), `/vormittag/${i}`));
+  }
+  for (let i = 0; i < 20; i++) {
+    lines.push(combined("10.0.0.5", combinedStampAt((8 * 60 * 60) + (i * 10)), `/abend/${i}`));
+  }
+  const preflight = ctx.preflightLogSample(lines.join("\n"), { sampleLines: 500 });
+
+  assert.strictEqual(preflight.proxySignal, "private");
+  assert.strictEqual(preflight.quality.visitors, "limited");
+  assert.ok(preflight.sampleTimeRange.maxGapHours >= 7);
+  assert.match(preflight.warnings.join(" "), /Proxy oder Cache/i);
+  assert.match(preflight.warnings.join(" "), /zeitliche Lücke/i);
+  assert.match(preflight.claimBlockers.join(" "), /Besucherzahl/i);
+  assert.match(preflight.recommendedChecks.join(" "), /Teil-Dateien fehlen/i);
 });
 
 test("liest Cloudflare Edge JSON als CDN-Format", () => {

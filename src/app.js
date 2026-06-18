@@ -264,18 +264,47 @@
         }
         const result = agg.finalize();
         const recognitionRate = result.dataRows ? result.parsed / result.dataRows : 0;
+        const privateShare = result.kept ? result.privateClientHits / result.kept : 0;
+        const topClientShare = result.kept ? result.topClientHits / result.kept : 0;
+        const proxySignal = !options.useXff && result.kept >= 100 && (privateShare >= 0.3 || topClientShare >= 0.5)
+          ? (privateShare >= 0.3 ? "private" : "concentrated")
+          : "";
+        const largeGap = result.maxGapMs >= 6 * 60 * 60 * 1000;
         const warnings = [];
         if (result.hostCounts.size > 1) warnings.push("Die Stichprobe enthält mehrere Websites oder Subdomains.");
         if (options.useXff && !result.xffUsed) warnings.push("Das Proxy-Feld wurde aktiviert, aber in der Stichprobe nicht brauchbar gefunden.");
         if (recognitionRate < 0.95) warnings.push(`Nur ${percent(recognitionRate * 100)} der Stichprobe konnte gelesen werden.`);
+        if (proxySignal) warnings.push("Proxy oder Cache kann echte Besucheradressen verdecken.");
+        if (largeGap) warnings.push("Die Stichprobe enthält eine große zeitliche Lücke.");
+        const claimBlockers = [
+          ...(result.hostCounts.size > 1 ? ["Mehrere Websites/Subdomains in der Stichprobe."] : []),
+          ...(recognitionRate < 0.8 ? ["Zu viel der Stichprobe konnte nicht gelesen werden."] : []),
+          ...(proxySignal ? ["Besucherzahl vorab nicht verlässlich bestimmbar."] : []),
+          ...(options.useXff && !result.xffUsed ? ["Proxy-Feld liefert keine brauchbaren Besucheradressen."] : [])
+        ];
+        const recommendedChecks = [
+          ...(result.hostCounts.size > 1 ? ["Website-Filter setzen."] : []),
+          ...(recognitionRate < 0.95 ? ["Exportformat prüfen."] : []),
+          ...(proxySignal ? ["Prüfen, ob Cloudflare oder ein anderer Cache vor der Website sitzt."] : []),
+          ...(largeGap ? ["Prüfen, ob im Export Stunden oder Teil-Dateien fehlen."] : []),
+          ...(options.useXff && !result.xffUsed ? ["Proxy-Feld nur verwenden, wenn es vom eigenen Proxy kommt und Daten enthält."] : [])
+        ];
         return {
           formatKind: result.formatKind,
           recognitionRate,
           fields: first || {},
           hosts: { total: result.hostCounts.size, top: topEntries(result.hostCounts, 5) },
+          sampleTimeRange: {
+            from: result.minTime ? new Date(result.minTime).toISOString() : null,
+            to: result.maxTime ? new Date(result.maxTime).toISOString() : null,
+            maxGapHours: result.maxGapMs ? Math.round(result.maxGapMs / 3600000) : 0
+          },
+          proxySignal,
+          claimBlockers,
+          recommendedChecks,
           quality: {
             pageviews: recognitionRate >= 0.95 ? "high" : recognitionRate >= 0.8 ? "medium" : "limited",
-            visitors: options.useXff ? (result.xffUsed && !result.xffMissing ? "high" : "limited") : "medium"
+            visitors: options.useXff ? (result.xffUsed && !result.xffMissing ? "high" : "limited") : (proxySignal ? "limited" : "medium")
           },
           warnings
         };
@@ -1508,8 +1537,12 @@
           const preflight = preflightLogSample(text, { sampleLines: 500, useXff: id("use-xff").checked });
           const hostText = preflight.hosts.total ? `${format(preflight.hosts.total)} Website(s)/Subdomain(s)` : "keine Website-Adresse erkannt";
           const xffText = preflight.fields.xff ? ", Proxy-Feld gefunden" : "";
-          const warnings = preflight.warnings.length ? ` Hinweise: ${preflight.warnings.join(" ")}` : "";
-          id("message").textContent = `Kurzprüfung: ${percent(preflight.recognitionRate * 100)} der Stichprobe lesbar, ${hostText}${xffText}. Beispiel: ${preflight.fields.method || "-"} ${preflight.fields.path || "-"} → ${preflight.fields.status || "-"}.${warnings}`;
+          const rangeText = preflight.sampleTimeRange.from && preflight.sampleTimeRange.to
+            ? ` Zeitraum: ${formatDateTime(Date.parse(preflight.sampleTimeRange.from))} bis ${formatDateTime(Date.parse(preflight.sampleTimeRange.to))}.`
+            : "";
+          const riskText = preflight.claimBlockers.length ? ` Risiken: ${preflight.claimBlockers.join(" ")}` : "";
+          const checkText = preflight.recommendedChecks.length ? ` Erst prüfen: ${preflight.recommendedChecks.join(" ")}` : "";
+          id("message").textContent = `Kurzprüfung: ${percent(preflight.recognitionRate * 100)} der Stichprobe lesbar, ${hostText}${xffText}. Beispiel: ${preflight.fields.method || "-"} ${preflight.fields.path || "-"} → ${preflight.fields.status || "-"}.${rangeText}${riskText}${checkText}`;
         } catch (error) {
           id("message").textContent = error && error.message ? error.message : "Kurzprüfung fehlgeschlagen.";
         }
