@@ -224,6 +224,13 @@ function stableReport(report) {
   return copy;
 }
 
+async function copyReportFor(data) {
+  const ui = createRenderContext();
+  ui.ctx.render(data);
+  await ui.get("copy-report").click();
+  return JSON.parse(ui.ctx.__clipboard);
+}
+
 const baselineCombined = [
   combined("203.0.113.10", "05/Jun/2026:10:00:00 +0000", "/preise?gclid=abc"),
   combined("203.0.113.10", "05/Jun/2026:10:02:00 +0000", "/assets/app.css"),
@@ -1062,6 +1069,71 @@ test("Copy-Report liefert versioniertes Schema mit Genauigkeitshinweisen", async
   assert.match(report.accuracyNotes.visits, /Proxy-Verzerrung/i);
   assert.match(report.accuracyNotes.hostScope, /Host-Scope wirkt eindeutig/i);
   assert.strictEqual(report.topPages[0].name, "/preise");
+});
+
+test("Copy-Report macht Proxy-XFF-Risiko mit Besucher-Bandbreite sichtbar", async () => {
+  const { text } = createLargeGoldenCorpus("combined", {
+    proxyIp: "10.0.0.5",
+    xff: true
+  });
+  const data = buildResultFor(text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  });
+  const report = await copyReportFor(data);
+
+  assert.strictEqual(report.quality.visitorReliability, "limited");
+  assert.strictEqual(report.quality.cacheRisk, "elevated");
+  assert.deepStrictEqual(report.xForwardedFor, { used: 0, missing: 0, privateOnly: 0 });
+  assert.strictEqual(report.totals.visits, 1);
+  assert.ok(report.totals.visitorRange.high > report.totals.visits);
+  assert.match(report.accuracyNotes.visits, /Proxy-\/CDN-Muster erkannt/i);
+});
+
+test("Copy-Report macht Host-Mix und Hostfilter-Wirkung sichtbar", async () => {
+  const { text } = createLargeGoldenCorpus("cloudflare", {
+    hostFor: (i) => (i % 4 === 0 ? "other.example.test" : "example.test")
+  });
+  const config = {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  };
+  const mixedReport = await copyReportFor(buildResultFor(text, config));
+  assert.strictEqual(mixedReport.quality.hostReliability, "limited");
+  assert.strictEqual(mixedReport.parser.hosts.total, 2);
+  assert.match(mixedReport.accuracyNotes.hostScope, /Mehrere Hosts\/Domains erkannt/i);
+
+  const filteredReport = await copyReportFor(buildResultFor(text, { ...config, hostFilter: ["example.test"] }));
+  assert.strictEqual(filteredReport.quality.hostReliability, "high");
+  assert.strictEqual(filteredReport.parser.hosts.total, 1);
+  assert.strictEqual(filteredReport.filterReasons.host, 807);
+  assert.match(filteredReport.accuracyNotes.hostScope, /Host-Scope wirkt eindeutig/i);
+});
+
+test("Copy-Report verschweigt Chronologie- und Recognition-Risiken nicht", async () => {
+  const { text, expected } = createLargeGoldenCorpus("combined");
+  const config = {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  };
+
+  const unsortedReport = await copyReportFor(buildResultFor(shuffledEveryOtherBlock(text), config));
+  assert.strictEqual(unsortedReport.quality.chronologyIssue, true);
+  assert.strictEqual(unsortedReport.quality.visitorReliability, "medium");
+  assert.ok(unsortedReport.totals.visitorRange.low < unsortedReport.totals.visits);
+  assert.ok(unsortedReport.totals.visitorRange.high > unsortedReport.totals.visits);
+  assert.match(unsortedReport.accuracyNotes.visits, /Log-Reihenfolge/i);
+
+  const noisy = text + "\n" + Array.from({ length: 200 }, (_, i) => `kaputte zeile ${i} <script>alert(1)</script>`).join("\n");
+  const noisyReport = await copyReportFor(buildResultFor(noisy, config));
+  assert.strictEqual(noisyReport.parser.unrecognizedRows, 200);
+  assert.strictEqual(noisyReport.totals.pageViews, expected.pageViews);
+  assert.strictEqual(noisyReport.quality.pageviewReliability, "medium");
+  assert.ok(noisyReport.quality.recognitionRate < 0.95);
+  assert.match(noisyReport.accuracyNotes.pageViews, /einzelne Zeilen\/Formate pruefen/i);
 });
 
 test("Analyse-Protokoll v1 bleibt snapshot-stabil", async () => {

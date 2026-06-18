@@ -18,11 +18,27 @@ Stabile Kernfelder:
 
 Diagnosefelder:
 
+- `totals.visitorRange`: Bandbreite fuer Besucher, wenn Proxy/CDN/Chronologie die exakte Zahl begrenzen.
+- `quality.pageviewReliability`, `visitorReliability`, `ga4Reliability`, `conversionReliability`, `trackingReliability`
+- `quality.cacheRisk`, `chronologyIssue`, `hostReliability`, `botReliability`
 - `parser.dataRows`, `metaRows`, `unrecognizedRows`, `unrecognizedPct`
 - `parser.formatCounters`
 - `parser.hosts`
 - `parser.statusCounts`, `parser.methodCounts`
 - `parser.filterReasonPct`
+- `xForwardedFor.used`, `missing`, `privateOnly`
+- `filterReasons.host`, `bot`, `status`, `range`, `method`, `emptyUa`, `strict`
+
+Wichtige Unsicherheiten muessen im Report sichtbar bleiben:
+
+- Proxy/CDN ohne belastbare Besucher-IP: `quality.visitorReliability` ist nicht `high`,
+  `quality.cacheRisk` steigt und `totals.visitorRange` oeffnet eine Bandbreite.
+- Mehrere Hosts ohne Hostfilter: `quality.hostReliability` ist `limited` und
+  `accuracyNotes.hostScope` empfiehlt Eingrenzung.
+- Unsortierte Logs: `quality.chronologyIssue` wird gesetzt und die Besucher-Bandbreite
+  wird erweitert.
+- Nicht erkannte Zeilen: `parser.unrecognizedRows` und `quality.recognitionRate`
+  zeigen die Belastungsgrenze; `accuracyNotes.pageViews` nennt die Pruefung.
 
 Dynamische Felder wie `generatedAt` und `timeRange` koennen sich zwischen Laeufen aendern.
 Der stabile Snapshot liegt unter `tests/snapshots/analysis-report-v1.json`.
