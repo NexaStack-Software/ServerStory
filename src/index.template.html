@@ -85,9 +85,9 @@
                   <span class="helper">Eine Web-Adresse pro Zeile. Leer lassen — dann zeigt ServerStory automatisch deine meistbesuchten Seiten.</span>
                 </label>
                 <label>
-                  Host/Domain filtern
+                  Website eingrenzen
                   <input id="host-filter" placeholder="www.example.de, shop.example.de">
-                  <span class="helper">Optional. Sinnvoll, wenn eine Logdatei mehrere Domains oder Subdomains enthält. Relative Logzeilen ohne Host bleiben erhalten.</span>
+                  <span class="helper">Optional. Sinnvoll, wenn die Datei mehrere Websites oder Subdomains enthält.</span>
                 </label>
               </div>
             </details>
@@ -99,7 +99,7 @@
                 <label>
                   Google-Analytics-Zahlen pro Seite
                   <textarea id="ga4-url-views" rows="3" placeholder="/preise,840&#10;/warenkorb,290&#10;/bestellung/danke,120"></textarea>
-                  <span class="helper">Format: Adresse,Zahl — also die Aufrufe, die Google Analytics für dieselbe Seite meldet. Auch Semikolon, Tabulatoren und deutsche Tausenderpunkte sind okay.</span>
+                  <span class="helper">Eine Seite pro Zeile, danach die Google-Analytics-Zahl. Beispiel: /preise,840. Semikolon, Tabs und deutsche Tausenderpunkte sind okay.</span>
                 </label>
                 <label>
                   Danke-Seite nach dem Kauf
@@ -125,22 +125,22 @@
             </details>
 
             <details id="advanced-toggle" class="opt">
-              <summary>Optional: Erweiterte Filter (Proxy/CDN, strenger Bot-Filter)</summary>
+              <summary>Optional: Erweiterte Filter</summary>
               <div class="ga4-fields">
                 <label class="check">
                   <input type="checkbox" id="use-xff">
-                  <span>Echte Besucher-IP aus Proxy-Feld verwenden</span>
+                  <span>Echte Besucheradresse hinter Proxy verwenden</span>
                 </label>
-                <p class="helper">Nur sinnvoll, wenn ein vertrauenswürdiger Reverse-Proxy oder ein CDN vor deiner Website sitzt. Dann steht vorne oft nur die Proxy-IP; die echte Besucher-IP steht in einem Zusatzfeld. Achtung: Dieser Wert ist fälschbar.</p>
+                <p class="helper">Nur sinnvoll, wenn Cloudflare, ein Cache oder ein anderer Proxy vor deiner Website sitzt. Dann steht vorne oft nur die Zwischenstation; die echte Besucheradresse steht in einem Zusatzfeld. Achtung: Dieser Wert ist fälschbar.</p>
                 <label class="check">
                   <input type="checkbox" id="strict-bot">
                   <span>Strenger Bot-Filter (nur klare Browser zählen)</span>
                 </label>
                 <p class="helper">Zählt nur Zugriffe mit eindeutigem Browser-Kennzeichen. Achtung: schließt echte Besucher mit exotischen Browsern oder Clients aus und kann die Zahlen senken.</p>
                 <label>
-                  Query-Parameter behalten
+                  Adress-Zusätze behalten
                   <input id="keep-query" placeholder="variant, product_id">
-                  <span class="helper">Optional. Standardmäßig zählt ServerStory `/preise?utm_source=...` als `/preise`. Trag hier nur Parameter ein, die wirklich eigene Seitenvarianten bilden.</span>
+                  <span class="helper">Optional. Standardmäßig zählt ServerStory `/preise?utm_source=...` als `/preise`. Trag hier nur Zusätze ein, die wirklich eigene Seitenvarianten bilden.</span>
                 </label>
                 <div class="two">
                   <label>
@@ -234,7 +234,7 @@
               </div>
             </div>
 
-            <p class="caption" style="margin-top: 14px;"><strong>Seitenaufrufe</strong> (wie oft eine Seite geöffnet wurde) zählt der Server genau, soweit sie bei ihm ankommen; <strong>Besucher</strong> (verschiedene Menschen) sind eine Schätzung — eine Person kann eine Seite mehrfach öffnen, mehrere Leute aus einer Firma zählen als einer. Der Vergleich zeigt Abweichungen in <strong>beide Richtungen</strong>: Google Analytics weniger → meist Tracking-Verlust (Cookies/Ad-Blocker); der Server weniger → oft Caching/CDN (gecachte Aufrufe erreichen das Server-Log nicht). Käufe sind kaum betroffen, weil die Danke-Seite selten gecacht wird.</p>
+            <p class="caption" style="margin-top: 14px;"><strong>Seitenaufrufe</strong> heißt: wie oft eine Seite geöffnet wurde. <strong>Besucher</strong> ist immer eine Schätzung — eine Person kann mehrfach öffnen, mehrere Leute aus einer Firma können gleich aussehen. Der Vergleich kann in beide Richtungen abweichen: Google Analytics sieht oft weniger wegen Cookies, Consent oder Ad-Blockern; die Server-Datei kann weniger sehen, wenn ein Cache davor sitzt. Käufe sind meist stabiler, weil die Danke-Seite selten gecacht wird.</p>
             <div id="action" class="action">Nach der Auswertung steht hier, was du als Nächstes tun solltest.</div>
 
             <div id="purchase-box" class="purchase-box hidden">

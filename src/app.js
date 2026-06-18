@@ -991,7 +991,7 @@
           if (!hasGa4) return "Keine GA4-Seitenzahlen eingetragen.";
           if (data.evidence && data.evidence.ga4 && !data.evidence.ga4.canAnswer) return data.evidence.ga4.reason;
           if (data.diagnostics.ga4Reliability === "medium") return "Vergleich ist nutzbar, wenn Zeitraum und Seitenauswahl wirklich gleich sind.";
-          return "Vergleich nur eingeschränkt nutzbar. Prüfe Zeitraum, Seiten und Metrik.";
+          return "Vergleich nur eingeschränkt nutzbar. Prüfe Zeitraum, Seiten und ob in Google Analytics wirklich Seitenaufrufe stehen.";
         }
         if (metric === "host") {
           if (data.diagnostics.hostReliability === "limited") return `${format(data.hosts.total)} Domains/Subdomains gefunden. Ohne Filter können fremde Seiten mit drin sein.`;
@@ -1085,20 +1085,20 @@
         // Hinweise
         showHint("proxy-hint",
           data.proxyKind === "private"
-            ? "Fast alle Zugriffe stammen von internen/privaten IP-Adressen. Das passiert oft, wenn ein Proxy, Loadbalancer oder CDN vor deiner Website sitzt. Dann steht vorne nicht der echte Besucher, sondern nur die Zwischenstation. Seitenaufrufe bleiben brauchbar; die Besucherzahl ist so nicht belastbar. Aktiviere oben „Echte Besucher-IP aus Proxy-Feld verwenden“ und werte erneut aus."
+            ? "Fast alle Zugriffe stammen von internen/privaten Adressen. Das passiert oft, wenn Cloudflare, ein Cache oder ein anderer Proxy vor deiner Website sitzt. Dann steht vorne nicht der echte Besucher, sondern nur die Zwischenstation. Seitenaufrufe bleiben brauchbar; die Besucherzahl ist so nicht belastbar. Aktiviere oben „Echte Besucheradresse hinter Proxy verwenden“ und werte erneut aus."
           : data.proxyKind === "concentrated"
-            ? "Mehr als die Hälfte der Zugriffe kommt von einer einzigen IP-Adresse. Das kann ein Proxy/CDN sein, aber auch ein sehr aktiver Testzugriff oder Scraper. Seitenaufrufe bleiben brauchbar; die Besucherzahl bitte nur mit Vorsicht lesen. Wenn ein Proxy/CDN davor sitzt, aktiviere oben „Echte Besucher-IP aus Proxy-Feld verwenden“."
+            ? "Mehr als die Hälfte der Zugriffe kommt von einer einzigen Adresse. Das kann ein Proxy oder Cache sein, aber auch ein sehr aktiver Testzugriff oder Scraper. Seitenaufrufe bleiben brauchbar; die Besucherzahl bitte nur mit Vorsicht lesen. Wenn ein Proxy davor sitzt, aktiviere oben „Echte Besucheradresse hinter Proxy verwenden“."
           : "");
         let recognitionText = "";
         if (["cloudflare", "cloudfront", "fastly", "akamai"].includes(data.formatKind)) {
           const names = { cloudflare: "Cloudflare", cloudfront: "CloudFront", fastly: "Fastly", akamai: "Akamai-nahe" };
           recognitionText = `${names[data.formatKind]}-Datei gelesen. Gut: Damit sieht ServerStory auch Aufrufe, die ein Cache sonst vom Webserver fernhalten kann.`;
         } else if (data.formatKind === "json") {
-          recognitionText = "JSON-Datei gelesen. Bei eigenen Exporten kurz prüfen, ob Seite, Status und Besucheradresse richtig erkannt wurden.";
+          recognitionText = "Strukturierte Datei gelesen. Bei eigenen Exporten kurz prüfen, ob Seite, Antwortcode und Besucheradresse richtig erkannt wurden.";
         } else if (data.formatKind === "iis") {
           recognitionText = "IIS/W3C-Datei gelesen. Die Zeiten werden wie üblich als UTC gelesen.";
         } else if (data.formatKind === "unknown" && data.total) {
-          recognitionText = "Diese Datei passt nicht sicher zu den unterstützten Server-Logformaten.";
+          recognitionText = "Diese Datei passt nicht sicher zu den unterstützten Server-Exporten.";
         } else if (data.unrecognizedPct >= 10) {
           recognitionText = `${percent(data.unrecognizedPct)} der Datei konnte nicht gelesen werden. Prüfe, ob der Export gemischt, gekürzt oder im falschen Format ist.`;
         }
@@ -1146,7 +1146,7 @@
         id("visits").textContent = data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable"
           ? `Nicht verlässlich bestimmbar (mögliche Spanne ${format(data.visitorRange.low)}–${format(data.visitorRange.high)})`
           : data.visitorRange && data.visitorRange.low !== data.visitorRange.high
-          ? `${format(data.visits)} (Bandbreite ${format(data.visitorRange.low)}–${format(data.visitorRange.high)})`
+          ? `${format(data.visits)} (mögliche Spanne ${format(data.visitorRange.low)}–${format(data.visitorRange.high)})`
           : format(data.visits);
         id("kept").textContent = format(data.kept);
         id("parsed").textContent = format(data.parsed);
@@ -1158,14 +1158,14 @@
           ...data.methodCounts.map((item) => ({ name: `Methode ${item.name}`, count: item.count }))
         ]);
         const reasonRows = [
-          { name: "Bot/Crawler (User-Agent)", count: data.reasons.bot },
+          { name: "Bot/Crawler (Browserkennung)", count: data.reasons.bot },
           { name: "Fehler- oder Sonderstatus", count: data.reasons.status },
           { name: "Methode (kein GET/POST)", count: data.reasons.method },
-          { name: "Leerer/zu kurzer User-Agent", count: data.reasons.emptyUa },
-          { name: "Außerhalb Zeitraum", count: data.reasons.range },
-          { name: "Anderer Host/Domain", count: data.reasons.host },
+          { name: "Leere/zu kurze Browserkennung", count: data.reasons.emptyUa },
+          { name: "Außerhalb des Zeitraums", count: data.reasons.range },
+          { name: "Andere Website/Subdomain", count: data.reasons.host },
           { name: "Strenger Filter (kein Browser)", count: data.reasons.strict },
-          { name: "Format nicht erkannt", count: data.unrecognized }
+          { name: "Zeile nicht gelesen", count: data.unrecognized }
         ].filter((row) => row.count > 0);
         renderRows("filter-reasons", reasonRows);
 
@@ -1179,7 +1179,7 @@
           return "Dein Webserver zählt mehr Käufe als Google Analytics. Häufige Gründe: Besucher haben Cookies/Consent abgelehnt, ein Ad-Blocker war aktiv, oder das Tracking-Skript wurde nicht geladen — der Kauf kam also nie in Google Analytics an.";
         }
         if (diff < 0) {
-          return "Google Analytics zählt mehr Käufe als dein Webserver. Mögliche Gründe: die Danke-Seite wird auch von Bots oder Monitoring aufgerufen und hier herausgefiltert; Google Analytics zählt Käufe ohne eigene Danke-URL (z. B. AJAX-/Ein-Seiten-Shops); mehrere Käufe desselben Besuchers innerhalb einer Stunde wurden hier zu einem zusammengefasst; oder die Server-Logs sind unvollständig (CDN-Cache, mehrere Logdateien).";
+          return "Google Analytics zählt mehr Käufe als dein Webserver. Mögliche Gründe: die Danke-Seite wird auch von Bots oder Monitoring aufgerufen und hier herausgefiltert; Google Analytics zählt Käufe ohne eigene Danke-Seite; mehrere Käufe desselben Besuchers innerhalb einer Stunde wurden hier zusammengefasst; oder die Server-Dateien sind unvollständig.";
         }
         return "Beide Quellen zählen gleich viele Käufe — das spricht für sauberes Tracking.";
       }
@@ -1218,7 +1218,7 @@
             setSignal("warn", "!", "Achtung");
             id("headline").textContent = "GA4 sieht deutlich weniger";
             id("subline").textContent = `Für die ausgewählten Seiten findet GA4 nur ${percent(cov)} der Aufrufe, die in der Server-Datei stehen.${worstText}`;
-            id("action").textContent = "Nächster Schritt: Noch keine Budget-Entscheidung nur daraus ableiten. Prüfe zuerst: gleicher Zeitraum, richtige Website, richtige GA4-Metrik, Cookie-Banner, Ad-Blocker und ob ein CDN/Cache dazwischen sitzt.";
+            id("action").textContent = "Nächster Schritt: Noch keine Budget-Entscheidung nur daraus ableiten. Prüfe zuerst: gleicher Zeitraum, richtige Website, Seitenaufrufe in Google Analytics, Cookie-Banner, Ad-Blocker und ob ein Cache davor sitzt.";
           } else if (cov < 95) {
             setSignal("medium", "~", "Kleine Lücke");
             id("headline").textContent = "Kleine Abweichung";
@@ -1233,7 +1233,7 @@
             setSignal("medium", "~", "GA4 zählt mehr");
             id("headline").textContent = "GA4 liegt über der Server-Datei";
             id("subline").textContent = `Für die verglichenen Seiten meldet GA4 mehr als die Server-Datei (${percent(cov)}). Häufige Ursache: Cache/CDN — ein Teil der Aufrufe landet dann nicht in dieser Server-Datei. Auch Mehrfachzählung oder Bots können GA4 aufblähen.`;
-            id("action").textContent = "Nächster Schritt: Prüfen, ob ein CDN oder Cache (z. B. Cloudflare) vor der Seite sitzt — dann fehlen Aufrufe im Server-Log. Sonst Bots oder Mehrfachzählung in Google Analytics prüfen.";
+            id("action").textContent = "Nächster Schritt: Prüfen, ob Cloudflare oder ein anderer Cache vor der Seite sitzt — dann fehlen Aufrufe in dieser Server-Datei. Sonst Bots oder Mehrfachzählung in Google Analytics prüfen.";
           }
           if (hasConv && data.convDiff > 0) {
             id("action").textContent += ` Beim Kauf-Check zählt dein Webserver ${kauf(data.convDiff)} mehr als Google Analytics.`;
@@ -1260,7 +1260,7 @@
           setSignal("medium", "~", "GA4 zählt mehr");
           id("headline").textContent = "Google Analytics zählt mehr Käufe als der Webserver";
           id("subline").textContent = `Google Analytics meldet ${kauf(Math.abs(diff))} mehr als dein Webserver.`;
-          id("action").textContent = "Nächster Schritt: Prüfe die Danke-Seite — wird sie auch von Bots/Monitoring getroffen, zählt GA Käufe ohne eigene URL (AJAX/SPA), oder fehlen Server-Logs (CDN-Cache, mehrere Dateien)?";
+          id("action").textContent = "Nächster Schritt: Prüfe die Danke-Seite: Wird sie auch von Bots oder Monitoring aufgerufen? Zählt Google Analytics Käufe ohne eigene Danke-Seite? Fehlen Server-Dateien wegen Cache oder mehreren Exporten?";
         } else {
           setSignal("good", "✓", "Passt");
           id("headline").textContent = "Keine Lücke bei den Käufen";

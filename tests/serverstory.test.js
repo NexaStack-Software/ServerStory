@@ -217,6 +217,16 @@ function createRenderContext() {
   return { ctx: renderCtx, get };
 }
 
+function visibleDecisionText(ui) {
+  return [
+    "headline", "subline", "action", "table-caption", "compare-note", "purchase-note",
+    "proxy-hint", "recognition-hint", "chrono-hint", "precision-checklist",
+    "q-visits", "q-visits-reason", "q-views", "q-views-reason",
+    "q-purchases", "q-purchases-reason", "q-ga4", "q-ga4-reason",
+    "q-host", "q-host-reason", "q-bot", "q-bot-reason", "q-tracking", "q-tracking-reason"
+  ].map((key) => `${ui.get(key).textContent || ""} ${ui.get(key).innerHTML || ""}`).join("\n");
+}
+
 function stableReport(report) {
   const copy = JSON.parse(JSON.stringify(report));
   delete copy.generatedAt;
@@ -1071,6 +1081,49 @@ test("Render setzt Ampeln und sichtbare Gruende pro Kennzahl", () => {
   assert.match(ui.get("precision-checklist").innerHTML, /Datei wurde verstanden/i);
   assert.strictEqual(ui.get("n-views").textContent, "4");
   assert.strictEqual(ui.get("n-purchases").textContent, "1");
+});
+
+test("Entscheidungsbereich bleibt frei von interner Analytics-Sprache", () => {
+  const scenarios = [
+    buildResultFor(baselineCombined, {
+      successPattern: "/checkout/*",
+      orderParam: "order_id",
+      hasSuccessUrl: true
+    }, {
+      "ga4-url-views": { value: "/preise,1\n/checkout/danke,1" },
+      "ga4-conversions": { value: "1" }
+    }),
+    buildResultFor(createLargeGoldenCorpus("combined", {
+      proxyIp: "10.0.0.5",
+      xff: true
+    }).text),
+    buildResultFor(fixture("mixed-hosts.log"))
+  ];
+  const banned = [
+    /Host-Scope/i,
+    /Datenzeilen/i,
+    /\bXFF\b/i,
+    /X-Forwarded/i,
+    /Logformat/i,
+    /Recognition/i,
+    /Belastbarkeit/i,
+    /GA4-Abdeckung/i,
+    /Server-Log/i,
+    /Serverpfad/i,
+    /User-Agent/i,
+    /Tracking-Speicher/i,
+    /Besucher-Schl(?:u|ü)ssel/i,
+    /Bandbreite/i,
+    /\bMetrik\b/i
+  ];
+  for (const data of scenarios) {
+    const ui = createRenderContext();
+    ui.ctx.render(data);
+    const text = visibleDecisionText(ui);
+    for (const pattern of banned) {
+      assert.doesNotMatch(text, pattern);
+    }
+  }
 });
 
 test("Render zeigt Limitierungsgruende bei gemischten Hosts und falscher GA4-Metrik", () => {
