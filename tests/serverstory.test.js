@@ -269,14 +269,25 @@ function combinedStampAt(seconds) {
   return `${pad(d.getUTCDate())}/Jun/${d.getUTCFullYear()}:${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} +0000`;
 }
 
+function w3cDateTimeAt(seconds) {
+  const iso = isoAt(seconds);
+  return { date: iso.slice(0, 10), time: iso.slice(11, 19) };
+}
+
 function docIp(i) {
   return `198.51.${Math.floor(i / 250)}.${i % 250}`;
+}
+
+function splitTarget(target) {
+  const [stem, query = "-"] = String(target).split("?");
+  return { stem, query: query || "-" };
 }
 
 function createLargeGoldenCorpus(format = "combined") {
   const lines = [];
   const expected = {
     visitors: 1250,
+    meta: 0,
     assetHits: 0,
     botFiltered: 40,
     statusFiltered: 30,
@@ -287,9 +298,29 @@ function createLargeGoldenCorpus(format = "combined") {
   };
   const browserUa = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
   const botUa = "Googlebot/2.1";
+  if (format === "cloudfront") {
+    lines.push("#Version: 1.0");
+    lines.push("#Fields: date time x-edge-location sc-bytes c-ip cs-method cs(Host) cs-uri-stem sc-status cs(Referer) cs(User-Agent) cs-uri-query");
+    expected.meta = 2;
+  } else if (format === "iis") {
+    lines.push("#Software: Microsoft Internet Information Services 10.0");
+    lines.push("#Fields: date time c-ip cs-method cs-uri-stem cs-uri-query sc-status cs(User-Agent) cs-host");
+    expected.meta = 2;
+  }
   const emit = (ip, seconds, target, status = 200, ua = browserUa) => {
+    const { date, time } = w3cDateTimeAt(seconds);
+    const { stem, query } = splitTarget(target);
+    const encodedUa = encodeURIComponent(ua);
     if (format === "cloudflare") {
       lines.push(cloudflareEvent(ip, isoAt(seconds), target, status, ua));
+    } else if (format === "cloudfront") {
+      lines.push(`${date} ${time} FRA56-P1 100 ${ip} GET example.test ${stem} ${status} - ${encodedUa} ${query}`);
+    } else if (format === "fastly") {
+      lines.push(fastlyEvent(ip, isoAt(seconds), target, status, ua));
+    } else if (format === "akamai") {
+      lines.push(akamaiEvent(ip, isoAt(seconds), target, status, ua));
+    } else if (format === "iis") {
+      lines.push(`${date} ${time} ${ip} GET ${stem} ${query} ${status} ${encodedUa} example.test`);
     } else {
       lines.push(combined(ip, combinedStampAt(seconds), target, status, ua));
     }
@@ -328,7 +359,7 @@ function createLargeGoldenCorpus(format = "combined") {
   }
 
   expected.total = lines.length;
-  expected.parsed = lines.length;
+  expected.parsed = lines.length - expected.meta;
   expected.filtered = expected.botFiltered + expected.statusFiltered;
   expected.kept = expected.visitors + expected.productViews + expected.assetHits + expected.conversions + expected.duplicateConversions;
   expected.pageViews = expected.visitors + expected.productViews + expected.conversions + expected.duplicateConversions;
@@ -431,7 +462,7 @@ test("dieselbe Besuchsrealitaet zaehlt ueber Edge-Formate gleich", () => {
 });
 
 test("grosser Golden-Corpus mit ueber 1000 Besuchern liefert feste Sollwerte", () => {
-  for (const kind of ["combined", "cloudflare"]) {
+  for (const kind of ["combined", "cloudflare", "cloudfront", "fastly", "akamai", "iis"]) {
     const { text, expected } = createLargeGoldenCorpus(kind);
     const result = buildResultFor(text, {
       successPattern: "/checkout/*",
@@ -445,6 +476,7 @@ test("grosser Golden-Corpus mit ueber 1000 Besuchern liefert feste Sollwerte", (
     assertBuiltResultInvariants(result);
     assert.strictEqual(result.formatKind, kind);
     assert.strictEqual(result.total, expected.total);
+    assert.strictEqual(result.meta, expected.meta);
     assert.strictEqual(result.parsed, expected.parsed);
     assert.strictEqual(result.unrecognized, 0);
     assert.strictEqual(result.filtered, expected.filtered);

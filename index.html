@@ -2179,8 +2179,8 @@
         const visitorReliability = config.useXff
           ? (agg.xffUsed > 0 && agg.xffMissing === 0 ? "high" : "limited")
           : (proxyKind ? "limited" : (chronologyIssue ? "medium" : "high"));
-        const edgeKinds = new Set(["cloudflare", "cloudfront", "fastly", "akamai"]);
-        const pageviewReliability = recognitionRate >= 0.95 && (agg.formatKind === "combined" || edgeKinds.has(agg.formatKind)) ? "high" : recognitionRate >= 0.8 ? "medium" : "limited";
+        const structuredKinds = new Set(["cloudflare", "cloudfront", "fastly", "akamai", "iis"]);
+        const pageviewReliability = recognitionRate >= 0.95 && (agg.formatKind === "combined" || structuredKinds.has(agg.formatKind)) ? "high" : recognitionRate >= 0.8 ? "medium" : "limited";
         const ga4Reliability = lastGa4Import.warning ? "limited" : (ga4Rows.length && pageviewReliability !== "limited" ? "medium" : "limited");
         const conversionReliability = config.hasSuccessUrl
           ? (config.orderParam ? "high" : (agg.successRaw > agg.success * 1.25 ? "medium" : "high"))
