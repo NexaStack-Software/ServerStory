@@ -112,6 +112,15 @@ erreichtes Tracking-Speicherlimit. Der Copy-Report exportiert dieselbe Unsicherh
 maschinenlesbar, unter anderem mit `visitorRange`, `visitorReliability`,
 `accuracyNotes`, `proxyKind`, `recognitionRate` und `hostReliability`.
 
+Zusaetzlich trennt das Analyse-Protokoll jede Kernaussage nach Evidenztyp:
+`measured` (direkt gemessen), `estimated` (geschaetzt), `lower_bound` (nur
+Mindestwert), `comparison` (Vergleich) oder `not_determinable` (mit diesen Daten nicht
+serioes bestimmbar). Beispiel: Wenn ein Origin-Log hinter einem Proxy/CDN liegt und
+keine belastbare X-Forwarded-For-Auswertung moeglich ist, zeigt ServerStory die
+Besucherzahl nicht als exakte Zahl, sondern als nicht bestimmbar. Seitenaufrufe koennen
+dann weiterhin als Origin-Traffic nutzbar sein, aber nicht zwingend als vollstaendiger
+Website-Traffic, falls CDN-Cache-Hits fehlen.
+
 ## Entwicklung und Qualitätssicherung
 
 Wenn du am Tool etwas änderst, nutze das komplette Prüf-Gate:

@@ -2231,7 +2231,8 @@
         const visitorReliability = config.useXff
           ? (agg.xffUsed > 0 && agg.xffMissing === 0 ? "high" : "limited")
           : (proxyKind ? "limited" : (chronologyIssue ? "medium" : "high"));
-        const structuredKinds = new Set(["cloudflare", "cloudfront", "fastly", "akamai", "iis"]);
+        const edgeKinds = new Set(["cloudflare", "cloudfront", "fastly", "akamai"]);
+        const structuredKinds = new Set([...edgeKinds, "iis"]);
         const pageviewReliability = recognitionRate >= 0.95 && (agg.formatKind === "combined" || structuredKinds.has(agg.formatKind)) ? "high" : recognitionRate >= 0.8 ? "medium" : "limited";
         const ga4Reliability = lastGa4Import.warning ? "limited" : (ga4Rows.length && pageviewReliability !== "limited" ? "medium" : "limited");
         const conversionReliability = config.hasSuccessUrl
@@ -2247,6 +2248,53 @@
           visitorHigh = Math.max(visitorLow, Math.round(agg.visits * 1.2));
         }
         const botReliability = agg.suspiciousClients > 0 ? "medium" : "high";
+        const isEdgeLog = edgeKinds.has(agg.formatKind);
+        const originCacheRisk = !!(proxyKind && !isEdgeLog);
+        const evidence = {
+          pageViews: {
+            type: originCacheRisk ? "lower_bound" : "measured",
+            reliability: pageviewReliability,
+            canAnswer: pageviewReliability !== "limited",
+            reason: originCacheRisk
+              ? "Origin-Log hinter Proxy/CDN: Seitenaufrufe sind fuer Origin-Traffic gemessen, koennen aber CDN-Cache-Hits verfehlen."
+              : (pageviewReliability === "limited" ? "Zu viele Datenzeilen wurden nicht sicher erkannt." : "Seitenaufrufe wurden direkt aus erkannten Logzeilen gezaehlt.")
+          },
+          visits: {
+            type: proxyKind && !config.useXff ? "not_determinable" : "estimated",
+            reliability: visitorReliability,
+            canAnswer: !(proxyKind && !config.useXff),
+            range: { low: visitorLow, high: visitorHigh },
+            reason: proxyKind && !config.useXff
+              ? "Proxy/CDN-Muster ohne belastbare XFF-Auswertung: echte Besucherzahl ist mit diesen Daten nicht serioes bestimmbar."
+              : "Besucher werden aus IP, User-Agent und 30-Minuten-Fenster geschaetzt."
+          },
+          conversions: {
+            type: config.hasSuccessUrl ? (config.orderParam ? "measured" : "estimated") : "not_determinable",
+            reliability: conversionReliability,
+            canAnswer: !!config.hasSuccessUrl,
+            reason: config.hasSuccessUrl
+              ? (config.orderParam ? "Conversions werden ueber Erfolgs-URL und Order-ID dedupliziert." : "Conversions werden ueber Erfolgs-URL und Zeitfenster dedupliziert; Reloads koennen stoeren.")
+              : "Ohne Danke-Seite oder Conversion-Muster kann ServerStory keine Conversions bestimmen."
+          },
+          ga4: {
+            type: overall && !lastGa4Import.warning && hostReliability !== "limited" ? "comparison" : "not_determinable",
+            reliability: ga4Reliability,
+            canAnswer: !!(overall && !lastGa4Import.warning && hostReliability !== "limited"),
+            reason: lastGa4Import.warning || (!overall ? "Keine belastbaren GA4-Seitenaufrufe eingetragen." : (hostReliability === "limited" ? "Mehrere Hosts ohne Hostfilter machen den GA4-Abgleich nicht sauber vergleichbar." : "GA4-Seitenaufrufe wurden mit normalisierten Serverpfaden verglichen."))
+          },
+          hostScope: {
+            type: hosts.total ? "measured" : "not_available",
+            reliability: hostReliability,
+            canAnswer: hostReliability !== "limited",
+            reason: hostReliability === "limited" ? "Mehrere Hosts/Domains erkannt; ohne Hostfilter koennen fremde Domains enthalten sein." : "Host-Scope wirkt eindeutig."
+          },
+          botAnomaly: {
+            type: "estimated",
+            reliability: botReliability,
+            canAnswer: !agg.trackingCapped,
+            reason: agg.trackingCapped ? "Tracking-Speicherlimit begrenzt Bot-/Anomalie-Erkennung." : (agg.suspiciousClients ? "Auffaellige Besucher-Schluessel mit vielen Aufrufen fast ohne Assets gefunden." : "Keine auffaellige Bot-/Monitoring-Konzentration erkannt.")
+          }
+        };
         return {
           total: agg.total, dataRows: agg.dataRows, parsed: agg.parsed, unrecognized: agg.unrecognized, meta: agg.meta || 0,
           kept: agg.kept, pageViews: agg.pageViews, filtered: agg.filtered, reasons: agg.reasons,
@@ -2259,6 +2307,7 @@
           minTime: agg.minTime, maxTime: agg.maxTime, maxGapMs: agg.maxGapMs,
           visitorRange: { low: visitorLow, high: visitorHigh },
           hosts,
+          evidence,
           ga4Import: lastGa4Import,
           diagnostics: { recognitionRate, pageviewReliability, visitorReliability, ga4Reliability, conversionReliability, cacheRisk, chronologyIssue, botReliability, hostReliability, trackingReliability: agg.trackingCapped ? "medium" : "high" },
           hasSuccessUrl: config.hasSuccessUrl, ga4Conversions, convDiff, serverCr,
@@ -2293,11 +2342,13 @@
       function qualityReason(data, metric, hasGa4) {
         if (metric === "views") {
           const recognized = percent(data.diagnostics.recognitionRate * 100);
+          if (data.evidence && data.evidence.pageViews && data.evidence.pageViews.type === "lower_bound") return `Nur Mindestwert fuer Origin-Traffic: ${recognized} erkannt, aber CDN-Cache-Hits koennen im Origin-Log fehlen.`;
           if (data.diagnostics.pageviewReliability === "high") return `${recognized} der Datenzeilen erkannt; Format ${data.formatKind}.`;
           if (data.diagnostics.pageviewReliability === "medium") return `${recognized} erkannt; einzelne Zeilen/Formate pruefen.`;
           return `${recognized} erkannt; Befund nur eingeschraenkt belastbar.`;
         }
         if (metric === "visits") {
+          if (data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable") return "Nicht serioes bestimmbar: Proxy-/CDN-Muster ohne belastbare XFF-Auswertung.";
           if (data.diagnostics.visitorReliability === "high") return data.xffUsed ? `${format(data.xffUsed)} XFF-IP(s) genutzt.` : "Keine starke Proxy-Verzerrung erkannt.";
           if (data.proxyKind) return "Proxy-/CDN-Muster erkannt; Besucherzahl als Bandbreite lesen.";
           if (data.xffMissing || data.xffPrivate) return "XFF liefert keine voll belastbare Besucher-IP.";
@@ -2311,6 +2362,7 @@
         if (metric === "ga4") {
           if (data.ga4Import && data.ga4Import.warning) return data.ga4Import.warning;
           if (!hasGa4) return "Keine GA4-Seitenaufrufe eingetragen.";
+          if (data.evidence && data.evidence.ga4 && !data.evidence.ga4.canAnswer) return data.evidence.ga4.reason;
           if (data.diagnostics.ga4Reliability === "medium") return "GA4-Werte mit Server-Seiten abgeglichen; Zeitraum/Seiten muessen identisch sein.";
           return "GA4-Vergleich eingeschraenkt; Eingabe oder Server-Erkennung pruefen.";
         }
@@ -2365,7 +2417,9 @@
         id("purchase-box").classList.toggle("hidden", !hasConv);
 
         // Server-Zahlen
-        id("n-visits").textContent = data.visitorRange && data.visitorRange.low !== data.visitorRange.high
+        id("n-visits").textContent = data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable"
+          ? "Nicht bestimmbar"
+          : data.visitorRange && data.visitorRange.low !== data.visitorRange.high
           ? `${format(data.visitorRange.low)}–${format(data.visitorRange.high)}`
           : format(data.visits);
         id("n-views").textContent = format(data.pageViews);
@@ -2462,7 +2516,9 @@
         id("server-kept").textContent = format(data.kept);
         id("server-filtered").textContent = format(data.filtered + data.unrecognized);
         id("server-ads").textContent = format(data.adVisitors);
-        id("visits").textContent = data.visitorRange && data.visitorRange.low !== data.visitorRange.high
+        id("visits").textContent = data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable"
+          ? `Nicht serioes bestimmbar (technische Bandbreite ${format(data.visitorRange.low)}–${format(data.visitorRange.high)})`
+          : data.visitorRange && data.visitorRange.low !== data.visitorRange.high
           ? `${format(data.visits)} (Bandbreite ${format(data.visitorRange.low)}–${format(data.visitorRange.high)})`
           : format(data.visits);
         id("kept").textContent = format(data.kept);
@@ -2513,7 +2569,10 @@
         if (!hasGa4 && !hasConv) {
           setSignal("good", "✓", "Ausgewertet");
           id("headline").textContent = "Das hat dein Webserver gesehen";
-          let sub = `In ${zeitraumText()} zählt dein Webserver ${format(data.visits)} Besuche und ${format(data.pageViews)} Seitenaufrufe.`;
+          const visitText = data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable"
+            ? "eine mit diesen Daten nicht serioes bestimmbare Besucherzahl"
+            : `${format(data.visits)} Besuche`;
+          let sub = `In ${zeitraumText()} zählt dein Webserver ${visitText} und ${format(data.pageViews)} Seitenaufrufe.`;
           if (data.hasSuccessUrl) sub += ` Davon ${kauf(data.success)} auf der Danke-Seite.`;
           id("subline").textContent = sub;
           id("action").textContent = "Nächster Schritt: Das sind die echten Server-Zahlen. Vergleiche sie mit Google Analytics — oder trag oben optional deine GA4-Zahlen ein, dann zeigt ServerStory die Lücke direkt.";
@@ -2721,6 +2780,7 @@
             to: lastResult.maxTime ? new Date(lastResult.maxTime).toISOString() : null,
             maxGapHours: lastResult.maxGapMs ? Math.round(lastResult.maxGapMs / 3600000) : 0
           },
+          evidence: lastResult.evidence,
           xForwardedFor: {
             used: lastResult.xffUsed,
             missing: lastResult.xffMissing,

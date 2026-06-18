@@ -10,6 +10,8 @@ Stabile Kernfelder:
 - `format`: erkanntes Hauptformat, z. B. `combined`, `cloudflare`, `cloudfront`.
 - `totals`: Zeilen, erkannte/benutzte/gefilterte Aufrufe, Pageviews, Visits, Conversion-Zahl.
 - `quality`: Belastbarkeit je Kennzahl und zentrale Diagnoseflags.
+- `evidence`: Claim-Safety-Schicht je Kennzahl; trennt Messung, Schaetzung,
+  Mindestwert und nicht bestimmbare Aussagen.
 - `timeRange`: erkannter Logzeitraum und groesste Luecke.
 - `xForwardedFor`: XFF-Nutzung, fehlende oder nur private XFF-Werte.
 - `proxyKind`: leer, `private` oder `concentrated`; zeigt Proxy-/CDN-Hinweise in der Besucherzaehlung.
@@ -22,6 +24,12 @@ Diagnosefelder:
 - `totals.visitorRange`: Bandbreite fuer Besucher, wenn Proxy/CDN/Chronologie die exakte Zahl begrenzen.
 - `quality.pageviewReliability`, `visitorReliability`, `ga4Reliability`, `conversionReliability`, `trackingReliability`
 - `quality.cacheRisk`, `chronologyIssue`, `hostReliability`, `botReliability`
+- `evidence.pageViews`, `visits`, `conversions`, `ga4`, `hostScope`, `botAnomaly`
+- `evidence.*.type`: `measured`, `estimated`, `lower_bound`, `comparison`,
+  `not_determinable` oder `not_available`.
+- `evidence.*.canAnswer`: ob ServerStory die Frage mit diesen Daten serioes
+  beantworten kann.
+- `evidence.*.reason`: konkrete Begruendung fuer die Aussagegrenze.
 - `parser.dataRows`, `metaRows`, `unrecognizedRows`, `unrecognizedPct`
 - `parser.formatCounters`
 - `parser.hosts`
@@ -34,7 +42,10 @@ Diagnosefelder:
 Wichtige Unsicherheiten muessen im Report sichtbar bleiben:
 
 - Proxy/CDN ohne belastbare Besucher-IP: `quality.visitorReliability` ist nicht `high`,
-  `quality.cacheRisk` steigt und `totals.visitorRange` oeffnet eine Bandbreite.
+  `quality.cacheRisk` steigt, `totals.visitorRange` oeffnet eine Bandbreite und
+  `evidence.visits.type` wird `not_determinable`.
+- Origin-Logs hinter Proxy/CDN: `evidence.pageViews.type` kann `lower_bound`
+  werden, weil CDN-Cache-Hits im Origin-Log fehlen koennen.
 - Mehrere Hosts ohne Hostfilter: `quality.hostReliability` ist `limited` und
   `accuracyNotes.hostScope` empfiehlt Eingrenzung.
 - Unsortierte Logs: `quality.chronologyIssue` wird gesetzt und die Besucher-Bandbreite

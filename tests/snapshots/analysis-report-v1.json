@@ -27,6 +27,48 @@
     "hostReliability": "high",
     "trackingReliability": "high"
   },
+  "evidence": {
+    "pageViews": {
+      "type": "measured",
+      "reliability": "high",
+      "canAnswer": true,
+      "reason": "Seitenaufrufe wurden direkt aus erkannten Logzeilen gezaehlt."
+    },
+    "visits": {
+      "type": "estimated",
+      "reliability": "high",
+      "canAnswer": true,
+      "range": {
+        "low": 2,
+        "high": 2
+      },
+      "reason": "Besucher werden aus IP, User-Agent und 30-Minuten-Fenster geschaetzt."
+    },
+    "conversions": {
+      "type": "measured",
+      "reliability": "high",
+      "canAnswer": true,
+      "reason": "Conversions werden ueber Erfolgs-URL und Order-ID dedupliziert."
+    },
+    "ga4": {
+      "type": "comparison",
+      "reliability": "medium",
+      "canAnswer": true,
+      "reason": "GA4-Seitenaufrufe wurden mit normalisierten Serverpfaden verglichen."
+    },
+    "hostScope": {
+      "type": "not_available",
+      "reliability": "high",
+      "canAnswer": true,
+      "reason": "Host-Scope wirkt eindeutig."
+    },
+    "botAnomaly": {
+      "type": "estimated",
+      "reliability": "high",
+      "canAnswer": true,
+      "reason": "Keine auffaellige Bot-/Monitoring-Konzentration erkannt."
+    }
+  },
   "xForwardedFor": {
     "used": 0,
     "missing": 0,

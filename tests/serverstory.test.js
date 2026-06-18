@@ -1099,8 +1099,10 @@ test("Render verhindert falsche Sicherheit bei Proxy, Bot-Anomalien und Tracking
   });
   const proxyUi = createRenderContext();
   proxyUi.ctx.render(proxyData);
+  assert.strictEqual(proxyUi.get("n-visits").textContent, "Nicht bestimmbar");
   assert.strictEqual(proxyUi.get("q-visits").textContent, "Belastbarkeit niedrig");
-  assert.match(proxyUi.get("q-visits-reason").textContent, /Proxy-\/CDN-Muster erkannt/i);
+  assert.match(proxyUi.get("q-visits-reason").textContent, /Nicht serioes bestimmbar/i);
+  assert.doesNotMatch(proxyUi.get("subline").textContent, /1 Besuche|1 Besuch/i);
   assert.match(proxyUi.get("proxy-hint").textContent, /Reverse-Proxy|Loadbalancer/i);
 
   const botUi = createRenderContext();
@@ -1160,10 +1162,14 @@ test("Copy-Report macht Proxy-XFF-Risiko mit Besucher-Bandbreite sichtbar", asyn
   assert.strictEqual(report.quality.visitorReliability, "limited");
   assert.strictEqual(report.quality.cacheRisk, "elevated");
   assert.strictEqual(report.proxyKind, "private");
+  assert.strictEqual(report.evidence.visits.type, "not_determinable");
+  assert.strictEqual(report.evidence.visits.canAnswer, false);
+  assert.match(report.evidence.visits.reason, /nicht serioes bestimmbar/i);
+  assert.strictEqual(report.evidence.pageViews.type, "lower_bound");
   assert.deepStrictEqual(report.xForwardedFor, { used: 0, missing: 0, privateOnly: 0 });
   assert.strictEqual(report.totals.visits, 1);
   assert.ok(report.totals.visitorRange.high > report.totals.visits);
-  assert.match(report.accuracyNotes.visits, /Proxy-\/CDN-Muster erkannt/i);
+  assert.match(report.accuracyNotes.visits, /Nicht serioes bestimmbar/i);
 });
 
 test("Copy-Report macht Host-Mix und Hostfilter-Wirkung sichtbar", async () => {
@@ -1178,6 +1184,8 @@ test("Copy-Report macht Host-Mix und Hostfilter-Wirkung sichtbar", async () => {
   const mixedReport = await copyReportFor(buildResultFor(text, config));
   assert.strictEqual(mixedReport.quality.hostReliability, "limited");
   assert.strictEqual(mixedReport.parser.hosts.total, 2);
+  assert.strictEqual(mixedReport.evidence.hostScope.canAnswer, false);
+  assert.match(mixedReport.evidence.hostScope.reason, /Mehrere Hosts/i);
   assert.match(mixedReport.accuracyNotes.hostScope, /Mehrere Hosts\/Domains erkannt/i);
 
   const filteredReport = await copyReportFor(buildResultFor(text, { ...config, hostFilter: ["example.test"] }));
