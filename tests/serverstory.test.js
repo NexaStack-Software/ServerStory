@@ -276,6 +276,51 @@ async function copyReportFor(data) {
   return JSON.parse(ui.ctx.__clipboard);
 }
 
+function calibrationScore(results) {
+  const score = {
+    truthCoverage: 0,
+    claimSafety: 0,
+    evidenceCompleteness: 0,
+    reportCompleteness: 0,
+    languageSafety: 0
+  };
+  const totals = { ...score };
+  for (const result of results) {
+    totals.truthCoverage += result.truthChecks.length;
+    score.truthCoverage += result.truthChecks.filter(Boolean).length;
+
+    for (const [key, expected] of Object.entries(result.expectedStatuses)) {
+      totals.claimSafety++;
+      if (result.report.claimMatrix[key].status === expected) score.claimSafety++;
+    }
+
+    for (const [key, pattern] of Object.entries(result.requiredFailureText || {})) {
+      totals.evidenceCompleteness++;
+      const text = [
+        ...(result.report.evidenceFailures[key] || []),
+        result.report.claimMatrix[key].reason || ""
+      ].join(" ");
+      if (pattern.test(text)) score.evidenceCompleteness++;
+    }
+
+    for (const key of ["evidenceFailures", "claimMatrix", "auditProtocol", "claims", "quality"]) {
+      totals.reportCompleteness++;
+      if (result.report[key]) score.reportCompleteness++;
+    }
+
+    totals.languageSafety += result.bannedText.length;
+    const positiveText = [
+      ...Object.values(result.report.claimMatrix).map((claim) => claim.statement || ""),
+      ...Object.values(result.report.accuracyNotes || {})
+    ].join(" ");
+    score.languageSafety += result.bannedText.filter((pattern) => !pattern.test(positiveText)).length;
+  }
+  return Object.fromEntries(Object.entries(score).map(([key, value]) => [
+    key,
+    totals[key] ? value / totals[key] : 1
+  ]));
+}
+
 const baselineCombined = [
   combined("203.0.113.10", "05/Jun/2026:10:00:00 +0000", "/preise?gclid=abc"),
   combined("203.0.113.10", "05/Jun/2026:10:02:00 +0000", "/assets/app.css"),
@@ -1500,6 +1545,179 @@ test("No False Confidence: Claim-Matrix blockiert harte Aussagen bei unsicherer 
   assert.match(brokenReport.evidenceFailures.ga4.join(" "), /Server-Datei|gelesen/i);
   assert.match(brokenReport.claimMatrix.pageViews.reason, /Datei konnte gelesen|harte Aussage|Zeilen/i);
   assert.ok(brokenReport.auditProtocol.blockedClaims.includes("pageViews"));
+});
+
+test("Kalibrierung: Wahrheitsszenarien erzwingen konservative Claims und vollstaendige Evidenz", async () => {
+  const large = createLargeGoldenCorpus("combined");
+  const normal = await copyReportFor(buildResultFor(large.text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }));
+  const proxy = await copyReportFor(buildResultFor(createLargeGoldenCorpus("combined", {
+    proxyIp: "10.0.0.5",
+    xff: true
+  }).text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }));
+  const hostMix = await copyReportFor(buildResultFor(createLargeGoldenCorpus("cloudflare", {
+    hostFor: (i) => (i % 4 === 0 ? "other.example.test" : "example.test")
+  }).text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/landing,1250" }
+  }));
+  const noisy = await copyReportFor(buildResultFor(`${large.text}\n${Array.from({ length: 200 }, (_, i) => `kaputte zeile ${i}`).join("\n")}`, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }));
+  const broken = await copyReportFor(buildResultFor(`${large.text}\n${Array.from({ length: 2200 }, (_, i) => `kaputte zeile ${i}`).join("\n")}`, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/landing,1250" }
+  }));
+  const unsorted = await copyReportFor(buildResultFor(shuffledEveryOtherBlock(large.text), {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }));
+  const cacheRisk = await copyReportFor(buildResultFor(createLargeGoldenCorpus("combined", {
+    proxyIp: "10.0.0.5",
+    xff: true
+  }).text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/landing,2500\n/checkout/danke,300" }
+  }));
+  const reloadLines = [];
+  for (let i = 0; i < 30; i++) {
+    const base = i * 120;
+    reloadLines.push(combined(docIp(i), combinedStampAt(base), "/checkout/danke"));
+    reloadLines.push(combined(docIp(i), combinedStampAt(base + 10), "/checkout/danke"));
+    reloadLines.push(combined(docIp(i), combinedStampAt(base + 20), "/checkout/danke"));
+  }
+  const reloads = await copyReportFor(buildResultFor(reloadLines.join("\n"), {
+    successPattern: "/checkout/*",
+    hasSuccessUrl: true
+  }));
+
+  const results = [
+    {
+      report: normal,
+      truthChecks: [
+        normal.totals.pageViews === large.expected.pageViews,
+        normal.totals.visits === large.expected.visitors,
+        normal.totals.success === large.expected.success
+      ],
+      expectedStatuses: { pageViews: "allowed", visits: "allowed", hostScope: "allowed", conversions: "allowed" },
+      requiredFailureText: {},
+      bannedText: [/GA4 zählt zu wenig/i, /Server-Datei enthält alle Aufrufe/i]
+    },
+    {
+      report: proxy,
+      truthChecks: [
+        proxy.totals.pageViews === large.expected.pageViews,
+        proxy.totals.visits === 1,
+        proxy.totals.visitorRange.high > proxy.totals.visits
+      ],
+      expectedStatuses: { pageViews: "limited", visits: "blocked", conversions: "limited" },
+      requiredFailureText: { visits: /Proxy|Cache/i, conversions: /Conversion-Rate|Besucherzahl/i },
+      bannedText: [/Besucherzahl ist gut nutzbar/i, /feste Besucherzahl/i]
+    },
+    {
+      report: hostMix,
+      truthChecks: [
+        hostMix.parser.hosts.total === 2,
+        hostMix.totals.pageViews === large.expected.pageViews
+      ],
+      expectedStatuses: { hostScope: "blocked", ga4: "blocked" },
+      requiredFailureText: { hostScope: /Mehrere Websites|Subdomains/i, ga4: /mehrere Websites|Subdomains/i },
+      bannedText: [/Analyse nur eine Website/i]
+    },
+    {
+      report: noisy,
+      truthChecks: [
+        noisy.parser.unrecognizedRows === 200,
+        noisy.totals.pageViews === large.expected.pageViews,
+        noisy.quality.pageviewReliability === "medium"
+      ],
+      expectedStatuses: { pageViews: "limited", visits: "allowed" },
+      requiredFailureText: {},
+      bannedText: [/harte Aussage über die Gesamtzahl/i]
+    },
+    {
+      report: broken,
+      truthChecks: [
+        broken.parser.unrecognizedRows === 2200,
+        broken.quality.pageviewReliability === "limited"
+      ],
+      expectedStatuses: { pageViews: "blocked", ga4: "blocked" },
+      requiredFailureText: { pageViews: /Zeilen|Datei/i, ga4: /Server-Export|Server-Datei/i },
+      bannedText: [/Seitenaufrufe sind gut nutzbar/i]
+    },
+    {
+      report: unsorted,
+      truthChecks: [
+        unsorted.quality.chronologyIssue === true,
+        unsorted.totals.pageViews === large.expected.pageViews
+      ],
+      expectedStatuses: { visits: "limited", pageViews: "allowed" },
+      requiredFailureText: { visits: /zeitlich sortiert/i },
+      bannedText: [/Besucherzahl ist gut nutzbar/i]
+    },
+    {
+      report: cacheRisk,
+      truthChecks: [
+        cacheRisk.quality.cacheRisk === "elevated",
+        cacheRisk.evidence.pageViews.type === "lower_bound"
+      ],
+      expectedStatuses: { pageViews: "limited", visits: "blocked", ga4: "limited" },
+      requiredFailureText: { pageViews: /Cache|CDN/i, ga4: /Cache|CDN/i },
+      bannedText: [/Server-Datei alle Aufrufe/i]
+    },
+    {
+      report: reloads,
+      truthChecks: [
+        reloads.totals.success === 30,
+        reloads.quality.conversionReliability === "medium"
+      ],
+      expectedStatuses: { conversions: "limited" },
+      requiredFailureText: { conversions: /Bestellnummer|Reloads/i },
+      bannedText: [/Käufe sind gut nutzbar/i]
+    }
+  ];
+
+  for (const result of results) {
+    for (const [key, expected] of Object.entries(result.expectedStatuses)) {
+      assert.strictEqual(result.report.claimMatrix[key].status, expected, key);
+      assert.strictEqual(result.report.claims[key].status, expected, key);
+      if (result.report.evidenceFailures[key].length) assert.notStrictEqual(result.report.claimMatrix[key].status, "allowed", key);
+    }
+    for (const [key, pattern] of Object.entries(result.requiredFailureText)) {
+      assert.match([
+        ...(result.report.evidenceFailures[key] || []),
+        result.report.claimMatrix[key].reason || ""
+      ].join(" "), pattern, key);
+    }
+  }
+
+  const score = calibrationScore(results);
+  assert.deepStrictEqual(score, {
+    truthCoverage: 1,
+    claimSafety: 1,
+    evidenceCompleteness: 1,
+    reportCompleteness: 1,
+    languageSafety: 1
+  });
 });
 
 test("Copy-Report macht Proxy-XFF-Risiko mit Besucher-Bandbreite sichtbar", async () => {
