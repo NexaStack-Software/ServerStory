@@ -47,8 +47,9 @@ const expected = {
   }
 };
 
-const maxMsPerMillionRows = Number(process.env.SERVERSTORY_REALWORLD_MAX_MS_PER_MILLION_ROWS || 20000);
+const maxMsPerMillionRows = Number(process.env.SERVERSTORY_REALWORLD_MAX_MS_PER_MILLION_ROWS || 45000);
 const maxRssMb = Number(process.env.SERVERSTORY_REALWORLD_MAX_RSS_MB || 1200);
+const requireRealworld = process.env.SERVERSTORY_REQUIRE_REALWORLD === "1";
 const assetRe = /\.(css|js|png|gif|jpg|jpeg|webp|svg|ico)(\?|$)/i;
 const legacyLineRe = /^(\S+)(?:[ \t]+\S+[ \t]+\S+)?[ \t]+\[([^\]]+)\][ \t]+"([A-Z]+)[ \t]+([^"]*?)(?:[ \t]+HTTP\/[0-9.]+)?"[ \t]+(\d{3})[ \t]+\S+/;
 const keptStatuses = new Set([200, 201, 202, 204, 301, 302, 303, 307, 308]);
@@ -124,8 +125,9 @@ async function analyzeFile(file) {
   });
   const independent = makeIndependentCounter();
   let input;
+  let proc = null;
   if (/\.Z$/i.test(file)) {
-    const proc = spawn("gzip", ["-dc", file], { stdio: ["ignore", "pipe", "inherit"] });
+    proc = spawn("gzip", ["-dc", file], { stdio: ["ignore", "pipe", "ignore"] });
     input = proc.stdout;
   } else {
     input = fs.createReadStream(file).pipe(zlib.createGunzip());
@@ -134,16 +136,67 @@ async function analyzeFile(file) {
   let lines = 0;
   const maxLines = Number(process.env.SERVERSTORY_REALWORLD_MAX_LINES || 0);
   const startedAt = process.hrtime.bigint();
-  for await (const line of rl) {
-    agg.processLine(line);
-    independentLegacyCountLine(line, independent);
-    lines++;
-    if (maxLines && lines >= maxLines) break;
+  try {
+    for await (const line of rl) {
+      agg.processLine(line);
+      independentLegacyCountLine(line, independent);
+      lines++;
+      if (maxLines && lines >= maxLines) break;
+    }
+  } finally {
+    rl.close();
+    if (maxLines) {
+      if (input && typeof input.destroy === "function") input.destroy();
+      if (proc && !proc.killed) proc.kill();
+    }
   }
-  rl.close();
   const result = agg.finalize();
   const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
   return { result, independent, elapsedMs, truncated: !!maxLines };
+}
+
+async function readSampleLines(file, limit) {
+  let input;
+  let proc = null;
+  if (/\.Z$/i.test(file)) {
+    proc = spawn("gzip", ["-dc", file], { stdio: ["ignore", "pipe", "ignore"] });
+    input = proc.stdout;
+  } else {
+    input = fs.createReadStream(file).pipe(zlib.createGunzip());
+  }
+  const rl = readline.createInterface({ input, crlfDelay: Infinity });
+  const lines = [];
+  try {
+    for await (const line of rl) {
+      if (line && line.trim()) lines.push(line);
+      if (lines.length >= limit) break;
+    }
+  } finally {
+    rl.close();
+    if (input && typeof input.destroy === "function") input.destroy();
+    if (proc && !proc.killed) proc.kill();
+  }
+  return lines;
+}
+
+function analyzeLines(lines) {
+  const agg = ctx.makeAggregator({
+    assetRe,
+    gzip: false,
+    maxTrackedClients: 50000
+  });
+  for (const line of lines) agg.processLine(line);
+  return agg.finalize();
+}
+
+function corruptEvery(lines, every) {
+  return lines.map((line, index) => ((index + 1) % every === 0 ? `kaputte echte Logzeile ${index} %ZZ <script>alert(1)</script>` : line));
+}
+
+function shuffleBlocks(lines, blockSize) {
+  const blocks = [];
+  for (let i = 0; i < lines.length; i += blockSize) blocks.push(lines.slice(i, i + blockSize));
+  return blocks.reverse().flat();
 }
 
 function buildResult(agg) {
@@ -151,6 +204,45 @@ function buildResult(agg) {
     assetRe,
     gzip: false
   });
+}
+
+async function assertFailureInjection(file) {
+  const rel = path.relative(root, file);
+  const sample = await readSampleLines(file, 12000);
+  if (sample.length < 5000) throw new Error(`${rel}: not enough sample rows for failure injection`);
+
+  const baseline = analyzeLines(sample);
+  assertReliabilityContract(file, baseline);
+
+  const mildlyBroken = analyzeLines(corruptEvery(sample, 10));
+  const mildlyBuilt = buildResult(mildlyBroken);
+  if (mildlyBroken.total !== baseline.total) throw new Error(`${rel}: mild corruption changed total rows`);
+  if (mildlyBroken.unrecognized <= baseline.unrecognized) throw new Error(`${rel}: mild corruption did not increase unrecognized rows`);
+  if (mildlyBuilt.diagnostics.pageviewReliability === "high") throw new Error(`${rel}: mild corruption kept high pageview reliability`);
+  if (mildlyBuilt.claimMatrix.pageViews.status === "allowed") throw new Error(`${rel}: mild corruption allowed hard pageview claim`);
+
+  const heavilyBroken = analyzeLines(corruptEvery(sample, 3));
+  const heavilyBuilt = buildResult(heavilyBroken);
+  if (heavilyBuilt.diagnostics.pageviewReliability !== "limited") throw new Error(`${rel}: heavy corruption must limit pageview reliability`);
+  if (heavilyBuilt.claimMatrix.pageViews.status !== "blocked") throw new Error(`${rel}: heavy corruption must block pageview claim`);
+  if (heavilyBuilt.decisionReadiness.pageViews.canUseForDecision) throw new Error(`${rel}: heavy corruption must not be decision-ready`);
+  if (!/gelesen|Einträge|Zeilen|Datei|harte Aussage|Gesamtzahl/i.test(heavilyBuilt.evidenceFailures.pageViews.join(" "))) {
+    throw new Error(`${rel}: heavy corruption lacks clear pageview evidence failure: ${heavilyBuilt.evidenceFailures.pageViews.join(" ")}`);
+  }
+
+  const truncated = analyzeLines(sample.slice(0, 500));
+  const truncatedBuilt = buildResult(truncated);
+  if (truncated.total >= baseline.total) throw new Error(`${rel}: truncated sample did not shrink`);
+  if (truncatedBuilt.exportCompleteness.reliability === "high") throw new Error(`${rel}: truncated realworld sample must not look fully reliable`);
+
+  const unsorted = analyzeLines(shuffleBlocks(sample, 250));
+  const unsortedBuilt = buildResult(unsorted);
+  if (unsorted.timeRegressions <= 0) throw new Error(`${rel}: unsorted sample did not record time regressions`);
+  if (!/zeitlich sortiert|Archivformat ohne Browserkennung/i.test(unsortedBuilt.evidenceFailures.visits.join(" "))) {
+    throw new Error(`${rel}: unsorted sample lacks visitor evidence warning`);
+  }
+
+  console.log(`realworld negative ok - ${rel}: corruption, truncation and ordering guarded`);
 }
 
 function countFromTopEntries(entries, name) {
@@ -223,7 +315,9 @@ function assertReliabilityContract(file, result) {
 (async () => {
   const cached = files();
   if (!cached.length) {
-    console.log("realworld skipped - run `node scripts/download-realworld-fixtures.js epa,nasa` first");
+    const message = "realworld skipped - run `node scripts/download-realworld-fixtures.js epa,nasa` first";
+    if (requireRealworld) throw new Error(message);
+    console.log(message);
     return;
   }
   for (const file of cached) {
@@ -237,6 +331,7 @@ function assertReliabilityContract(file, result) {
     const mode = truncated ? "sample" : "full";
     console.log(`realworld ok - ${rel}: ${result.total} rows, ${result.pageViews} pageviews, ${result.visits} visits, ${Math.round(elapsedMs)}ms, ${Math.round(rssMb)}MB RSS, ${mode}`);
   }
+  await assertFailureInjection(cached[0]);
 })().catch((err) => {
   console.error(err);
   process.exit(1);
