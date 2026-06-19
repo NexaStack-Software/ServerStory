@@ -951,6 +951,63 @@
         color: var(--ink);
       }
 
+      .explain {
+        margin-top: 40px;
+        border: 1px solid var(--black);
+        background: var(--white);
+        box-shadow: 12px 12px 0 rgba(23, 23, 23, 0.08);
+        padding: 40px;
+      }
+
+      .explain-kicker {
+        display: inline-block;
+        margin-bottom: 14px;
+        padding: 7px 12px;
+        background: var(--amber);
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .explain h2 {
+        margin: 0 0 12px;
+        max-width: 760px;
+        font-size: clamp(24px, 2.6vw, 32px);
+        line-height: 1.15;
+      }
+
+      .explain > .lead {
+        max-width: 760px;
+        margin: 0 0 8px;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.5;
+      }
+
+      .explain details p {
+        margin: 12px 0 0;
+        color: var(--ink);
+        font-size: 16px;
+        line-height: 1.55;
+      }
+
+      .explain details p + p {
+        margin-top: 10px;
+      }
+
+      .explain ul {
+        margin: 12px 0 0;
+        padding-left: 20px;
+      }
+
+      .explain li {
+        margin-bottom: 8px;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
       .progress {
         margin-top: 4px;
         display: grid;
@@ -1494,6 +1551,43 @@
               <p class="hint">Bitte Access Log für den gewünschten Zeitraum exportieren. Format: Apache/Nginx Combined Log, als .log, .txt oder .gz. ServerStory zeigt nur Summen; IPs werden nicht ausgegeben.</p>
             </details>
           </div>
+        </section>
+
+        <section class="explain">
+          <span class="explain-kicker">Gut zu wissen</span>
+          <h2>Warum weichen meine Zahlen von Google Analytics ab?</h2>
+          <p class="lead">Beide messen deinen Traffic — aber auf komplett verschiedene Weise. Keine der beiden Zahlen ist „die Wahrheit". Hier ist, was wirklich dahintersteckt.</p>
+
+          <details>
+            <summary>Wieso kann Google Analytics Besucher zählen — und mein Server nur schätzen?</summary>
+            <p>Dein Server führt nur eine Liste: „Um 10:05 Uhr wurde Seite X angefragt." Ein Name oder eine Person steht da nicht dabei. Um daraus „Besucher" zu machen, müsste der Server raten, welche Anfragen zur selben Person gehören — und dafür hat er nur die IP-Adresse. Die ist aber unzuverlässig: Eine ganze Firma oder ein Mobilfunk-Anbieter teilt sich oft eine einzige IP, und dieselbe Person wechselt die IP, sobald sie von WLAN auf Handynetz springt.</p>
+            <p>Google Analytics macht es anders: Es lädt ein kleines Programm direkt im Browser des Besuchers und hinterlegt dort ein unsichtbares Kennzeichen (ein Cookie). Kommt dieselbe Person wieder, erkennt Google sie an genau diesem Kennzeichen. Diese Identität fehlt deinem Server komplett — deshalb kann er Besucher nur schätzen, Google sie aber (scheinbar) genau zählen.</p>
+          </details>
+
+          <details>
+            <summary>Warum sieht Google weniger Besucher als mein Server?</summary>
+            <p>Weil das Google-Programm im Browser laufen muss, um überhaupt etwas zu zählen — und genau das verhindern viele Besucher:</p>
+            <ul>
+              <li><strong>Cookie-Banner abgelehnt:</strong> Wer „Ablehnen" klickt, wird von Google nicht gezählt. Dein Server hat ihn trotzdem gesehen.</li>
+              <li><strong>Ad-Blocker / Tracking-Schutz:</strong> Blockiert das Google-Programm, bevor es startet. In Deutschland betrifft das einen zweistelligen Prozentsatz der Besucher.</li>
+            </ul>
+            <p>Diese Leute sind echte Besucher — sie tauchen in deinem Server-Log auf, aber nicht in Google Analytics. Genau diese Lücke macht ServerStory sichtbar.</p>
+          </details>
+
+          <details>
+            <summary>Und warum sieht mein Server manchmal weniger als Google?</summary>
+            <p>Zwei Gründe ziehen in die andere Richtung:</p>
+            <ul>
+              <li><strong>Zwischengespeicherte Seiten (Cache/CDN):</strong> Wird eine Seite aus dem Zwischenspeicher des Browsers oder eines vorgeschalteten Dienstes geladen, erreicht die Anfrage deinen Server gar nicht — der Besuch fehlt im Log, Google zählt ihn aber.</li>
+              <li><strong>Eine Person, mehrfach gezählt:</strong> Löscht jemand seine Cookies oder nutzt ein zweites Gerät, hält Google ihn für einen neuen Besucher. Googles Besucherzahl ist dadurch eher zu hoch.</li>
+            </ul>
+          </details>
+
+          <details>
+            <summary>Welche Zahl stimmt denn nun?</summary>
+            <p>Keine — und beide. Sie messen einfach Unterschiedliches: Dein Server zählt jede Anfrage, die bei ihm ankommt (inklusive Bots, ohne gecachte Seiten). Google zählt jeden Browser, der das Tracking ausführt und erlaubt (ohne Ad-Blocker- und Banner-Verweigerer).</p>
+            <p>Der eigentliche Wert steckt nicht in einer der Zahlen, sondern im <strong>Unterschied</strong>: Wenn dein Server deutlich mehr echte Besucher zeigt als Google, misst du genau den Teil deines Traffics, den du in Google Analytics nie zu Gesicht bekommst.</p>
+          </details>
         </section>
 
         <section class="cta">
