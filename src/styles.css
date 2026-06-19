@@ -970,25 +970,14 @@
         line-height: 1.5;
       }
 
-      .explain-block {
-        margin-top: 26px;
-        max-width: 860px;
-      }
-
-      .explain-block h3 {
-        margin: 0 0 10px;
-        font-size: 20px;
-        line-height: 1.25;
-      }
-
-      .explain-block p {
+      .explain details p {
         margin: 12px 0 0;
         color: var(--ink);
         font-size: 16px;
         line-height: 1.55;
       }
 
-      .explain-block p + p {
+      .explain details p + p {
         margin-top: 10px;
       }
 
