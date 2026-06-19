@@ -2090,8 +2090,13 @@
           const worstText = worst && worst.coverage < 85 ? ` Am wenigsten auf ${worst.name} (${percent(worst.coverage)}).` : "";
           if (cov < 85) {
             setSignal("warn", "!", "Achtung");
-            id("headline").textContent = "Google Analytics sieht deutlich weniger";
-            id("subline").textContent = `Für die ausgewählten Seiten findet Google Analytics nur ${percent(cov)} der Aufrufe, die in der Server-Datei stehen.${worstText}`;
+            id("headline").textContent = "Dein Server zählt deutlich mehr Seitenaufrufe als Google Analytics";
+            // Server-Basis: "Google Analytics sieht X % weniger" = 100 − Coverage. NICHT als
+            // "Server hat X % mehr" framen — das wäre die GA4-Basis und eine andere Zahl.
+            const worstGapText = worst && worst.coverage < 85
+              ? ` Am größten ist die Lücke bei ${worst.name}: Dort fehlen Google Analytics ${percent(100 - worst.coverage)} der Aufrufe.`
+              : "";
+            id("subline").textContent = `Für deine ausgewählten Seiten sieht Google Analytics ${percent(100 - cov)} weniger Seitenaufrufe als deine Server-Datei.${worstGapText}`;
             id("action").textContent = "Nächster Schritt: Noch keine Budget-Entscheidung nur daraus ableiten. Prüfe zuerst: gleicher Zeitraum, richtige Website, Seitenaufrufe in Google Analytics, Cookie-Banner, Ad-Blocker und ob ein Cache davor sitzt.";
           } else if (cov < 95) {
             setSignal("medium", "~", "Kleine Lücke");

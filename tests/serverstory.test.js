@@ -2991,7 +2991,29 @@ test("Demo nutzt realistische Groessenordnung und keine harte GA4-zu-wenig-Headl
   assert.doesNotMatch(script, /Google Analytics zählt zu wenig/);
   assert.doesNotMatch(script, /Google Analytics sieht weniger Käufe/);
   assert.doesNotMatch(script, /GA4-Abdeckung ist niedrig/);
-  assert.match(script, /Google Analytics sieht deutlich weniger/);
+  assert.match(script, /Dein Server zählt deutlich mehr Seitenaufrufe als Google Analytics/);
+});
+
+test("GA4-Vergleich nennt die Differenz auf Server-Basis (kein Basis-Verwechsler)", () => {
+  // Demo: Coverage 73,7 % gesamt, /produkt/2 bei 43,2 %. Die sichtbare Aussage muss
+  // "GA4 sieht 26,3 % weniger" sein (100 − Coverage, Server-Basis), NICHT "35,8 % mehr"
+  // (GA4-Basis) — und durchgehend von Seitenaufrufen sprechen, nicht von Besuchen.
+  const demoSample = vm.runInContext("sample", ctx);
+  const data = buildResultFor(demoSample, { successUrl: "/bestellung/danke", hasSuccessUrl: true }, {
+    "ga4-url-views": { value: "/,1950\n/produkt/0,58\n/produkt/2,54\n/produkt/4,55\n/bestellung/danke,185" },
+    "ga4-conversions": { value: "185" }
+  });
+  const ui = createRenderContext();
+  ui.ctx.render(data);
+  const headline = ui.get("headline").textContent;
+  const subline = ui.get("subline").textContent;
+  assert.match(headline, /Dein Server zählt deutlich mehr Seitenaufrufe/);
+  assert.match(subline, /Google Analytics 26,3 % weniger Seitenaufrufe/);
+  assert.match(subline, /\/produkt\/2/);
+  assert.match(subline, /fehlen Google Analytics 56,8 %/);
+  // Die falsche GA4-Basis-Zahl darf NICHT auftauchen.
+  assert.doesNotMatch(subline, /35,8 %/);
+  assert.doesNotMatch(subline, /131/);
 });
 
 run();
