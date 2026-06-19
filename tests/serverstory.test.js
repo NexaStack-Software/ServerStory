@@ -493,6 +493,14 @@ function assertAnalysisReportSchema(report) {
     assert.strictEqual(typeof report.decisionReadiness[key].reason, "string", key);
     assert.ok(Array.isArray(report.decisionReadiness[key].missingEvidence), key);
     assert.strictEqual(report.decisionReadiness[key].canUseForDecision, report.claimMatrix[key].status === "allowed", key);
+    if (report.decisionReadiness[key].decisionRisk === "low") {
+      assert.strictEqual(report.claimMatrix[key].status, "allowed", `${key}: low risk requires allowed claim`);
+      assert.deepStrictEqual(report.evidenceFailures[key], [], `${key}: low risk cannot have evidence failures`);
+      assert.deepStrictEqual(report.claimMatrix[key].forbiddenConclusions, [], `${key}: low risk cannot have forbidden conclusions`);
+    }
+    if (report.evidenceFailures[key].length || report.claimMatrix[key].forbiddenConclusions.length) {
+      assert.notStrictEqual(report.decisionReadiness[key].decisionRisk, "low", `${key}: blockers cannot be low risk`);
+    }
   }
   assert.deepStrictEqual(report.auditProtocol.evidenceFailures, report.evidenceFailures);
   for (const list of ["allowedClaims", "limitedClaims", "blockedClaims"]) {
@@ -586,6 +594,10 @@ function statusRank(status) {
 
 function reliabilityRank(value) {
   return { high: 2, medium: 1, limited: 0, none: -1 }[value] ?? -1;
+}
+
+function decisionRiskRank(value) {
+  return { low: 0, medium: 1, high: 2 }[value] ?? -1;
 }
 
 const baselineCombined = [
@@ -2515,6 +2527,92 @@ test("Monotonicity: schlechtere Daten duerfen Claims nie optimistischer machen",
   }));
   assert.ok(statusRank(ga4Duplicate.claimMatrix.ga4.status) <= statusRank(ga4Clean.claimMatrix.ga4.status));
   assert.ok(reliabilityRank(ga4Duplicate.quality.ga4Reliability) <= reliabilityRank(ga4Clean.quality.ga4Reliability));
+});
+
+test("Decision-Risk-Monotonicity: harte Blocker deckeln Entscheidungsfaehigkeit", async () => {
+  const large = createLargeGoldenCorpus("combined");
+  const baseConfig = {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  };
+  const base = await copyReportFor(buildResultFor(large.text, baseConfig, {
+    "ga4-url-views": { value: "/landing,1250\n/checkout/danke,325" }
+  }));
+  const variants = [
+    {
+      name: "noisy",
+      report: await copyReportFor(buildResultFor(`${large.text}\n${Array.from({ length: 250 }, (_, i) => `kaputte zeile ${i}`).join("\n")}`, baseConfig, {
+        "ga4-url-views": { value: "/landing,1250\n/checkout/danke,325" }
+      })),
+      affected: ["pageViews", "ga4"]
+    },
+    {
+      name: "broken",
+      report: await copyReportFor(buildResultFor(`${large.text}\n${Array.from({ length: 2400 }, (_, i) => `kaputte zeile ${i}`).join("\n")}`, baseConfig, {
+        "ga4-url-views": { value: "/landing,1250\n/checkout/danke,325" }
+      })),
+      affected: ["pageViews", "ga4"]
+    },
+    {
+      name: "incomplete-export",
+      report: await copyReportFor(buildResultFor(large.text, {
+        ...baseConfig,
+        calibration: { preset: "unknown", cache: "unknown", logSource: "unknown", exportComplete: "no", ga4MetricKind: "unknown" }
+      }, {
+        "ga4-url-views": { value: "/landing,1250\n/checkout/danke,325" }
+      })),
+      affected: ["pageViews", "visits", "ga4"]
+    },
+    {
+      name: "proxy",
+      report: await copyReportFor(buildResultFor(createLargeGoldenCorpus("combined", {
+        proxyIp: "10.0.0.5",
+        xff: true
+      }).text, baseConfig, {
+        "ga4-url-views": { value: "/landing,1250\n/checkout/danke,325" }
+      })),
+      affected: ["pageViews", "visits", "conversions", "ga4"]
+    },
+    {
+      name: "host-mix",
+      report: await copyReportFor(buildResultFor(createLargeGoldenCorpus("cloudflare", {
+        hostFor: (i) => (i % 4 === 0 ? "other.example.test" : "example.test")
+      }).text, baseConfig, {
+        "ga4-url-views": { value: "/landing,1250\n/checkout/danke,325" }
+      })),
+      affected: ["hostScope", "ga4"]
+    },
+    {
+      name: "wrong-ga-number",
+      report: await copyReportFor(buildResultFor(large.text, {
+        ...baseConfig,
+        calibration: { preset: "unknown", cache: "unknown", logSource: "unknown", exportComplete: "unknown", ga4MetricKind: "users_or_sessions" }
+      }, {
+        "ga4-url-views": { value: "/landing,1250\n/checkout/danke,325" }
+      })),
+      affected: ["ga4"]
+    }
+  ];
+
+  for (const variant of variants) {
+    for (const key of variant.affected) {
+      assert.ok(
+        decisionRiskRank(variant.report.decisionReadiness[key].decisionRisk) >= decisionRiskRank(base.decisionReadiness[key].decisionRisk),
+        `${variant.name}.${key}: decision risk improved unexpectedly`
+      );
+      if (!base.decisionReadiness[key].canUseForDecision) {
+        assert.strictEqual(variant.report.decisionReadiness[key].canUseForDecision, false, `${variant.name}.${key}: false became true`);
+      }
+    }
+  }
+
+  assert.strictEqual(variants.find((item) => item.name === "broken").report.decisionReadiness.pageViews.decisionRisk, "high");
+  assert.strictEqual(variants.find((item) => item.name === "incomplete-export").report.decisionReadiness.pageViews.decisionRisk, "high");
+  assert.strictEqual(variants.find((item) => item.name === "incomplete-export").report.decisionReadiness.visits.canUseForDecision, false);
+  assert.strictEqual(variants.find((item) => item.name === "proxy").report.decisionReadiness.visits.decisionRisk, "high");
+  assert.strictEqual(variants.find((item) => item.name === "host-mix").report.decisionReadiness.hostScope.decisionRisk, "high");
+  assert.strictEqual(variants.find((item) => item.name === "wrong-ga-number").report.decisionReadiness.ga4.decisionRisk, "high");
 });
 
 test("Report und UI spiegeln Matrix-Unsicherheit ohne stille Gruende", async () => {
