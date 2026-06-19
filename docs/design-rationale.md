@@ -106,7 +106,8 @@ Die Dateien bleiben lokal unter `tests/realworld-cache/` bzw. `tests/access-cach
 `access-realworld` prueft echte Combined-Access-Logs mit Referrer/User-Agent gegen
 einen unabhaengigen Zaehler. So wird nicht nur getestet, ob die App irgendetwas
 berechnet, sondern ob sie echte Webserver-Logs konservativ und reproduzierbar
-bewertet.
+bewertet. Wenn mindestens zehn SecRepo-Tageslogs lokal liegen, prueft der Test
+zusaetzlich einen kombinierten Corpus mit deutlich mehr als 1.000 Besuchen.
 
 ## Parser-Robustheit
 

@@ -120,18 +120,10 @@ function countFromTopEntries(entries, name) {
   return found ? found.count : 0;
 }
 
-async function analyzeFile(file) {
-  const agg = ctx.makeAggregator({
-    assetRe,
-    gzip: false,
-    maxTrackedClients: Number(process.env.SERVERSTORY_ACCESS_TRACKED_CLIENTS || 200000)
-  });
-  const independent = counter();
+async function processFileInto(file, agg, independent, maxLines, linesSeen) {
   const input = /\.gz$/i.test(file) ? fs.createReadStream(file).pipe(zlib.createGunzip()) : fs.createReadStream(file);
   const rl = readline.createInterface({ input, crlfDelay: Infinity });
-  const maxLines = Number(process.env.SERVERSTORY_ACCESS_MAX_LINES || 0);
-  let lines = 0;
-  const startedAt = process.hrtime.bigint();
+  let lines = linesSeen;
   try {
     for await (const line of rl) {
       agg.processLine(line);
@@ -141,15 +133,36 @@ async function analyzeFile(file) {
     }
   } finally {
     rl.close();
-    if (maxLines && input && typeof input.destroy === "function") input.destroy();
+    if (maxLines && lines >= maxLines && input && typeof input.destroy === "function") input.destroy();
+  }
+  return lines;
+}
+
+async function analyzeFiles(inputFiles) {
+  const agg = ctx.makeAggregator({
+    assetRe,
+    gzip: false,
+    maxTrackedClients: Number(process.env.SERVERSTORY_ACCESS_TRACKED_CLIENTS || 200000)
+  });
+  const independent = counter();
+  const maxLines = Number(process.env.SERVERSTORY_ACCESS_MAX_LINES || 0);
+  let lines = 0;
+  const startedAt = process.hrtime.bigint();
+  for (const file of inputFiles) {
+    lines = await processFileInto(file, agg, independent, maxLines, lines);
+    if (maxLines && lines >= maxLines) break;
   }
   const result = agg.finalize();
   const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
   return { result, independent, elapsedMs, truncated: !!maxLines };
 }
 
-function assertDifferential(file, result, independent) {
-  const rel = path.relative(root, file);
+async function analyzeFile(file) {
+  return analyzeFiles([file]);
+}
+
+function assertDifferential(label, result, independent) {
+  const rel = Array.isArray(label) ? label.join(", ") : String(label);
   if (independent.rows !== result.total) throw new Error(`${rel}: rows mismatch ${independent.rows} vs ${result.total}`);
   if (independent.parsed !== result.parsed) throw new Error(`${rel}: parsed mismatch ${independent.parsed} vs ${result.parsed}`);
   if (independent.unrecognized !== result.unrecognized) throw new Error(`${rel}: unrecognized mismatch ${independent.unrecognized} vs ${result.unrecognized}`);
@@ -173,8 +186,8 @@ function buildResult(agg) {
   return ctx.buildResult(agg, { assetRe, gzip: false });
 }
 
-function assertReliability(file, result, independent, elapsedMs) {
-  const rel = path.relative(root, file);
+function assertReliability(label, result, independent, elapsedMs) {
+  const rel = Array.isArray(label) ? label.join(", ") : String(label);
   if (result.formatKind !== "combined") throw new Error(`${rel}: expected combined format, got ${result.formatKind}`);
   const recognitionRate = result.dataRows ? result.parsed / result.dataRows : 0;
   if (recognitionRate < 0.98) throw new Error(`${rel}: low recognition rate ${recognitionRate}`);
@@ -201,6 +214,21 @@ function assertReliability(file, result, independent, elapsedMs) {
   return "full";
 }
 
+async function assertCombinedSecRepoCorpus(cached) {
+  const secrepo = cached.filter((file) => /secrepo-access\.log\./.test(path.basename(file)));
+  if (secrepo.length < 10) return;
+  const label = "tests/access-cache/secrepo-combined-corpus";
+  const { result, independent, elapsedMs, truncated } = await analyzeFiles(secrepo);
+  assertDifferential(label, result, independent);
+  const reliabilityMode = assertReliability(label, result, independent, elapsedMs);
+  if (result.visits < 1000) throw new Error(`${label}: expected more than 1000 visits, got ${result.visits}`);
+  if (result.total < 10000) throw new Error(`${label}: expected more than 10000 rows, got ${result.total}`);
+  const rssMb = process.memoryUsage().rss / (1024 * 1024);
+  if (rssMb > maxRssMb) throw new Error(`${label}: RSS ${Math.round(rssMb)} MB exceeds budget ${maxRssMb} MB`);
+  const mode = truncated ? "sample" : "full";
+  console.log(`access realworld ok - ${label}: ${result.total} rows, ${result.pageViews} pageviews, ${result.visits} visits, ${Math.round(elapsedMs)}ms, ${Math.round(rssMb)}MB RSS, ${mode}, ${reliabilityMode}`);
+}
+
 (async () => {
   const cached = files();
   if (!cached.length) {
@@ -211,13 +239,15 @@ function assertReliability(file, result, independent, elapsedMs) {
   }
   for (const file of cached) {
     const { result, independent, elapsedMs, truncated } = await analyzeFile(file);
-    assertDifferential(file, result, independent);
-    const reliabilityMode = assertReliability(file, result, independent, elapsedMs);
+    const rel = path.relative(root, file);
+    assertDifferential(rel, result, independent);
+    const reliabilityMode = assertReliability(rel, result, independent, elapsedMs);
     const rssMb = process.memoryUsage().rss / (1024 * 1024);
-    if (rssMb > maxRssMb) throw new Error(`${path.relative(root, file)}: RSS ${Math.round(rssMb)} MB exceeds budget ${maxRssMb} MB`);
+    if (rssMb > maxRssMb) throw new Error(`${rel}: RSS ${Math.round(rssMb)} MB exceeds budget ${maxRssMb} MB`);
     const mode = truncated ? "sample" : "full";
-    console.log(`access realworld ok - ${path.relative(root, file)}: ${result.total} rows, ${result.pageViews} pageviews, ${result.visits} visits, ${Math.round(elapsedMs)}ms, ${Math.round(rssMb)}MB RSS, ${mode}, ${reliabilityMode}`);
+    console.log(`access realworld ok - ${rel}: ${result.total} rows, ${result.pageViews} pageviews, ${result.visits} visits, ${Math.round(elapsedMs)}ms, ${Math.round(rssMb)}MB RSS, ${mode}, ${reliabilityMode}`);
   }
+  await assertCombinedSecRepoCorpus(cached);
 })().catch((err) => {
   console.error(err);
   process.exit(1);
