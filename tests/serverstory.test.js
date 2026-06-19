@@ -269,11 +269,97 @@ function stableReport(report) {
   return copy;
 }
 
+function assertAnalysisReportSchema(report) {
+  const claimKeys = ["pageViews", "visits", "ga4", "hostScope", "conversions"];
+  const reliabilityValues = ["high", "medium", "limited", "none"];
+  const statusValues = ["allowed", "limited", "blocked"];
+  for (const key of [
+    "schema", "schemaVersion", "generatedAt", "format", "totals", "quality", "timeRange",
+    "evidence", "evidenceFailures", "claims", "claimMatrix", "auditProtocol",
+    "conflicts", "ga4Validation", "exportCompleteness", "parser", "accuracyNotes", "topPages"
+  ]) {
+    assert.ok(Object.prototype.hasOwnProperty.call(report, key), `report.${key}`);
+  }
+  assert.strictEqual(report.schema, "serverstory.analysis.v1");
+  assert.strictEqual(report.schemaVersion, 1);
+  assert.strictEqual(typeof report.generatedAt, "string");
+  assert.ok(!Number.isNaN(Date.parse(report.generatedAt)));
+  for (const key of ["rows", "parsed", "kept", "filtered", "pageViews", "visits", "success"]) {
+    assert.strictEqual(Number.isFinite(report.totals[key]), true, `totals.${key}`);
+    assert.ok(report.totals[key] >= 0, `totals.${key}`);
+  }
+  assert.ok(report.totals.visitorRange);
+  assert.ok(report.totals.visitorRange.low <= report.totals.visitorRange.high);
+  for (const key of [
+    "pageviewReliability", "visitorReliability", "ga4Reliability", "conversionReliability",
+    "botReliability", "hostReliability", "exportCompletenessReliability", "trackingReliability"
+  ]) {
+    assert.ok(reliabilityValues.includes(report.quality[key]), `quality.${key}`);
+  }
+  assert.strictEqual(typeof report.quality.recognitionRate, "number");
+  assert.ok(report.quality.recognitionRate >= 0 && report.quality.recognitionRate <= 1);
+  assert.ok(["normal", "elevated"].includes(report.quality.cacheRisk));
+  assert.strictEqual(typeof report.quality.chronologyIssue, "boolean");
+  for (const key of claimKeys) {
+    assert.ok(report.claims[key], `claims.${key}`);
+    assert.ok(report.claimMatrix[key], `claimMatrix.${key}`);
+    assert.ok(report.evidenceFailures[key], `evidenceFailures.${key}`);
+    assert.ok(report.evidence[key], `evidence.${key}`);
+    assert.strictEqual(report.claims[key].status, report.claimMatrix[key].status, key);
+    assert.ok(statusValues.includes(report.claimMatrix[key].status), `claimMatrix.${key}.status`);
+    assert.strictEqual(typeof report.claimMatrix[key].allowed, "boolean", key);
+    assert.strictEqual(typeof report.claimMatrix[key].limited, "boolean", key);
+    assert.strictEqual(typeof report.claimMatrix[key].blocked, "boolean", key);
+    assert.strictEqual(report.claimMatrix[key].allowed, report.claimMatrix[key].status === "allowed", key);
+    assert.strictEqual(report.claimMatrix[key].limited, report.claimMatrix[key].status === "limited", key);
+    assert.strictEqual(report.claimMatrix[key].blocked, report.claimMatrix[key].status === "blocked", key);
+    assert.ok(reliabilityValues.includes(report.claimMatrix[key].confidence), `claimMatrix.${key}.confidence`);
+    assert.strictEqual(typeof report.claimMatrix[key].statement, "string", key);
+    assert.strictEqual(typeof report.claimMatrix[key].reason, "string", key);
+    assert.ok(Array.isArray(report.claimMatrix[key].blockingReasons), key);
+    assert.ok(Array.isArray(report.claimMatrix[key].requiredEvidence), key);
+    assert.ok(Array.isArray(report.claimMatrix[key].recommendedChecks), key);
+    assert.ok(Array.isArray(report.claimMatrix[key].forbiddenConclusions), key);
+    assert.ok(Array.isArray(report.claimMatrix[key].evidenceFailures), key);
+    assert.deepStrictEqual(report.claimMatrix[key].evidenceFailures, report.evidenceFailures[key], key);
+    assert.deepStrictEqual(report.claims[key].evidenceFailures, report.evidenceFailures[key], key);
+    if (report.evidenceFailures[key].length) assert.notStrictEqual(report.claimMatrix[key].status, "allowed", key);
+    if (report.claimMatrix[key].status === "blocked") assert.ok(report.claimMatrix[key].reason.length > 0, key);
+  }
+  assert.deepStrictEqual(report.auditProtocol.evidenceFailures, report.evidenceFailures);
+  for (const list of ["allowedClaims", "limitedClaims", "blockedClaims"]) {
+    assert.ok(Array.isArray(report.auditProtocol[list]), `auditProtocol.${list}`);
+    for (const key of report.auditProtocol[list]) assert.ok(claimKeys.includes(key), key);
+  }
+  for (const key of claimKeys) {
+    const status = report.claimMatrix[key].status;
+    const list = status === "allowed" ? "allowedClaims" : status === "limited" ? "limitedClaims" : "blockedClaims";
+    assert.ok(report.auditProtocol[list].includes(key), `${key} missing from ${list}`);
+  }
+  assert.ok(Array.isArray(report.auditProtocol.requiredChecks));
+  assert.ok(Array.isArray(report.auditProtocol.cannotSay));
+  assert.ok(["high", "medium", "limited"].includes(report.exportCompleteness.reliability));
+  assert.ok(Array.isArray(report.exportCompleteness.reasons));
+  assert.ok(Array.isArray(report.exportCompleteness.recommendedChecks));
+  assert.strictEqual(typeof report.exportCompleteness.recognitionRate, "number");
+  assert.ok(report.ga4Validation);
+  for (const key of ["rows", "unmatchedRows", "duplicateCount"]) assert.strictEqual(Number.isFinite(report.ga4Validation[key]), true, key);
+  assert.ok(Array.isArray(report.ga4Validation.unmatchedPaths));
+  assert.ok(Array.isArray(report.ga4Validation.duplicatePaths));
+  for (const key of ["dataRows", "metaRows", "unrecognizedRows"]) assert.strictEqual(Number.isFinite(report.parser[key]), true, key);
+  assert.ok(Array.isArray(report.parser.statusCounts));
+  assert.ok(Array.isArray(report.parser.methodCounts));
+  assert.ok(report.parser.formatCounters);
+  assert.ok(Array.isArray(report.topPages));
+}
+
 async function copyReportFor(data) {
   const ui = createRenderContext();
   ui.ctx.render(data);
   await ui.get("copy-report").click();
-  return JSON.parse(ui.ctx.__clipboard);
+  const report = JSON.parse(ui.ctx.__clipboard);
+  assertAnalysisReportSchema(report);
+  return report;
 }
 
 function calibrationScore(results) {
@@ -1520,6 +1606,7 @@ test("Copy-Report liefert versioniertes Schema mit Genauigkeitshinweisen", async
   ui.ctx.render(data);
   await ui.get("copy-report").click();
   const report = JSON.parse(ui.ctx.__clipboard);
+  assertAnalysisReportSchema(report);
   assert.strictEqual(report.schema, "serverstory.analysis.v1");
   assert.strictEqual(report.schemaVersion, 1);
   assert.deepStrictEqual(report.totals.visitorRange, { low: 2, high: 2 });
