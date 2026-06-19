@@ -25,21 +25,18 @@ run("npm", ["run", "audit:release"]);
 run("npm", ["run", "smoke:release"]);
 
 const notes = [
-  "ServerStory als fertiger Download.",
+  "## ServerStory herunterladen",
   "",
-  "Für normale Nutzerinnen und Nutzer:",
-  "1. `serverstory.zip` herunterladen",
-  "2. ZIP-Datei entpacken",
-  "3. `START_HIER.html` öffnen",
+  "Lade die ZIP-Datei herunter, entpacke sie und öffne `START_HIER.html`.",
   "",
   "ServerStory läuft vollständig im Browser. Deine Log-Dateien werden nicht hochgeladen."
 ].join("\n");
 
 const view = spawnSync("gh", ["release", "view", tag], { cwd: root, stdio: "ignore" });
 if (view.status !== 0) {
-  run("gh", ["release", "create", tag, "--title", `ServerStory ${tag}`, "--notes", notes]);
+  run("gh", ["release", "create", tag, "--title", "ServerStory herunterladen", "--notes", notes]);
 } else {
-  run("gh", ["release", "edit", tag, "--title", `ServerStory ${tag}`, "--notes", notes]);
+  run("gh", ["release", "edit", tag, "--title", "ServerStory herunterladen", "--notes", notes]);
 }
 
 run("gh", ["release", "upload", tag, zipPath, "--clobber"]);

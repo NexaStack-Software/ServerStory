@@ -660,7 +660,7 @@
             ga4: qualityReason(lastResult, "ga4", !!(lastResult.overall && lastResult.overall.coverage !== null)),
             setup: lastResult.calibration,
             hostScope: lastResult.hostFilterUnverifiable ? `Website-Filter nicht voll pruefbar: ${format(lastResult.hostFilterNoHost)} Zeilen ohne Host-Angabe.` : (lastResult.diagnostics.hostReliability === "limited" ? `Mehrere Websites/Subdomains erkannt (${format(lastResult.hosts.total)}). Filter empfohlen, sonst kann der Vergleich fremde Seiten enthalten.` : "Die Datei wirkt auf eine Website begrenzt."),
-            botAnomaly: lastResult.suspiciousClients ? `${format(lastResult.suspiciousClients)} auffaellige Muster mit Bot-/Monitoring-Verdacht.` : "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."
+            botAnomaly: lastResult.suspiciousClients ? `${format(lastResult.suspiciousClients)} auffällige Muster mit Bot-/Monitoring-Verdacht.` : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar."
           },
           topPages: lastResult.tableRows
         };

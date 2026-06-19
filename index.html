@@ -2924,7 +2924,7 @@
             reliability: pageviewReliability,
             canAnswer: pageviewReliability !== "limited",
             reason: originCacheRisk
-              ? "Die Datei kommt wahrscheinlich vom Server hinter Cache/CDN. Gecachte Aufrufe koennen fehlen."
+              ? "Die Datei kommt wahrscheinlich vom Server hinter Cache/CDN. Gecachte Aufrufe können fehlen."
               : (pageviewReliability === "limited" ? "Zu viel der Datei konnte nicht sicher gelesen werden." : "Seitenaufrufe wurden aus lesbaren Serverzeilen gezaehlt.")
           },
           visits: {
@@ -2943,7 +2943,7 @@
             reliability: conversionReliability,
             canAnswer: !!config.hasSuccessUrl,
             reason: config.hasSuccessUrl
-              ? (isLegacyArchive ? "Conversions werden im alten Archivformat nur ueber Pfad und Zeitfenster erkannt; Browserkennung fehlt." : (config.orderParam ? "Conversions werden ueber Erfolgs-URL und Order-ID dedupliziert." : "Conversions werden ueber Erfolgs-URL und Zeitfenster dedupliziert; Reloads koennen stoeren."))
+              ? (isLegacyArchive ? "Conversions werden im alten Archivformat nur über Pfad und Zeitfenster erkannt; Browserkennung fehlt." : (config.orderParam ? "Conversions werden über Erfolgs-URL und Order-ID dedupliziert." : "Conversions werden über Erfolgs-URL und Zeitfenster dedupliziert; Reloads können stören."))
               : "Ohne Danke-Seite oder Conversion-Muster kann ServerStory keine Conversions bestimmen."
           },
           ga4: {
@@ -2961,18 +2961,18 @@
             reliability: hostReliability,
             canAnswer: hostReliability !== "limited",
             reason: hostFilterUnverifiable
-              ? "Der Website-Filter konnte nicht fuer alle Zeilen geprueft werden, weil Host-Angaben fehlen."
-              : (hostReliability === "limited" ? "Mehrere Websites/Subdomains erkannt; ohne Filter koennen fremde Seiten enthalten sein." : "Die Datei wirkt auf eine Website begrenzt.")
+              ? "Der Website-Filter konnte nicht für alle Zeilen geprüft werden, weil Host-Angaben fehlen."
+              : (hostReliability === "limited" ? "Mehrere Websites/Subdomains erkannt; ohne Filter können fremde Seiten enthalten sein." : "Die Datei wirkt auf eine Website begrenzt.")
           },
           botAnomaly: {
             type: "estimated",
             reliability: botReliability,
             canAnswer: !agg.trackingCapped,
             reason: agg.trackingCapped
-              ? "Die Schutzgrenze fuer sehr grosse Dateien begrenzt Bot- und Auffaelligkeits-Hinweise."
+              ? "Die Schutzgrenze für sehr große Dateien begrenzt Bot- und Auffälligkeits-Hinweise."
               : (scanTrafficRisk
                 ? "Admin-, Exploit- oder Proxy-Scan-Muster gefunden."
-                : (agg.suspiciousClients ? "Auffaellige Muster mit vielen Aufrufen fast ohne normale Seitenbestandteile gefunden." : "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."))
+                : (agg.suspiciousClients ? "Auffällige Muster mit vielen Aufrufen fast ohne normale Seitenbestandteile gefunden." : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar."))
           }
         };
         const claims = {
@@ -3943,7 +3943,7 @@
             ga4: qualityReason(lastResult, "ga4", !!(lastResult.overall && lastResult.overall.coverage !== null)),
             setup: lastResult.calibration,
             hostScope: lastResult.hostFilterUnverifiable ? `Website-Filter nicht voll pruefbar: ${format(lastResult.hostFilterNoHost)} Zeilen ohne Host-Angabe.` : (lastResult.diagnostics.hostReliability === "limited" ? `Mehrere Websites/Subdomains erkannt (${format(lastResult.hosts.total)}). Filter empfohlen, sonst kann der Vergleich fremde Seiten enthalten.` : "Die Datei wirkt auf eine Website begrenzt."),
-            botAnomaly: lastResult.suspiciousClients ? `${format(lastResult.suspiciousClients)} auffaellige Muster mit Bot-/Monitoring-Verdacht.` : "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."
+            botAnomaly: lastResult.suspiciousClients ? `${format(lastResult.suspiciousClients)} auffällige Muster mit Bot-/Monitoring-Verdacht.` : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar."
           },
           topPages: lastResult.tableRows
         };

@@ -223,7 +223,7 @@
             reliability: pageviewReliability,
             canAnswer: pageviewReliability !== "limited",
             reason: originCacheRisk
-              ? "Die Datei kommt wahrscheinlich vom Server hinter Cache/CDN. Gecachte Aufrufe koennen fehlen."
+              ? "Die Datei kommt wahrscheinlich vom Server hinter Cache/CDN. Gecachte Aufrufe können fehlen."
               : (pageviewReliability === "limited" ? "Zu viel der Datei konnte nicht sicher gelesen werden." : "Seitenaufrufe wurden aus lesbaren Serverzeilen gezaehlt.")
           },
           visits: {
@@ -242,7 +242,7 @@
             reliability: conversionReliability,
             canAnswer: !!config.hasSuccessUrl,
             reason: config.hasSuccessUrl
-              ? (isLegacyArchive ? "Conversions werden im alten Archivformat nur ueber Pfad und Zeitfenster erkannt; Browserkennung fehlt." : (config.orderParam ? "Conversions werden ueber Erfolgs-URL und Order-ID dedupliziert." : "Conversions werden ueber Erfolgs-URL und Zeitfenster dedupliziert; Reloads koennen stoeren."))
+              ? (isLegacyArchive ? "Conversions werden im alten Archivformat nur über Pfad und Zeitfenster erkannt; Browserkennung fehlt." : (config.orderParam ? "Conversions werden über Erfolgs-URL und Order-ID dedupliziert." : "Conversions werden über Erfolgs-URL und Zeitfenster dedupliziert; Reloads können stören."))
               : "Ohne Danke-Seite oder Conversion-Muster kann ServerStory keine Conversions bestimmen."
           },
           ga4: {
@@ -260,18 +260,18 @@
             reliability: hostReliability,
             canAnswer: hostReliability !== "limited",
             reason: hostFilterUnverifiable
-              ? "Der Website-Filter konnte nicht fuer alle Zeilen geprueft werden, weil Host-Angaben fehlen."
-              : (hostReliability === "limited" ? "Mehrere Websites/Subdomains erkannt; ohne Filter koennen fremde Seiten enthalten sein." : "Die Datei wirkt auf eine Website begrenzt.")
+              ? "Der Website-Filter konnte nicht für alle Zeilen geprüft werden, weil Host-Angaben fehlen."
+              : (hostReliability === "limited" ? "Mehrere Websites/Subdomains erkannt; ohne Filter können fremde Seiten enthalten sein." : "Die Datei wirkt auf eine Website begrenzt.")
           },
           botAnomaly: {
             type: "estimated",
             reliability: botReliability,
             canAnswer: !agg.trackingCapped,
             reason: agg.trackingCapped
-              ? "Die Schutzgrenze fuer sehr grosse Dateien begrenzt Bot- und Auffaelligkeits-Hinweise."
+              ? "Die Schutzgrenze für sehr große Dateien begrenzt Bot- und Auffälligkeits-Hinweise."
               : (scanTrafficRisk
                 ? "Admin-, Exploit- oder Proxy-Scan-Muster gefunden."
-                : (agg.suspiciousClients ? "Auffaellige Muster mit vielen Aufrufen fast ohne normale Seitenbestandteile gefunden." : "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."))
+                : (agg.suspiciousClients ? "Auffällige Muster mit vielen Aufrufen fast ohne normale Seitenbestandteile gefunden." : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar."))
           }
         };
         const claims = {

@@ -1,7 +1,7 @@
 # ServerStory
 
 ServerStory wertet die Besuchsliste deiner Website lokal im Browser aus. Das Tool zeigt
-Seitenaufrufe, grobe Besucher-Schaetzungen, Kaeufe und optional den Vergleich mit
+Seitenaufrufe, grobe Besucher-Schätzungen, Käufe und optional den Vergleich mit
 Google Analytics. Die Logdatei wird nicht hochgeladen.
 
 ![ServerStory: Logdatei auswählen, auswerten, Ergebnis ansehen](screenshot.png)
@@ -15,9 +15,8 @@ Google Analytics. Die Logdatei wird nicht hochgeladen.
 4. Optional Google-Analytics-Seitenaufrufe und Kaufzahlen eintragen.
 5. `Datei kurz prüfen` oder `Jetzt auswerten` klicken.
 
-Die Nutzer-ZIP zeigt auf der obersten Ebene nur `START_HIER.html` und den Ordner
-`serverstory-app/`. Alles Technische liegt im Ordner; normale Nutzer müssen nur die
-Startdatei öffnen.
+Die ZIP-Datei enthält auf der obersten Ebene nur `START_HIER.html` und den Ordner
+`serverstory-app/`. Zum Start reicht ein Doppelklick auf `START_HIER.html`.
 
 Moderne Browser können gzip-komprimierte Logs direkt verarbeiten. Sehr große Dateien
 werden gestreamt; bei internen Schutzgrenzen markiert ServerStory die betroffenen
@@ -59,7 +58,7 @@ Typische Gründe für eingeschränkte Befunde:
 - Conversion-Seite ohne Order-ID oder Reload-Risiko
 
 Seitenaufrufe sind meist am belastbarsten, sofern die Datei lesbar ist und alle
-relevanten Aufrufe in der Logdatei landen. Besucher bleiben eine Schaetzung, weil
+relevanten Aufrufe in der Logdatei landen. Besucher bleiben eine Schätzung, weil
 Serverlogs keine Personen-ID enthalten. Google-Analytics-Vergleiche sind nur sinnvoll,
 wenn Zeitraum, Website, Seitenpfade und Metrik wirklich zusammenpassen.
 
@@ -106,13 +105,13 @@ Vor dem Commit trotzdem manuell prüfen.
 
 Die Source of Truth liegt in `src/`:
 
-- `src/modules/`: Quellmodule fuer Parser, Aggregator, Diagnose-, Report-,
+- `src/modules/`: Quellmodule für Parser, Aggregator, Diagnose-, Report-,
   Worker- und Render-Logik
-- `src/app.js`: aus `src/modules/` gebuendeltes Browser-Script fuer Tests und Build
+- `src/app.js`: aus `src/modules/` gebündeltes Browser-Script für Tests und Build
 - `src/styles.css`: Styling
 - `src/index.template.html`: HTML-Template mit Platzhaltern
 
-Der Build buendelt zuerst `src/modules/` nach `src/app.js` und erzeugt daraus die
+Der Build bündelt zuerst `src/modules/` nach `src/app.js` und erzeugt daraus die
 portable Einzeldatei `index.html`:
 
 ```bash
@@ -160,7 +159,7 @@ stehen in [docs/design-rationale.md](docs/design-rationale.md).
 ## Release
 
 Release-Schritte stehen in [docs/release-checklist.md](docs/release-checklist.md).
-Die Nutzer-ZIP wird mit `npm run build:release` erzeugt und mit `npm run audit:release`
+Die Download-ZIP wird mit `npm run build:release` erzeugt und mit `npm run audit:release`
 geprüft.
 
 ## Lizenz

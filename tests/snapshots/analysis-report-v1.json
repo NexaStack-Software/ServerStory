@@ -50,7 +50,7 @@
       "type": "measured",
       "reliability": "high",
       "canAnswer": true,
-      "reason": "Conversions werden ueber Erfolgs-URL und Order-ID dedupliziert."
+      "reason": "Conversions werden über Erfolgs-URL und Order-ID dedupliziert."
     },
     "ga4": {
       "type": "comparison",
@@ -68,7 +68,7 @@
       "type": "estimated",
       "reliability": "high",
       "canAnswer": true,
-      "reason": "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."
+      "reason": "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar."
     }
   },
   "evidenceFailures": {
@@ -482,7 +482,7 @@
       "presetApplied": false
     },
     "hostScope": "Die Datei wirkt auf eine Website begrenzt.",
-    "botAnomaly": "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."
+    "botAnomaly": "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar."
   },
   "topPages": [
     {
