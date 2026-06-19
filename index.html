@@ -1392,11 +1392,11 @@
                 <p class="helper">So oft wurde die Danke-Seite gefunden.</p>
               </div>
               <div class="number ga4-only">
-                <span>So viel von deinen Seitenaufrufen sieht Google Analytics</span>
+                <span>So viel von deinen Website-Aufrufen sieht Google Analytics</span>
                 <strong id="n-coverage">-</strong>
                 <em id="q-ga4" class="quality-badge">-</em>
                 <p id="q-ga4-reason" class="helper"></p>
-                <p class="helper">Das bedeutet: Von 100 Seitenaufrufen, die dein Webserver zählt, meldet Google Analytics nur so viele.</p>
+                <p class="helper">Das bedeutet: Von 100 Aufrufen, die dein Webserver zählt, meldet Google Analytics nur so viele.</p>
               </div>
             </div>
 
@@ -1423,7 +1423,7 @@
               </div>
             </div>
 
-            <p class="caption" style="margin-top: 14px;"><strong>Seitenaufrufe</strong> heißt: wie oft eine Seite geöffnet wurde. <strong>Besucher</strong> ist immer eine Schätzung — eine Person kann mehrfach öffnen, mehrere Leute aus einer Firma können gleich aussehen. Der Vergleich kann in beide Richtungen abweichen: Google Analytics sieht oft weniger wegen Cookies, Consent oder Ad-Blockern; die Server-Datei kann weniger sehen, wenn ein Cache davor sitzt. Käufe sind meist stabiler, weil die Danke-Seite selten gecacht wird.</p>
+            <p class="caption" style="margin-top: 14px;"><strong>Seitenaufrufe</strong> heißt: wie oft eine Seite geöffnet wurde. <strong>Besucher</strong> hingegen müssen immer geschätzt werden. Warum? Weil eine Person mehrfach dieselbe Seite öffnen kann, und mehrere Leute aus einer Firma gleich aussehen können, weil sie von derselben IP kommen. Der Vergleich kann in beide Richtungen abweichen: Google Analytics sieht oft weniger Seitenaufrufe wegen Cookies, Consent oder Ad-Blockern. Die Server-Datei kann weniger sehen, wenn ein Cache davor sitzt: Dann liefert zum Beispiel Cloudflare oder der Browser eine gespeicherte Kopie der Seite aus, ohne den Webserver erneut zu fragen. Dieser Aufruf erscheint dann nicht in der Server-Datei. Käufe sind meist stabiler, weil die Danke-Seite selten gecacht wird.</p>
             <div id="action" class="action">Nach der Auswertung steht hier, was du als Nächstes tun solltest.</div>
             <div id="guided-box" class="guided-box hidden">
               <div>
@@ -3295,9 +3295,16 @@
       }
       function setQuality(elId, state) {
         const labels = { high: "Gut nutzbar", medium: "Mit Vorsicht", limited: "Nicht verlässlich", none: "Nicht geprüft" };
+        const highLabels = {
+          "q-visits": "Gut identifizierbar",
+          "q-host": "Konnte zuverlässig ausgewertet werden",
+          "q-export": "Konnte zuverlässig ausgewertet werden",
+          "q-bot": "Konnte zuverlässig ausgewertet werden",
+          "q-tracking": "Die Größe der Log-Datei ist in Ordnung"
+        };
         const el = id(elId);
         el.className = `quality-badge ${state || "none"}`;
-        el.textContent = elId === "q-visits" && state === "high" ? "Gut identifizierbar" : (labels[state] || labels.none);
+        el.textContent = state === "high" && highLabels[elId] ? highLabels[elId] : (labels[state] || labels.none);
       }
       function setQualityReason(elId, text) {
         const el = id(elId + "-reason");
@@ -3339,11 +3346,11 @@
         if (metric === "host") {
           if (data.hostFilterUnverifiable) return `${format(data.hostFilterNoHost)} Zeilen hatten keine Website-Adresse. Der Website-Filter konnte dort nicht geprüft werden.`;
           if (data.diagnostics.hostReliability === "limited") return `${format(data.hosts.total)} Domains/Subdomains gefunden. Ohne Filter können fremde Seiten mit drin sein.`;
-          return "Gut nutzbar: Die Datei wirkt auf eine Website begrenzt.";
+          return "Wir konnten zuverlässig bestimmen, dass die Datei von nur einer Website und nicht mehreren stammt.";
         }
         if (metric === "export") {
           if (data.calibration && data.calibration.exportComplete === "no") return "Du hast angegeben, dass der Export vermutlich nicht vollständig ist. Zahlen nur als Ausschnitt lesen.";
-          if (!data.exportCompleteness || data.exportCompleteness.reliability === "high") return "Gut nutzbar: Zeitraum, Lesbarkeit und Filterquote wirken plausibel.";
+          if (!data.exportCompleteness || data.exportCompleteness.reliability === "high") return "Der Export scheint vollständig zu sein: Zeitraum, Lesbarkeit und Filterquote sind somit plausibel.";
           return data.exportCompleteness.reasons.slice(0, 2).join(" ");
         }
         if (metric === "bot") {
@@ -3354,12 +3361,12 @@
             return parts.join("; ") + ". Diese Datei nicht als sauberen Besucher-Traffic lesen.";
           }
           if (data.diagnostics.botReliability === "medium") return `${format(data.suspiciousClients)} auffällige Muster gefunden. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
-          return data.reasons.bot ? `${format(data.reasons.bot)} klare Bot-Zeilen entfernt. Danach keine starke Auffälligkeit.` : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar.";
+          return data.reasons.bot ? `Wir haben ${format(data.reasons.bot)} klare Bot-Zeilen entfernt. Es gab keine weiteren starken Auffälligkeiten.` : "Es gab keine starken Bot- oder Monitoring-Auffälligkeiten.";
         }
         if (metric === "tracking") {
           if (data.pathCountCapped || data.queryVariantCapped) return "Sehr viele unterschiedliche Seiten oder Varianten gefunden. Hauptzahlen bleiben nutzbar, Detailtabellen wurden begrenzt.";
           if (data.diagnostics.trackingReliability === "medium") return "Interne Schutzgrenze erreicht. Hauptzahlen bleiben nutzbar, Detailsignale werden gröber.";
-          return "Keine interne Schutzgrenze erreicht.";
+          return "Die Größe deiner Log-Datei passt - sie ist nicht zu groß, um von ServerStory verarbeitet zu werden.";
         }
         return "";
       }

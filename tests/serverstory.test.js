@@ -2000,8 +2000,14 @@ test("Render setzt Ampeln und sichtbare Gruende pro Kennzahl", () => {
   assert.match(ui.get("q-ga4-reason").textContent, /Zeitraum und Seitenauswahl/i);
   assert.match(ui.get("precision-checklist").innerHTML, /einer einzigen Website/i);
   assert.match(ui.get("precision-checklist").innerHTML, /Datei wurde verstanden/i);
-  assert.strictEqual(ui.get("q-export").textContent, "Gut nutzbar");
+  assert.strictEqual(ui.get("q-host").textContent, "Konnte zuverlässig ausgewertet werden");
+  assert.match(ui.get("q-host-reason").textContent, /nur einer Website/i);
+  assert.strictEqual(ui.get("q-export").textContent, "Konnte zuverlässig ausgewertet werden");
   assert.match(ui.get("q-export-reason").textContent, /plausibel/i);
+  assert.strictEqual(ui.get("q-bot").textContent, "Konnte zuverlässig ausgewertet werden");
+  assert.match(ui.get("q-bot-reason").textContent, /keine starken Bot/i);
+  assert.strictEqual(ui.get("q-tracking").textContent, "Die Größe der Log-Datei ist in Ordnung");
+  assert.match(ui.get("q-tracking-reason").textContent, /nicht zu groß/i);
   assert.match(ui.get("claim-allowed").innerHTML, /Seitenaufrufe sind gut nutzbar/i);
   assert.match(ui.get("claim-forbidden").innerHTML, /Tracking-Verlust/i);
   assert.match(ui.get("claim-checks").innerHTML, /Zeitraum/i);

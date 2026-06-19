@@ -1694,9 +1694,16 @@
       }
       function setQuality(elId, state) {
         const labels = { high: "Gut nutzbar", medium: "Mit Vorsicht", limited: "Nicht verlässlich", none: "Nicht geprüft" };
+        const highLabels = {
+          "q-visits": "Gut identifizierbar",
+          "q-host": "Konnte zuverlässig ausgewertet werden",
+          "q-export": "Konnte zuverlässig ausgewertet werden",
+          "q-bot": "Konnte zuverlässig ausgewertet werden",
+          "q-tracking": "Die Größe der Log-Datei ist in Ordnung"
+        };
         const el = id(elId);
         el.className = `quality-badge ${state || "none"}`;
-        el.textContent = elId === "q-visits" && state === "high" ? "Gut identifizierbar" : (labels[state] || labels.none);
+        el.textContent = state === "high" && highLabels[elId] ? highLabels[elId] : (labels[state] || labels.none);
       }
       function setQualityReason(elId, text) {
         const el = id(elId + "-reason");
@@ -1738,11 +1745,11 @@
         if (metric === "host") {
           if (data.hostFilterUnverifiable) return `${format(data.hostFilterNoHost)} Zeilen hatten keine Website-Adresse. Der Website-Filter konnte dort nicht geprüft werden.`;
           if (data.diagnostics.hostReliability === "limited") return `${format(data.hosts.total)} Domains/Subdomains gefunden. Ohne Filter können fremde Seiten mit drin sein.`;
-          return "Gut nutzbar: Die Datei wirkt auf eine Website begrenzt.";
+          return "Wir konnten zuverlässig bestimmen, dass die Datei von nur einer Website und nicht mehreren stammt.";
         }
         if (metric === "export") {
           if (data.calibration && data.calibration.exportComplete === "no") return "Du hast angegeben, dass der Export vermutlich nicht vollständig ist. Zahlen nur als Ausschnitt lesen.";
-          if (!data.exportCompleteness || data.exportCompleteness.reliability === "high") return "Gut nutzbar: Zeitraum, Lesbarkeit und Filterquote wirken plausibel.";
+          if (!data.exportCompleteness || data.exportCompleteness.reliability === "high") return "Der Export scheint vollständig zu sein: Zeitraum, Lesbarkeit und Filterquote sind somit plausibel.";
           return data.exportCompleteness.reasons.slice(0, 2).join(" ");
         }
         if (metric === "bot") {
@@ -1753,12 +1760,12 @@
             return parts.join("; ") + ". Diese Datei nicht als sauberen Besucher-Traffic lesen.";
           }
           if (data.diagnostics.botReliability === "medium") return `${format(data.suspiciousClients)} auffällige Muster gefunden. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
-          return data.reasons.bot ? `${format(data.reasons.bot)} klare Bot-Zeilen entfernt. Danach keine starke Auffälligkeit.` : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar.";
+          return data.reasons.bot ? `Wir haben ${format(data.reasons.bot)} klare Bot-Zeilen entfernt. Es gab keine weiteren starken Auffälligkeiten.` : "Es gab keine starken Bot- oder Monitoring-Auffälligkeiten.";
         }
         if (metric === "tracking") {
           if (data.pathCountCapped || data.queryVariantCapped) return "Sehr viele unterschiedliche Seiten oder Varianten gefunden. Hauptzahlen bleiben nutzbar, Detailtabellen wurden begrenzt.";
           if (data.diagnostics.trackingReliability === "medium") return "Interne Schutzgrenze erreicht. Hauptzahlen bleiben nutzbar, Detailsignale werden gröber.";
-          return "Keine interne Schutzgrenze erreicht.";
+          return "Die Größe deiner Log-Datei passt - sie ist nicht zu groß, um von ServerStory verarbeitet zu werden.";
         }
         return "";
       }
