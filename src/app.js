@@ -480,6 +480,80 @@
           const haystack = `${method || ""} ${target || ""} ${ua || ""} ${trailing || ""}`;
           return scanTargetRe.test(haystack);
         }
+        // CRAWLER_RANGES_START — generiert von scripts/update-crawler-ranges.js (Stand 2026-06-19). NICHT von Hand editieren.
+        const CRAWLER_RANGES = {
+          googlebot: [
+            "192.178.4.0/27", "192.178.4.128/27", "192.178.4.160/27", "192.178.4.192/27", "192.178.4.224/27", "192.178.4.32/27",
+            "192.178.4.64/27", "192.178.4.96/27", "192.178.5.0/27", "192.178.6.0/27", "192.178.6.128/27", "192.178.6.160/27",
+            "192.178.6.192/27", "192.178.6.224/27", "192.178.6.32/27", "192.178.6.64/27", "192.178.6.96/27", "192.178.7.0/27",
+            "192.178.7.128/27", "192.178.7.160/27", "192.178.7.192/27", "192.178.7.224/27", "192.178.7.32/27", "192.178.7.64/27",
+            "192.178.7.96/27", "34.100.182.96/28", "34.101.50.144/28", "34.118.254.0/28", "34.118.66.0/28", "34.126.178.96/28",
+            "34.146.150.144/28", "34.147.110.144/28", "34.151.74.144/28", "34.152.50.64/28", "34.154.114.144/28", "34.155.98.32/28",
+            "34.165.18.176/28", "34.175.160.64/28", "34.176.130.16/28", "34.22.85.0/27", "34.64.82.64/28", "34.65.242.112/28",
+            "34.80.50.80/28", "34.88.194.0/28", "34.89.10.80/28", "34.89.198.80/28", "34.96.162.48/28", "35.247.243.240/28",
+            "66.249.64.0/27", "66.249.64.128/27", "66.249.64.160/27", "66.249.64.192/27", "66.249.64.224/27", "66.249.64.32/27",
+            "66.249.64.64/27", "66.249.64.96/27", "66.249.65.0/27", "66.249.65.128/27", "66.249.65.160/27", "66.249.65.192/27",
+            "66.249.65.224/27", "66.249.65.32/27", "66.249.65.64/27", "66.249.65.96/27", "66.249.66.0/27", "66.249.66.128/27",
+            "66.249.66.160/27", "66.249.66.192/27", "66.249.66.224/27", "66.249.66.32/27", "66.249.66.64/27", "66.249.66.96/27",
+            "66.249.67.0/27", "66.249.67.32/27", "66.249.67.64/27", "66.249.68.0/27", "66.249.68.128/27", "66.249.68.160/27",
+            "66.249.68.192/27", "66.249.68.32/27", "66.249.68.64/27", "66.249.68.96/27", "66.249.69.0/27", "66.249.69.128/27",
+            "66.249.69.160/27", "66.249.69.192/27", "66.249.69.224/27", "66.249.69.32/27", "66.249.69.64/27", "66.249.69.96/27",
+            "66.249.70.0/27", "66.249.70.128/27", "66.249.70.160/27", "66.249.70.192/27", "66.249.70.224/27", "66.249.70.32/27",
+            "66.249.70.64/27", "66.249.70.96/27", "66.249.71.0/27", "66.249.71.128/27", "66.249.71.160/27", "66.249.71.192/27",
+            "66.249.71.224/27", "66.249.71.32/27", "66.249.71.64/27", "66.249.71.96/27", "66.249.72.0/27", "66.249.72.128/27",
+            "66.249.72.160/27", "66.249.72.192/27", "66.249.72.224/27", "66.249.72.32/27", "66.249.72.64/27", "66.249.72.96/27",
+            "66.249.73.0/27", "66.249.73.128/27", "66.249.73.160/27", "66.249.73.192/27", "66.249.73.224/27", "66.249.73.32/27",
+            "66.249.73.64/27", "66.249.73.96/27", "66.249.74.0/27", "66.249.74.128/27", "66.249.74.160/27", "66.249.74.192/27",
+            "66.249.74.224/27", "66.249.74.32/27", "66.249.74.64/27", "66.249.74.96/27", "66.249.75.0/27", "66.249.75.128/27",
+            "66.249.75.160/27", "66.249.75.192/27", "66.249.75.224/27", "66.249.75.32/27", "66.249.75.64/27", "66.249.75.96/27",
+            "66.249.76.0/27", "66.249.76.128/27", "66.249.76.160/27", "66.249.76.192/27", "66.249.76.224/27", "66.249.76.32/27",
+            "66.249.76.64/27", "66.249.76.96/27", "66.249.77.0/27", "66.249.77.128/27", "66.249.77.160/27", "66.249.77.192/27",
+            "66.249.77.224/27", "66.249.77.32/27", "66.249.77.64/27", "66.249.77.96/27", "66.249.78.0/27", "66.249.78.128/27",
+            "66.249.78.160/27", "66.249.78.192/27", "66.249.78.224/27", "66.249.78.32/27", "66.249.78.64/27", "66.249.78.96/27",
+            "66.249.79.0/27", "66.249.79.128/27", "66.249.79.160/27", "66.249.79.192/27", "66.249.79.224/27", "66.249.79.32/27",
+            "66.249.79.64/27"
+          ],
+          bingbot: [
+            "157.55.39.0/24", "207.46.13.0/24", "40.77.167.0/24", "13.66.139.0/24", "13.66.144.0/24", "52.167.144.0/24",
+            "13.67.10.16/28", "13.69.66.240/28", "13.71.172.224/28", "139.217.52.0/28", "191.233.204.224/28", "20.36.108.32/28",
+            "20.43.120.16/28", "40.79.131.208/28", "40.79.186.176/28", "52.231.148.0/28", "20.79.107.240/28", "51.105.67.0/28",
+            "20.125.163.80/28", "40.77.188.0/22", "65.55.210.0/24", "199.30.24.0/23", "40.77.202.0/24", "40.77.139.0/25",
+            "20.74.197.0/28", "20.15.133.160/27", "40.77.177.0/24", "40.77.178.0/23"
+          ]
+        };
+        // CRAWLER_RANGES_END
+        // Self-declared Crawler gegen die offiziellen IP-Netze prüfen (offline, eingebettet): Tarnt sich
+        // ein Scanner als Googlebot/Bingbot, stimmt die Quell-IP nicht mit den veröffentlichten Netzen
+        // überein. Ändert die Zahlen nicht (Bot-UAs werden ohnehin gefiltert), ist aber ein Security-Signal.
+        const crawlerNets = [];
+        for (const cname in CRAWLER_RANGES) for (const cidr of CRAWLER_RANGES[cname]) {
+          const slash = cidr.indexOf("/");
+          const parts = cidr.slice(0, slash).split(".");
+          const bits = +cidr.slice(slash + 1);
+          if (parts.length !== 4) continue;
+          const base = (((+parts[0]) * 16777216) + ((+parts[1]) * 65536) + ((+parts[2]) * 256) + (+parts[3])) >>> 0;
+          const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
+          crawlerNets.push({ name: cname, net: (base & mask) >>> 0, mask });
+        }
+        function declaredCrawler(ua) {
+          if (/googlebot/i.test(ua)) return "googlebot";
+          if (/bingbot|bingpreview/i.test(ua)) return "bingbot";
+          return "";
+        }
+        function ipv4ToUint(ip) {
+          const p = String(ip || "").split(".");
+          if (p.length !== 4) return null;
+          let n = 0;
+          for (let i = 0; i < 4; i++) { const o = +p[i]; if (p[i] === "" || !(o >= 0 && o <= 255)) return null; n = n * 256 + o; }
+          return n >>> 0;
+        }
+        // true = IP liegt im Crawler-Netz, false = IPv4 außerhalb (Fälschung), null = nicht prüfbar (z. B. IPv6)
+        function crawlerIpVerified(crawler, ip) {
+          const n = ipv4ToUint(ip);
+          if (n === null) return null;
+          for (const c of crawlerNets) if (c.name === crawler && ((n & c.mask) >>> 0) === c.net) return true;
+          return false;
+        }
         function parseTime(raw) {
           const m = raw.match(/^(\d{2})\/([A-Za-z]{3})\/(\d{4}):(\d{2}):(\d{2}):(\d{2})[ \t]+([+-])(\d{2})(\d{2})$/);
           if (!m) return null;
@@ -675,7 +749,7 @@
           rBot: 0, rStatus: 0, rRange: 0, rMethod: 0, rEmptyUa: 0, rStrict: 0,
           visits: 0, successRaw: 0, success: 0, timeRegressions: 0,
           xffUsed: 0, xffMissing: 0, xffPrivate: 0, suspiciousClients: 0, rHost: 0,
-          meta: 0, legacyNoUserAgent: 0, scanRequests: 0
+          meta: 0, legacyNoUserAgent: 0, scanRequests: 0, fakeBotRequests: 0
         };
         const format = { checked: 0, combined: 0, json: 0, iis: 0, cloudflare: 0, cloudfront: 0, fastly: 0, akamai: 0, legacy_http_archive: 0 };
         let prevTime = -Infinity, maxTime = -Infinity, minTime = Infinity, maxGapMs = 0, seen = 0;
@@ -694,6 +768,9 @@
         const probeTotal = new Map(), probeErrors = new Map();
         let probeCapped = false;
         const PROBE_MIN_HITS = 6, PROBE_ERR_SHARE = 0.8;
+        // Getarnte Crawler: IP je Quelle, deren UA Googlebot/Bingbot behauptet, aber nicht aus den Netzen kommt.
+        const fakeBotIps = new Map();
+        let fakeBotCapped = false;
 
         function prune() {
           if (maxTime === -Infinity) return;
@@ -746,6 +823,14 @@
 
           const normalized = normTarget(target);
           if (looksLikeScanTarget(method, target, ua, trailing)) stats.scanRequests++;
+          const claimedCrawler = declaredCrawler(ua);
+          if (claimedCrawler && crawlerIpVerified(claimedCrawler, ip0) === false) {
+            stats.fakeBotRequests++;
+            if (!fakeBotCapped) {
+              fakeBotIps.set(ip0, (fakeBotIps.get(ip0) || 0) + 1);
+              if (fakeBotIps.size > 50000) { fakeBotIps.clear(); fakeBotCapped = true; }
+            }
+          }
           const host = cleanHost(rec.host || normalized.host || "");
           if (allowedHosts.size && host && !allowedHosts.has(host)) { stats.filtered++; stats.rHost++; return; }
           if (host) hostCounts.set(host, (hostCounts.get(host) || 0) + 1);
@@ -870,6 +955,7 @@
             suspiciousClients: stats.suspiciousClients,
             scanRequests: stats.scanRequests,
             probeClients, probeRequests,
+            fakeBotRequests: stats.fakeBotRequests, fakeBotClients: fakeBotCapped ? -1 : fakeBotIps.size,
             trackingCapped,
             timeRegressions: stats.timeRegressions,
             minTime: minTime === Infinity ? null : minTime,
@@ -1132,6 +1218,10 @@
         const probeRequests = agg.probeRequests || 0;
         const probeClients = agg.probeClients || 0;
         const probeShare = agg.parsed ? probeRequests / agg.parsed : 0;
+        // Getarnte Crawler: reines Security-/Trust-Signal — die Zahlen sind nicht betroffen (Bot-UAs
+        // werden ohnehin gefiltert), deshalb beeinflusst es die Belastbarkeits-Ampeln bewusst nicht.
+        const fakeBotRequests = agg.fakeBotRequests || 0;
+        const fakeBotClients = agg.fakeBotClients || 0;
         const scanTrafficRisk = agg.scanRequests >= 20 || (agg.scanRequests >= 5 && scanShare >= 0.2)
           || probeClients >= 3 || (probeRequests >= 10 && probeShare >= 0.1);
         const heavyScanTrafficRisk = agg.scanRequests >= 50 || (agg.scanRequests >= 10 && scanShare >= 0.5)
@@ -1538,6 +1628,7 @@
             proxyKind: proxyKind || "none",
             scanRequests: agg.scanRequests || 0,
             probeRequests, probeClients,
+            fakeBotRequests, fakeBotClients,
             calibration,
             exportCompleteness: exportCompleteness.reliability
           },
@@ -1560,6 +1651,7 @@
           scanRequests: agg.scanRequests || 0,
           scanShare,
           probeRequests, probeClients, probeShare,
+          fakeBotRequests, fakeBotClients,
           trackingCapped: agg.trackingCapped,
           minTime: agg.minTime, maxTime: agg.maxTime, maxGapMs: agg.maxGapMs,
           visitorRange: { low: visitorLow, high: visitorHigh },
@@ -1646,14 +1738,17 @@
           return data.exportCompleteness.reasons.slice(0, 2).join(" ");
         }
         if (metric === "bot") {
+          const fakeNote = data.fakeBotRequests > 0
+            ? `${format(data.fakeBotRequests)} Aufrufe geben sich als Googlebot/Bingbot aus, kommen aber nicht aus deren bekannten Netzen (getarnte Scanner). `
+            : "";
           if (data.scanRequests > 0 || data.probeRequests > 0) {
             const parts = [];
             if (data.scanRequests > 0) parts.push(`${format(data.scanRequests)} Aufrufe treffen bekannte Admin-/Exploit-Pfade`);
             if (data.probeRequests > 0) parts.push(`${format(data.probeRequests)} Aufrufe von ${format(data.probeClients)} Adressen mit Scanner-Muster (fast nur Fehlversuche)`);
-            return parts.join("; ") + ". Diese Datei nicht als sauberen Besucher-Traffic lesen.";
+            return fakeNote + parts.join("; ") + ". Diese Datei nicht als sauberen Besucher-Traffic lesen.";
           }
-          if (data.diagnostics.botReliability === "medium") return `${format(data.suspiciousClients)} auffällige Muster gefunden. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
-          return data.reasons.bot ? `${format(data.reasons.bot)} klare Bot-Zeilen entfernt. Danach keine starke Auffälligkeit.` : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar.";
+          if (data.diagnostics.botReliability === "medium") return fakeNote + `${format(data.suspiciousClients)} auffällige Muster gefunden. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
+          return fakeNote + (data.reasons.bot ? `${format(data.reasons.bot)} klare Bot-Zeilen entfernt. Danach keine starke Auffälligkeit.` : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar.");
         }
         if (metric === "tracking") {
           if (data.diagnostics.trackingReliability === "medium") return "Interne Schutzgrenze erreicht. Hauptzahlen bleiben nutzbar, Detailsignale werden gröber.";
@@ -1894,6 +1989,9 @@
         }
         if (data.probeRequests > 0) {
           recognitionText += (recognitionText ? " " : "") + `${format(data.probeRequests)} Aufrufe (${percent(data.probeShare * 100)} der Datei) stammen von ${format(data.probeClients)} Adressen, die fast nur Fehlversuche auslösen — ein typisches Scanner-Muster, kein echter Besucher-Traffic. Die Fehlversuche selbst zählen nicht als Seitenaufruf; behandle die Datei trotzdem nicht als reinen Besucher-Traffic.`;
+        }
+        if (data.fakeBotRequests > 0) {
+          recognitionText += (recognitionText ? " " : "") + `${format(data.fakeBotRequests)} Aufrufe von ${format(data.fakeBotClients)} Adressen geben sich als Googlebot oder Bingbot aus, kommen aber nicht aus den offiziell veröffentlichten Suchmaschinen-Netzen — also getarnte Scanner, kein echter Suchmaschinen-Besuch. Die Besucherzahlen sind davon nicht betroffen (solche Aufrufe werden ohnehin herausgefiltert).`;
         }
         if (data.diagnostics.hostReliability === "limited") {
           recognitionText += (recognitionText ? " " : "") + `Die Datei enthält mehrere Websites oder Subdomains (${format(data.hosts.total)} erkannt). Setze oben einen Filter, damit ServerStory und Google Analytics wirklich dieselbe Website vergleichen.`;
@@ -2214,6 +2312,8 @@
           probeRequests: lastResult.probeRequests || 0,
           probeClients: lastResult.probeClients || 0,
           probeShare: lastResult.probeShare || 0,
+          fakeBotRequests: lastResult.fakeBotRequests || 0,
+          fakeBotClients: lastResult.fakeBotClients || 0,
           trackingCapped: lastResult.trackingCapped,
           legacyNoUserAgent: lastResult.legacyNoUserAgent,
           proxyKind: lastResult.proxyKind,

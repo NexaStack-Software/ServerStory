@@ -1413,6 +1413,40 @@ test("vereinzelte 404 normaler Besucher loesen keine Scanner-Erkennung aus", () 
   assert.strictEqual(built.diagnostics.botReliability, "high");
 });
 
+test("entlarvt gefaelschte Suchmaschinen-Bots an der Quell-IP, echte Crawler bleiben unberuehrt", () => {
+  const gb = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+  const bing = "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)";
+  const lines = [
+    combined("66.249.66.1", combinedStampAt(0), "/", 200, gb),       // echter Googlebot (Google-Netz)
+    combined("13.66.139.1", combinedStampAt(1), "/", 200, bing),     // echter Bingbot (Microsoft-Netz)
+    combined("1.2.3.4", combinedStampAt(2), "/wp-config", 404, gb),  // getarnter Googlebot
+    combined("1.2.3.4", combinedStampAt(3), "/.env", 404, gb),       // dieselbe gefälschte IP
+    combined("9.9.9.9", combinedStampAt(4), "/", 200, bing)          // getarnter Bingbot
+  ].join("\n");
+  const result = analyze(lines);
+  assert.strictEqual(result.fakeBotRequests, 3); // 2x 1.2.3.4 + 1x 9.9.9.9
+  assert.strictEqual(result.fakeBotClients, 2);  // zwei distinkte gefälschte Adressen
+  assert.strictEqual(result.visits, 0);          // alles Bot-UAs, kein echter Besucher
+
+  const built = buildResultFor(lines);
+  assert.strictEqual(built.fakeBotRequests, 3);
+  assert.strictEqual(built.fakeBotClients, 2);
+  // Reliability-neutral: getarnte Bots ändern die Zahlen nicht (werden ohnehin gefiltert).
+  assert.strictEqual(built.diagnostics.botReliability, "high");
+});
+
+test("IPv6-Crawler und normale Besucher loesen keine Fake-Bot-Erkennung aus", () => {
+  const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
+  const gb = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+  const lines = [
+    combined("203.0.113.5", combinedStampAt(0), "/", 200, ua),                  // echter Besucher
+    combined("2001:4860:4801:10::1", combinedStampAt(1), "/", 200, gb)          // Googlebot über IPv6 -> nicht prüfbar
+  ].join("\n");
+  const result = analyze(lines);
+  assert.strictEqual(result.fakeBotRequests, 0); // IPv6 wird konservativ nicht als Fälschung gewertet
+  assert.strictEqual(result.fakeBotClients, 0);
+});
+
 test("filtert gemischte Hosts auf erlaubte Domains", () => {
   const result = analyze(fixture("mixed-hosts.log"), { hostFilter: ["example.test"] });
   assert.strictEqual(result.pageViews, 2);
