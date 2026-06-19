@@ -129,6 +129,161 @@ function buildResultFor(text, config = {}, values = {}) {
   }));
 }
 
+const independentAssetRe = /\.(css|js|png)(\?|$)/i;
+const independentKeptStatuses = new Set([200, 201, 202, 204, 301, 302, 303, 307, 308]);
+const independentBotRe = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|whatsapp|monitoring|pingdom|uptimerobot/i;
+
+function independentNormPath(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  let pathName;
+  try {
+    pathName = new URL(raw, "http://x.invalid").pathname;
+  } catch (_) {
+    pathName = raw.startsWith("/") ? raw.split("?")[0] : "/" + raw.split("?")[0];
+  }
+  try { pathName = decodeURI(pathName); } catch (_) {}
+  pathName = pathName.replace(/\/{2,}/g, "/");
+  pathName = pathName.replace(/\/(?:index|default)\.(?:html?|php|aspx?)$/i, "/");
+  return pathName === "/" ? "/" : pathName.replace(/\/$/, "");
+}
+
+function independentCounter() {
+  return {
+    rows: 0,
+    meta: 0,
+    parsed: 0,
+    unrecognized: 0,
+    kept: 0,
+    pageViews: 0,
+    statuses: new Map(),
+    methods: new Map(),
+    paths: new Map()
+  };
+}
+
+function independentAddKept(counter, method, target, status, ua = "Mozilla/5.0") {
+  const upperMethod = String(method || "").toUpperCase();
+  const numericStatus = Number(status);
+  const userAgent = String(ua || "").trim();
+  if (!independentKeptStatuses.has(numericStatus)) return;
+  if (upperMethod !== "GET" && upperMethod !== "POST") return;
+  if (userAgent === "" || userAgent === "-" || userAgent.length < 8) return;
+  if (independentBotRe.test(userAgent)) return;
+  counter.kept++;
+  counter.statuses.set(String(numericStatus), (counter.statuses.get(String(numericStatus)) || 0) + 1);
+  counter.methods.set(upperMethod, (counter.methods.get(upperMethod) || 0) + 1);
+  const pathName = independentNormPath(target);
+  if (upperMethod === "GET" && numericStatus >= 200 && numericStatus < 300) {
+    counter.paths.set(pathName, (counter.paths.get(pathName) || 0) + 1);
+    if (!independentAssetRe.test(pathName)) counter.pageViews++;
+  }
+}
+
+function independentCombinedCount(text) {
+  const counter = independentCounter();
+  const re = /^(\S+)\s+\S+\s+\S+\s+\[[^\]]+\]\s+"([A-Z]+)\s+([^"]*?)\s+HTTP\/[0-9.]+"\s+(\d{3})\s+\S+\s+"[^"]*"\s+"([^"]*)"/;
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    counter.rows++;
+    const match = re.exec(line);
+    if (!match) {
+      counter.unrecognized++;
+      continue;
+    }
+    counter.parsed++;
+    independentAddKept(counter, match[2], match[3], match[4], match[5]);
+  }
+  return counter;
+}
+
+function independentCloudflareCount(text) {
+  const counter = independentCounter();
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    counter.rows++;
+    try {
+      const event = JSON.parse(line);
+      const method = event.ClientRequestMethod || event.RequestMethod || event.method;
+      const target = event.ClientRequestURI || event.ClientRequestPath || event.RequestURI || event.path || event.uri;
+      const status = event.EdgeResponseStatus || event.OriginResponseStatus || event.status;
+      const ua = event.ClientRequestUserAgent || event.userAgent || event.user_agent || "Mozilla/5.0";
+      if (!method || !target || status === undefined) throw new Error("missing fields");
+      counter.parsed++;
+      independentAddKept(counter, method, target, status, ua);
+    } catch (_) {
+      counter.unrecognized++;
+    }
+  }
+  return counter;
+}
+
+function splitW3c(line) {
+  const cells = [];
+  let current = "";
+  let escaped = false;
+  for (const ch of line.trim().split(/\s+/)) {
+    if (escaped) {
+      current += " " + ch;
+      if (/%[0-9A-Fa-f]{2}$/.test(ch) || !/%[0-9A-Fa-f]{2}$/.test(current)) escaped = false;
+    } else {
+      current = ch;
+      cells.push(current);
+    }
+  }
+  return cells;
+}
+
+function independentCloudfrontCount(text) {
+  const counter = independentCounter();
+  let fields = [];
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    counter.rows++;
+    if (line.startsWith("#")) {
+      counter.meta++;
+      const match = line.match(/^#Fields:\s+(.+)$/);
+      if (match) fields = match[1].trim().split(/\s+/);
+      continue;
+    }
+    const cells = splitW3c(line);
+    const value = (name) => {
+      const index = fields.indexOf(name);
+      return index >= 0 ? cells[index] : "";
+    };
+    const method = value("cs-method") || cells[5];
+    const stem = value("cs-uri-stem") || cells[7];
+    const query = value("cs-uri-query") || cells[11] || "-";
+    const status = value("sc-status") || cells[8];
+    const ua = decodeURIComponent(value("cs(User-Agent)") || cells[10] || "Mozilla/5.0");
+    if (!method || !stem || !status) {
+      counter.unrecognized++;
+      continue;
+    }
+    counter.parsed++;
+    independentAddKept(counter, method, query && query !== "-" ? `${stem}?${query}` : stem, status, ua);
+  }
+  return counter;
+}
+
+function assertModernDifferential(name, result, expected) {
+  assert.strictEqual(result.total, expected.rows, `${name}: rows`);
+  assert.strictEqual(result.meta || 0, expected.meta, `${name}: meta`);
+  assert.strictEqual(result.parsed, expected.parsed, `${name}: parsed`);
+  assert.strictEqual(result.unrecognized, expected.unrecognized, `${name}: unrecognized`);
+  assert.strictEqual(result.kept, expected.kept, `${name}: kept`);
+  assert.strictEqual(result.pageViews, expected.pageViews, `${name}: pageViews`);
+  for (const [status, count] of expected.statuses) {
+    assert.strictEqual(result.statusCounts.get(status) || 0, count, `${name}: status ${status}`);
+  }
+  for (const [method, count] of expected.methods) {
+    assert.strictEqual(result.methodCounts.get(method) || 0, count, `${name}: method ${method}`);
+  }
+  for (const [pathName, count] of [...expected.paths.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20)) {
+    assert.strictEqual(result.pathCounts.get(pathName) || 0, count, `${name}: path ${pathName}`);
+  }
+}
+
 function assertAggregatorInvariants(result) {
   assert.strictEqual(result.parsed + result.unrecognized + result.meta, result.total);
   assert.strictEqual(result.kept + result.filtered, result.parsed);
@@ -1380,12 +1535,68 @@ test("liest Cloudflare Edge JSON als CDN-Format", () => {
   assert.strictEqual(result.pathCounts.get("/preise"), 1);
 });
 
+test("Differential: Combined, Cloudflare und CloudFront zaehlen Pageviews unabhaengig gleich", () => {
+  const combinedText = fixture("combined.log");
+  assertModernDifferential("combined fixture", analyze(combinedText), independentCombinedCount(combinedText));
+
+  const cloudflareText = fixture("cloudflare-json.log");
+  assertModernDifferential("cloudflare fixture", analyze(cloudflareText), independentCloudflareCount(cloudflareText));
+
+  const cloudfrontText = fixture("cloudfront.tsv");
+  assertModernDifferential("cloudfront fixture", analyze(cloudfrontText), independentCloudfrontCount(cloudfrontText));
+});
+
 test("liest CloudFront W3C/TSV als CDN-Format", () => {
   const result = buildResultFor(fixture("cloudfront.tsv"));
   assert.strictEqual(result.formatKind, "cloudfront");
   assert.strictEqual(result.pageViews, 1);
   assert.strictEqual(result.hosts.total, 1);
   assert.strictEqual(result.diagnostics.pageviewReliability, "high");
+});
+
+test("Differential: grosse moderne Korpora bleiben gegen unabhaengigen Zaehler stabil", () => {
+  for (const [format, counter] of [
+    ["combined", independentCombinedCount],
+    ["cloudflare", independentCloudflareCount],
+    ["cloudfront", independentCloudfrontCount]
+  ]) {
+    const corpus = createLargeGoldenCorpus(format, {
+      hostFor: (i) => (i % 9 === 0 ? "shop.example.test" : "example.test")
+    });
+    const result = analyze(corpus.text, {
+      successPattern: "/checkout/*",
+      orderParam: "order_id",
+      hasSuccessUrl: true
+    });
+    assertModernDifferential(`${format} large`, result, counter(corpus.text));
+    assert.strictEqual(result.success, corpus.expected.success, format);
+    assert.strictEqual(result.reasons.bot, corpus.expected.botFiltered, format);
+    assert.strictEqual(result.reasons.status, corpus.expected.statusFiltered, format);
+  }
+});
+
+test("Differential: Edge-Formate werden nicht als Origin-Mindestwert abgewertet", async () => {
+  for (const format of ["cloudflare", "cloudfront"]) {
+    const corpus = createLargeGoldenCorpus(format);
+    const report = await copyReportFor(buildResultFor(corpus.text, {
+      successPattern: "/checkout/*",
+      orderParam: "order_id",
+      hasSuccessUrl: true,
+      calibration: {
+        preset: format,
+        cache: "unknown",
+        logSource: "unknown",
+        exportComplete: "unknown",
+        ga4MetricKind: "unknown"
+      }
+    }));
+    assert.strictEqual(report.format, format);
+    assert.strictEqual(report.calibration.cache, "yes", format);
+    assert.strictEqual(report.calibration.logSource, "edge", format);
+    assert.strictEqual(report.evidence.pageViews.type, "measured", format);
+    assert.strictEqual(report.decisionReadiness.pageViews.decisionRisk, "low", format);
+    assert.doesNotMatch(report.claimMatrix.pageViews.reason, /Mindestwert|Cache.*Aufrufe.*fehlen|alle Aufrufe/i, format);
+  }
 });
 
 test("liest Fastly-nahe JSON Logs als CDN-Format", () => {
