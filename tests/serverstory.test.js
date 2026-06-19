@@ -2033,6 +2033,206 @@ test("No False Confidence: Claim-Matrix blockiert harte Aussagen bei unsicherer 
   assert.ok(brokenReport.auditProtocol.blockedClaims.includes("pageViews"));
 });
 
+function assertDecisionMatrixCase(name, report, expected) {
+  for (const [key, want] of Object.entries(expected.claims || {})) {
+    assert.ok(report.claimMatrix[key], `${name}.${key}: missing claim`);
+    assert.ok(report.decisionReadiness[key], `${name}.${key}: missing decision readiness`);
+    if (want.status) assert.strictEqual(report.claimMatrix[key].status, want.status, `${name}.${key}.status`);
+    if (want.canUseForDecision !== undefined) {
+      assert.strictEqual(report.decisionReadiness[key].canUseForDecision, want.canUseForDecision, `${name}.${key}.canUseForDecision`);
+    }
+    if (want.risk) assert.strictEqual(report.decisionReadiness[key].decisionRisk, want.risk, `${name}.${key}.decisionRisk`);
+    if (want.reason) {
+      assert.match([
+        report.claimMatrix[key].reason || "",
+        report.decisionReadiness[key].reason || "",
+        ...(report.evidenceFailures[key] || []),
+        ...(report.claimMatrix[key].forbiddenConclusions || [])
+      ].join(" "), want.reason, `${name}.${key}.reason`);
+    }
+  }
+  for (const [pathName, want] of Object.entries(expected.quality || {})) {
+    const actual = pathName.split(".").reduce((value, part) => value && value[part], report);
+    assert.strictEqual(actual, want, `${name}.${pathName}`);
+  }
+}
+
+test("Decision-Matrix: Szenarien legen fest, welche Befunde entscheidungsfaehig sind", async () => {
+  const clean = await copyReportFor(buildResultFor(createLargeGoldenCorpus("combined").text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }));
+  const proxy = await copyReportFor(buildResultFor(createLargeGoldenCorpus("combined", {
+    proxyIp: "10.0.0.5",
+    xff: true
+  }).text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }));
+  const cloudflareEdge = await copyReportFor(buildResultFor(createLargeGoldenCorpus("cloudflare").text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true,
+    calibration: { preset: "cloudflare", cache: "unknown", logSource: "unknown", exportComplete: "unknown", ga4MetricKind: "unknown" }
+  }));
+  const cloudfrontEdge = await copyReportFor(buildResultFor(createLargeGoldenCorpus("cloudfront").text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true,
+    calibration: { preset: "cloudfront", cache: "unknown", logSource: "unknown", exportComplete: "unknown", ga4MetricKind: "unknown" }
+  }));
+  const incomplete = await copyReportFor(buildResultFor(createLargeGoldenCorpus("combined").text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true,
+    calibration: { preset: "unknown", cache: "unknown", logSource: "unknown", exportComplete: "no", ga4MetricKind: "unknown" }
+  }, {
+    "ga4-url-views": { value: "/landing,1250" }
+  }));
+  const hostMix = await copyReportFor(buildResultFor(createLargeGoldenCorpus("cloudflare", {
+    hostFor: (i) => (i % 4 === 0 ? "other.example.test" : "example.test")
+  }).text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/landing,1250" }
+  }));
+  const wrongGa = await copyReportFor(buildResultFor(baselineCombined, {
+    calibration: { preset: "unknown", cache: "unknown", logSource: "unknown", exportComplete: "unknown", ga4MetricKind: "users_or_sessions" }
+  }, {
+    "ga4-url-views": { value: "/preise,2\n/checkout/danke,2" }
+  }));
+  const broken = await copyReportFor(buildResultFor(`${createLargeGoldenCorpus("combined").text}\n${Array.from({ length: 2400 }, (_, i) => `kaputte zeile ${i}`).join("\n")}`, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }));
+
+  const cases = [
+    {
+      name: "clean-combined",
+      report: clean,
+      expected: {
+        claims: {
+          pageViews: { status: "allowed", canUseForDecision: true, risk: "low" },
+          visits: { status: "allowed", canUseForDecision: true, risk: "low" },
+          conversions: { status: "allowed", canUseForDecision: true, risk: "low" },
+          ga4: { status: "blocked", canUseForDecision: false, risk: "high", reason: /Keine Google-Analytics-Seiten(?:zahlen|aufrufe)/i },
+          hostScope: { status: "allowed", canUseForDecision: true, risk: "low" }
+        },
+        quality: {
+          "quality.pageviewReliability": "high",
+          "quality.visitorReliability": "high",
+          "quality.exportCompletenessReliability": "high"
+        }
+      }
+    },
+    {
+      name: "proxy-without-xff",
+      report: proxy,
+      expected: {
+        claims: {
+          pageViews: { status: "limited", canUseForDecision: false, risk: "medium", reason: /Cache|Proxy|alle Aufrufe/i },
+          visits: { status: "blocked", canUseForDecision: false, risk: "high", reason: /Proxy|Cache|Besucheradressen/i },
+          conversions: { status: "limited", canUseForDecision: false, risk: "medium", reason: /Conversion-Rate|Besucherzahl/i }
+        },
+        quality: {
+          "quality.visitorReliability": "limited",
+          "quality.cacheRisk": "elevated"
+        }
+      }
+    },
+    {
+      name: "cloudflare-edge",
+      report: cloudflareEdge,
+      expected: {
+        claims: {
+          pageViews: { status: "allowed", canUseForDecision: true, risk: "low" },
+          visits: { status: "allowed", canUseForDecision: true, risk: "low" }
+        },
+        quality: {
+          "format": "cloudflare",
+          "evidence.pageViews.type": "measured",
+          "calibration.logSource": "edge"
+        }
+      }
+    },
+    {
+      name: "cloudfront-edge",
+      report: cloudfrontEdge,
+      expected: {
+        claims: {
+          pageViews: { status: "allowed", canUseForDecision: true, risk: "low" },
+          visits: { status: "allowed", canUseForDecision: true, risk: "low" }
+        },
+        quality: {
+          "format": "cloudfront",
+          "evidence.pageViews.type": "measured",
+          "calibration.logSource": "edge"
+        }
+      }
+    },
+    {
+      name: "incomplete-export",
+      report: incomplete,
+      expected: {
+        claims: {
+          pageViews: { status: "limited", canUseForDecision: false, risk: "high", reason: /nicht vollständig/i },
+          visits: { status: "limited", canUseForDecision: false, risk: "high", reason: /nicht vollständig/i },
+          ga4: { status: "blocked", canUseForDecision: false, risk: "high", reason: /nicht vollständig|Server-Export/i }
+        },
+        quality: {
+          "exportCompleteness.reliability": "limited",
+          "quality.exportCompletenessReliability": "limited"
+        }
+      }
+    },
+    {
+      name: "host-mix",
+      report: hostMix,
+      expected: {
+        claims: {
+          hostScope: { status: "blocked", canUseForDecision: false, risk: "high", reason: /Mehrere Websites|Subdomains/i },
+          ga4: { status: "blocked", canUseForDecision: false, risk: "high", reason: /mehrere Websites|Subdomains/i }
+        },
+        quality: {
+          "quality.hostReliability": "limited"
+        }
+      }
+    },
+    {
+      name: "wrong-ga-number",
+      report: wrongGa,
+      expected: {
+        claims: {
+          ga4: { status: "blocked", canUseForDecision: false, risk: "high", reason: /Nutzer|Sitzungen|Seitenaufrufe/i }
+        },
+        quality: {
+          "quality.ga4Reliability": "limited"
+        }
+      }
+    },
+    {
+      name: "broken-lines",
+      report: broken,
+      expected: {
+        claims: {
+          pageViews: { status: "blocked", canUseForDecision: false, risk: "high", reason: /Zeilen|Datei|gelesen/i },
+          ga4: { status: "blocked", canUseForDecision: false, risk: "high" }
+        },
+        quality: {
+          "quality.pageviewReliability": "limited"
+        }
+      }
+    }
+  ];
+
+  for (const entry of cases) assertDecisionMatrixCase(entry.name, entry.report, entry.expected);
+});
+
 test("Kalibrierung: Wahrheitsszenarien erzwingen konservative Claims und vollstaendige Evidenz", async () => {
   const large = createLargeGoldenCorpus("combined");
   const normal = await copyReportFor(buildResultFor(large.text, {
