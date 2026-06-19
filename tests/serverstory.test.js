@@ -1274,6 +1274,49 @@ test("Preflight erkennt Proxy-Signal und grosse Zeitluecken vor der Analyse", ()
   assert.match(preflight.recommendedChecks.join(" "), /Teil-Dateien fehlen/i);
 });
 
+test("Preflight klassifiziert Access-, Legacy- und Nicht-Access-Dateien", () => {
+  const access = ctx.preflightLogSample(fixture("combined.log"), { sampleLines: 20 });
+  assert.strictEqual(access.fileClass, "access_log");
+  assert.strictEqual(access.isLikelyAccessLog, true);
+  assert.match(access.classificationLabel, /Brauchbares Access Log/i);
+  assert.deepStrictEqual(Array.from(access.rejectReasons), []);
+
+  const legacy = ctx.preflightLogSample([
+    'client-a.example.org [29:23:54:00] "GET /index.html HTTP/1.0" 200 1024',
+    'client-b.example.org [Tue Jul 01 00:00:01 1995] "GET /history/apollo/ HTTP/1.0" 200 6245'
+  ].join("\n"), { sampleLines: 20 });
+  assert.strictEqual(legacy.fileClass, "legacy_access_log");
+  assert.strictEqual(legacy.isLikelyAccessLog, true);
+  assert.match(legacy.limitations.join(" "), /Keine Browserkennung/i);
+  assert.match(legacy.recommendedChecks.join(" "), /Archivlogs/i);
+
+  const analytics = ctx.preflightLogSample([
+    "Page path and screen class,Views,Users,Sessions",
+    "/preise,123,100,90",
+    "/checkout,12,10,9"
+  ].join("\n"), { sampleLines: 20 });
+  assert.strictEqual(analytics.fileClass, "analytics_csv");
+  assert.strictEqual(analytics.isLikelyAccessLog, false);
+  assert.match(analytics.rejectReasons.join(" "), /Analytics-Export/i);
+  assert.match(analytics.recommendedChecks.join(" "), /Access-Logdatei/i);
+
+  const errorLog = ctx.preflightLogSample([
+    "[Fri Jun 05 10:00:00.000000 2026] [error] [client 203.0.113.10] AH01234: File does not exist",
+    "[Fri Jun 05 10:01:00.000000 2026] [warn] [client 203.0.113.11] PHP Warning: test"
+  ].join("\n"), { sampleLines: 20 });
+  assert.strictEqual(errorLog.fileClass, "error_log");
+  assert.strictEqual(errorLog.isLikelyAccessLog, false);
+  assert.match(errorLog.claimBlockers.join(" "), /Fehlerprotokoll/i);
+
+  const waf = ctx.preflightLogSample([
+    '{"timestamp":"2026-06-05T10:00:00Z","action":"blocked","ruleId":"1001","threat":"sql injection"}',
+    '{"timestamp":"2026-06-05T10:01:00Z","action":"challenge","waf":"managed","bot score":5}'
+  ].join("\n"), { sampleLines: 20 });
+  assert.strictEqual(waf.fileClass, "waf_or_security_log");
+  assert.strictEqual(waf.isLikelyAccessLog, false);
+  assert.match(waf.rejectReasons.join(" "), /WAF|Security/i);
+});
+
 test("liest Cloudflare Edge JSON als CDN-Format", () => {
   const result = analyze(fixture("cloudflare-edge.jsonl"));
   assert.strictEqual(result.formatKind, "cloudflare");

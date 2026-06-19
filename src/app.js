@@ -253,6 +253,18 @@
           return "";
         }
         const lines = String(text || "").split(/\r?\n/).filter(Boolean).slice(0, sampleLines);
+        const rawSample = lines.join("\n");
+        const analyticsCsvSignals = [
+          /page path/i,
+          /screen class/i,
+          /\bviews\b/i,
+          /\busers\b/i,
+          /\bsessions\b/i,
+          /event count/i
+        ].filter((re) => re.test(rawSample)).length;
+        const errorLogSignals = lines.filter((line) => /\[(?:error|warn|notice|crit|alert|emerg)\]|\bAH\d{5}:|PHP (?:Fatal|Warning|Notice)|upstream timed out|client denied by server configuration/i.test(line)).length;
+        const wafSignals = lines.filter((line) => /\b(?:waf|firewall|blocked|deny|challenge|ruleId|rule_id|threat|bot score|security event)\b/i.test(line)).length;
+        const monitoringSignals = lines.filter((line) => /\b(?:cpu|memory|load average|uptime|healthcheck|latency|probe|prometheus|grafana|status check)\b/i.test(line)).length;
         const agg = makeAggregator({
           assetRe: ASSET_RE,
           useXff: !!options.useXff,
@@ -271,6 +283,33 @@
         }
         const result = agg.finalize();
         const recognitionRate = result.dataRows ? result.parsed / result.dataRows : 0;
+        const strongSignalMin = Math.max(2, lines.length * 0.2);
+        const fileClass = analyticsCsvSignals >= 2 ? "analytics_csv"
+          : (errorLogSignals >= strongSignalMin ? "error_log"
+            : (wafSignals >= strongSignalMin ? "waf_or_security_log"
+              : (monitoringSignals >= strongSignalMin ? "monitoring_log"
+                : (recognitionRate >= 0.8 ? (result.formatKind === "legacy_http_archive" ? "legacy_access_log" : "access_log") : "unknown"))));
+        const classificationLabel = {
+          access_log: "Brauchbares Access Log",
+          legacy_access_log: "Altes Access-Log-Archiv ohne Browserkennung",
+          analytics_csv: "Wahrscheinlich Analytics-CSV, kein Server-Access-Log",
+          error_log: "Wahrscheinlich Error Log, kein Access Log",
+          waf_or_security_log: "Wahrscheinlich WAF-/Security-Log, kein normales Access Log",
+          monitoring_log: "Wahrscheinlich Monitoring-/Health-Log, kein Access Log",
+          unknown: "Format nicht sicher als Access Log erkennbar"
+        }[fileClass];
+        const isLikelyAccessLog = fileClass === "access_log" || fileClass === "legacy_access_log";
+        const limitations = [
+          ...(fileClass === "legacy_access_log" ? ["Keine Browserkennung in der Stichprobe. Besucher- und Bot-Aussagen werden eingeschränkt."] : []),
+          ...(fileClass === "access_log" && recognitionRate < 0.95 ? ["Access Log wirkt lesbar, aber einzelne Zeilen passen nicht zum Format."] : [])
+        ];
+        const rejectReasons = isLikelyAccessLog ? [] : [
+          ...(fileClass === "analytics_csv" ? ["Die Datei sieht wie ein Analytics-Export aus, nicht wie ein Server-Access-Log."] : []),
+          ...(fileClass === "error_log" ? ["Die Datei sieht wie ein Fehlerprotokoll aus; daraus lassen sich keine Besucherzahlen ableiten."] : []),
+          ...(fileClass === "waf_or_security_log" ? ["Die Datei sieht wie ein WAF-/Security-Log aus; normale Seitenaufrufe fehlen wahrscheinlich."] : []),
+          ...(fileClass === "monitoring_log" ? ["Die Datei sieht wie ein Monitoring-/Health-Log aus; normale Besucheraufrufe fehlen wahrscheinlich."] : []),
+          ...(fileClass === "unknown" ? ["Die Stichprobe passt nicht ausreichend zu einem bekannten Access-Log-Format."] : [])
+        ];
         const privateShare = result.kept ? result.privateClientHits / result.kept : 0;
         const topClientShare = result.kept ? result.topClientHits / result.kept : 0;
         const proxySignal = !options.useXff && result.kept >= 100 && (privateShare >= 0.3 || topClientShare >= 0.5)
@@ -278,18 +317,23 @@
           : "";
         const largeGap = result.maxGapMs >= 6 * 60 * 60 * 1000;
         const warnings = [];
+        if (!isLikelyAccessLog) warnings.push(rejectReasons[0]);
+        for (const limitation of limitations) warnings.push(limitation);
         if (result.hostCounts.size > 1) warnings.push("Die Stichprobe enthält mehrere Websites oder Subdomains.");
         if (options.useXff && !result.xffUsed) warnings.push("Das Proxy-Feld wurde aktiviert, aber in der Stichprobe nicht brauchbar gefunden.");
         if (recognitionRate < 0.95) warnings.push(`Nur ${percent(recognitionRate * 100)} der Stichprobe konnte gelesen werden.`);
         if (proxySignal) warnings.push("Proxy oder Cache kann echte Besucheradressen verdecken.");
         if (largeGap) warnings.push("Die Stichprobe enthält eine große zeitliche Lücke.");
         const claimBlockers = [
+          ...rejectReasons,
           ...(result.hostCounts.size > 1 ? ["Mehrere Websites/Subdomains in der Stichprobe."] : []),
           ...(recognitionRate < 0.8 ? ["Zu viel der Stichprobe konnte nicht gelesen werden."] : []),
           ...(proxySignal ? ["Besucherzahl vorab nicht verlässlich bestimmbar."] : []),
           ...(options.useXff && !result.xffUsed ? ["Proxy-Feld liefert keine brauchbaren Besucheradressen."] : [])
         ];
         const recommendedChecks = [
+          ...(!isLikelyAccessLog ? ["Bitte echte Server-Access-Logdatei hochladen."] : []),
+          ...(fileClass === "legacy_access_log" ? ["Archivlogs ohne Browserkennung nur für Pageview-/Lasttests nutzen."] : []),
           ...(result.hostCounts.size > 1 ? ["Website-Filter setzen."] : []),
           ...(recognitionRate < 0.95 ? ["Exportformat prüfen."] : []),
           ...(proxySignal ? ["Prüfen, ob Cloudflare oder ein anderer Cache vor der Website sitzt."] : []),
@@ -297,6 +341,11 @@
           ...(options.useXff && !result.xffUsed ? ["Proxy-Feld nur verwenden, wenn es vom eigenen Proxy kommt und Daten enthält."] : [])
         ];
         return {
+          fileClass,
+          classificationLabel,
+          isLikelyAccessLog,
+          limitations,
+          rejectReasons,
           formatKind: result.formatKind,
           recognitionRate,
           fields: first || {},
@@ -1786,7 +1835,7 @@
             : "";
           const riskText = preflight.claimBlockers.length ? ` Risiken: ${preflight.claimBlockers.join(" ")}` : "";
           const checkText = preflight.recommendedChecks.length ? ` Erst prüfen: ${preflight.recommendedChecks.join(" ")}` : "";
-          id("message").textContent = `Kurzprüfung: ${percent(preflight.recognitionRate * 100)} der Stichprobe lesbar, ${hostText}${xffText}. Beispiel: ${preflight.fields.method || "-"} ${preflight.fields.path || "-"} → ${preflight.fields.status || "-"}.${rangeText}${riskText}${checkText}`;
+          id("message").textContent = `Kurzprüfung: ${preflight.classificationLabel}. ${percent(preflight.recognitionRate * 100)} der Stichprobe lesbar, ${hostText}${xffText}. Beispiel: ${preflight.fields.method || "-"} ${preflight.fields.path || "-"} → ${preflight.fields.status || "-"}.${rangeText}${riskText}${checkText}`;
         } catch (error) {
           id("message").textContent = error && error.message ? error.message : "Kurzprüfung fehlgeschlagen.";
         }
