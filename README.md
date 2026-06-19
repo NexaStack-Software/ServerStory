@@ -1,17 +1,18 @@
 # ServerStory
 
-ServerStory wertet Server-Access-Logs lokal im Browser aus. Das Tool zeigt
-Seitenaufrufe, Besucher-Schaetzungen, Conversions und optional einen Vergleich mit
-Google Analytics 4. Die Logdatei wird nicht hochgeladen.
+ServerStory wertet die Besuchsliste deiner Website lokal im Browser aus. Das Tool zeigt
+Seitenaufrufe, grobe Besucher-Schaetzungen, Kaeufe und optional den Vergleich mit
+Google Analytics. Die Logdatei wird nicht hochgeladen.
 
 ![ServerStory: Logdatei auswählen, auswerten, Ergebnis ansehen](screenshot.png)
 
 ## Nutzung
 
-1. Die bereitgestellte ServerStory-ZIP-Datei entpacken.
+1. Die ServerStory-ZIP-Datei aus den GitHub-Releases herunterladen, nicht den
+   GitHub-Code-ZIP.
 2. `START_HIER.html` im Browser öffnen.
-3. Access-Log-Datei auswählen (`.log`, `.txt`, `.gz`).
-4. Optional GA4-Seitenaufrufe und Kaufzahlen eintragen.
+3. Die Server-Logdatei auswählen (`.log`, `.txt`, `.gz`).
+4. Optional Google-Analytics-Seitenaufrufe und Kaufzahlen eintragen.
 5. `Datei kurz prüfen` oder `Jetzt auswerten` klicken.
 
 Die Nutzer-ZIP zeigt auf der obersten Ebene nur `START_HIER.html` und den Ordner
@@ -40,9 +41,10 @@ WAF-/Security-Log oder Monitoring-Log.
 
 ## Belastbarkeit
 
-ServerStory soll keine falsche Sicherheit erzeugen. Jede zentrale Aussage wird intern
-als `allowed`, `limited` oder `blocked` bewertet. Sichtbare Ampeln und der Copy-Report
-verwenden dieselbe Entscheidungslogik.
+ServerStory soll keine falsche Sicherheit erzeugen. Deshalb bewertet das Tool jede
+wichtige Zahl einzeln: gut nutzbar, nur mit Vorsicht nutzbar oder mit diesen Daten nicht
+verlässlich bestimmbar. Sichtbare Ampeln und der Copy-Report verwenden dieselbe
+Entscheidungslogik.
 
 Typische Gründe für eingeschränkte Befunde:
 
@@ -50,21 +52,22 @@ Typische Gründe für eingeschränkte Befunde:
 - Proxy/CDN verdeckt echte Besucheradressen
 - Origin-Logs enthalten keine CDN-Cache-Hits
 - fehlendes oder unplausibles X-Forwarded-For
-- niedrige Recognition Rate
+- viele nicht erkannte Zeilen
 - unsortierte Logs
 - altes Format ohne User-Agent
-- falsche GA4-Metrik, falscher Zeitraum oder falsche Seitenauswahl
+- falsche Google-Analytics-Metrik, falscher Zeitraum oder falsche Seitenauswahl
 - Conversion-Seite ohne Order-ID oder Reload-Risiko
 
 Seitenaufrufe sind meist am belastbarsten, sofern die Datei lesbar ist und alle
-relevanten Requests im Log landen. Besucher bleiben eine Schaetzung, weil Serverlogs
-keine Personen-ID enthalten. GA4-Vergleiche sind nur sinnvoll, wenn Zeitraum, Host,
-Seitenpfade und Metrik wirklich zusammenpassen.
+relevanten Aufrufe in der Logdatei landen. Besucher bleiben eine Schaetzung, weil
+Serverlogs keine Personen-ID enthalten. Google-Analytics-Vergleiche sind nur sinnvoll,
+wenn Zeitraum, Website, Seitenpfade und Metrik wirklich zusammenpassen.
 
 ## Copy-Report
 
 Der Copy-Report exportiert ein versioniertes JSON-Protokoll
-`serverstory.analysis.v1`. Es enthält neben den Zahlen auch:
+`serverstory.analysis.v1`. Es enthält neben den Zahlen auch technische Prüfhinweise,
+zum Beispiel:
 
 - `quality`
 - `evidence`
