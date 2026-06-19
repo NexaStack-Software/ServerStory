@@ -411,7 +411,6 @@ function visibleDecisionText(ui) {
     "headline", "subline", "action", "table-caption", "compare-note", "purchase-note",
     "proxy-hint", "recognition-hint", "chrono-hint", "precision-checklist",
     "guided-use", "guided-limits", "guided-next",
-    "claim-allowed", "claim-forbidden", "claim-checks",
     "q-visits", "q-visits-reason", "q-views", "q-views-reason",
     "q-purchases", "q-purchases-reason", "q-ga4", "q-ga4-reason",
     "q-host", "q-host-reason", "q-export", "q-export-reason", "q-bot", "q-bot-reason", "q-tracking", "q-tracking-reason"
@@ -2008,10 +2007,8 @@ test("Render setzt Ampeln und sichtbare Gruende pro Kennzahl", () => {
   assert.match(ui.get("q-bot-reason").textContent, /keine starken Bot/i);
   assert.strictEqual(ui.get("q-tracking").textContent, "Die Größe der Log-Datei ist in Ordnung");
   assert.match(ui.get("q-tracking-reason").textContent, /nicht zu groß/i);
-  assert.match(ui.get("claim-allowed").innerHTML, /Seitenaufrufe sind gut nutzbar/i);
-  assert.match(ui.get("claim-forbidden").innerHTML, /Tracking-Verlust/i);
-  assert.match(ui.get("claim-checks").innerHTML, /Zeitraum/i);
-  assert.match(ui.get("guided-use").innerHTML, /Seitenaufrufe/i);
+  assert.match(ui.get("guided-use").innerHTML, /Seitenaufrufe.*zuverlässig/i);
+  assert.match(ui.get("guided-limits").innerHTML, /Google-Analytics-Vergleich/i);
   assert.match(ui.get("guided-next").innerHTML, /Google Analytics|Zeitraum/i);
   assert.strictEqual(ui.get("n-views").textContent, "4");
   assert.strictEqual(ui.get("n-purchases").textContent, "1");
@@ -2089,8 +2086,6 @@ test("Render verhindert falsche Sicherheit bei Proxy, Bot-Anomalien und Tracking
   assert.strictEqual(proxyUi.get("n-visits").textContent, "Nicht bestimmbar");
   assert.strictEqual(proxyUi.get("q-visits").textContent, "Nicht verlässlich");
   assert.match(proxyUi.get("q-visits-reason").textContent, /Nicht verlässlich bestimmbar/i);
-  assert.match(proxyUi.get("claim-forbidden").innerHTML, /Keine feste Besucherzahl/i);
-  assert.match(proxyUi.get("claim-checks").innerHTML, /Besucheradresse hinter Proxy/i);
   assert.match(proxyUi.get("guided-limits").innerHTML, /Besuche|Besucheradressen/i);
   assert.match(proxyUi.get("guided-next").innerHTML, /Besucheradresse|erneut auswerten/i);
   assert.doesNotMatch(proxyUi.get("subline").textContent, /1 Besuche|1 Besuch/i);
@@ -2136,9 +2131,6 @@ test("Copy-Report liefert versioniertes Schema mit Genauigkeitshinweisen", async
   assert.match(report.accuracyNotes.pageViews, /Datei wurde sauber gelesen/i);
   assert.match(report.accuracyNotes.visits, /Proxy-Verzerrung/i);
   assert.match(report.accuracyNotes.hostScope, /eine Website begrenzt/i);
-  assert.match(ui.get("claim-allowed").innerHTML, new RegExp(report.claims.pageViews.statement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.match(ui.get("claim-forbidden").innerHTML, /Tracking-Verlust/i);
-  assert.match(ui.get("claim-checks").innerHTML, /Zeitraum/i);
   assert.strictEqual(report.claimMatrix.pageViews.status, report.claims.pageViews.status);
   assert.deepStrictEqual(report.evidenceFailures.pageViews, []);
   assert.deepStrictEqual(report.claimMatrix.pageViews.evidenceFailures, []);
@@ -2790,8 +2782,8 @@ test("Report und UI spiegeln Matrix-Unsicherheit ohne stille Gruende", async () 
   assert.strictEqual(ui.get("q-visits").textContent, "Nicht verlässlich");
   assert.match(ui.get("q-visits-reason").textContent, /Proxy|CDN/i);
   assert.strictEqual(ui.get("q-ga4").textContent, "Mit Vorsicht");
-  assert.match(ui.get("claim-forbidden").innerHTML, /Keine feste Besucherzahl|alle Aufrufe|Tracking-Entscheidung/i);
-  assert.match(ui.get("claim-checks").innerHTML, /Proxy|Cache|Zeitraum|Besucheradresse/i);
+  assert.match(ui.get("guided-limits").innerHTML, /Besuche|Cache|Google-Analytics-Vergleich/i);
+  assert.match(ui.get("guided-next").innerHTML, /Proxy|Cache|Zeitraum|Besucheradresse|Google Analytics/i);
 });
 
 test("Copy-Report macht Proxy-XFF-Risiko mit Besucher-Bandbreite sichtbar", async () => {

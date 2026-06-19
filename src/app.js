@@ -1790,29 +1790,12 @@
           : "Keine Kauf-/Danke-Seite angegeben."));
         id("precision-checklist").innerHTML = rows.join("");
       }
-      function renderClaimBox(data, hasGa4, hasConv) {
-        const relevant = [
-          data.claimMatrix.pageViews,
-          data.claimMatrix.visits,
-          ...(hasGa4 ? [data.claimMatrix.ga4] : []),
-          data.claimMatrix.hostScope,
-          ...(data.hasSuccessUrl || hasConv ? [data.claimMatrix.conversions] : [])
-        ].filter(Boolean);
-        const allowed = unique(relevant.filter((claim) => claim.status !== "blocked").map((claim) => claim.statement)).slice(0, 4);
-        const forbidden = unique(relevant.flatMap((claim) => claim.forbiddenConclusions || [])).slice(0, 4);
-        const checks = unique(relevant.flatMap((claim) => claim.recommendedChecks || [])).slice(0, 4);
-        const listHtml = (items, fallback) => (items.length ? items : [fallback]).map((text) => `<li>${escapeHtml(text)}</li>`).join("");
-        id("claim-allowed").innerHTML = listHtml(allowed, "Die Hauptzahlen als ersten Richtwert nutzen.");
-        id("claim-forbidden").innerHTML = listHtml(forbidden, "Keine harte Entscheidung treffen, ohne Zeitraum und Website zu prüfen.");
-        id("claim-checks").innerHTML = listHtml(checks, "Zeitraum, Website und Export kurz gegenprüfen.");
-        id("claim-box").classList.remove("hidden");
-      }
       function buildGuidedDiagnosis(data, hasGa4, hasConv) {
         const usable = [];
         const limits = [];
         const next = [];
 
-        if (data.claimMatrix.pageViews.status === "allowed") usable.push("Seitenaufrufe als robuste Hauptzahl verwenden.");
+        if (data.claimMatrix.pageViews.status === "allowed") usable.push("Die Seitenaufrufe sind die Zahl, die ServerStory am zuverlässigsten aus deiner Server-Datei identifizieren kann.");
         else if (data.claimMatrix.pageViews.status === "limited") limits.push("Seitenaufrufe nur als Richtwert lesen, weil Teile der Datei unsicher sind.");
         else limits.push("Keine feste Aussage zu Seitenaufrufen treffen.");
 
@@ -1820,11 +1803,11 @@
         else if (data.claimMatrix.visits.status === "limited") limits.push("Besuche nur als Spanne lesen, nicht als exakte Personenzahl.");
         else limits.push("Besuche mit dieser Datei nicht als Zahl behaupten.");
 
-        if (data.hasSuccessUrl && data.claimMatrix.conversions.status === "allowed") usable.push("Käufe über die Danke-Seite prüfen.");
+        if (data.hasSuccessUrl && data.claimMatrix.conversions.status === "allowed") usable.push("Die Käufe über die Danke-Seite sind ebenfalls robust bestimmbar.");
         else if (data.hasSuccessUrl) limits.push("Käufe vorsichtig lesen, wenn Reloads oder fehlende Bestellnummern möglich sind.");
 
         if (hasGa4 && data.claimMatrix.ga4.status === "allowed") usable.push("Google Analytics mit den Server-Zahlen vergleichen.");
-        else if (hasGa4) limits.push("Google-Analytics-Vergleich erst nach Gegencheck für Zeitraum, Website und Seiten nutzen.");
+        else if (hasGa4) limits.push("Den Google-Analytics-Vergleich solltest du erst dann als Richtwert nutzen, nachdem du Zeitraum, Website und Seiten in Google Analytics gegengeprüft hast.");
 
         if (data.diagnostics.hostReliability === "limited") {
           limits.push(data.hostFilterUnverifiable ? "Der Website-Filter konnte nicht für alle Zeilen geprüft werden." : "Die Datei enthält mehrere Websites oder Subdomains.");
@@ -1855,7 +1838,7 @@
           limits.push("Die eingetragene Google-Zahl ist für diesen Vergleich die falsche Zahl.");
           next.push("Google Analytics neu exportieren: Seitenaufrufe nach Seite verwenden.");
         } else if (hasGa4) {
-          next.push("In Google Analytics denselben Zeitraum und dieselbe Website prüfen.");
+          next.push("Prüfe in Google Analytics denselben Zeitraum, dieselbe Website und dieselben Seiten, damit die Differenz zwischen Server-Datei und Google Analytics zuverlässig eingeordnet werden kann.");
         } else {
           next.push("Optional Google-Analytics-Seitenaufrufe eintragen, wenn du die Tracking-Lücke sehen willst.");
         }
@@ -1944,7 +1927,6 @@
         setQualityReason("q-tracking", qualityReason(data, "tracking", hasGa4));
         setPrecisionChecklist(data, hasGa4);
         data.guidedDiagnosis = renderGuidedDiagnosis(data, hasGa4, hasConv);
-        renderClaimBox(data, hasGa4, hasConv);
 
         // Kauf-Check (signierte Differenz)
         id("pc-server").textContent = data.hasSuccessUrl ? format(data.success) : "-";

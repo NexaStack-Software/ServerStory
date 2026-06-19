@@ -308,15 +308,15 @@
   },
   "guidedDiagnosis": {
     "usable": [
-      "Seitenaufrufe als robuste Hauptzahl verwenden.",
+      "Die Seitenaufrufe sind die Zahl, die ServerStory am zuverlässigsten aus deiner Server-Datei identifizieren kann.",
       "Besuche als grobe Größenordnung verwenden.",
-      "Käufe über die Danke-Seite prüfen."
+      "Die Käufe über die Danke-Seite sind ebenfalls robust bestimmbar."
     ],
     "limits": [
-      "Google-Analytics-Vergleich erst nach Gegencheck für Zeitraum, Website und Seiten nutzen."
+      "Den Google-Analytics-Vergleich solltest du erst dann als Richtwert nutzen, nachdem du Zeitraum, Website und Seiten in Google Analytics gegengeprüft hast."
     ],
     "next": [
-      "In Google Analytics denselben Zeitraum und dieselbe Website prüfen."
+      "Prüfe in Google Analytics denselben Zeitraum, dieselbe Website und dieselben Seiten, damit die Differenz zwischen Server-Datei und Google Analytics zuverlässig eingeordnet werden kann."
     ]
   },
   "auditProtocol": {
