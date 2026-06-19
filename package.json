@@ -8,6 +8,7 @@
     "build:release": "node scripts/build-release.js",
     "test": "node tests/serverstory.test.js",
     "test:realworld": "node tests/realworld.test.js",
+    "test:benchmark": "node tests/benchmark.test.js",
     "test:sanitize": "node tests/sanitize-log.test.js",
     "download:realworld": "node scripts/download-realworld-fixtures.js",
     "test:e2e": "node scripts/browser-e2e.js",

@@ -271,7 +271,13 @@
           /\bviews\b/i,
           /\busers\b/i,
           /\bsessions\b/i,
-          /event count/i
+          /event count/i,
+          /\bclicks\b/i,
+          /\bimpressions\b/i,
+          /\bctr\b/i,
+          /page_location/i,
+          /user_pseudo_id/i,
+          /"event"\s*:/
         ].filter((re) => re.test(rawSample)).length;
         const errorLogSignals = lines.filter((line) => /\[(?:error|warn|notice|crit|alert|emerg)\]|\bAH\d{5}:|PHP (?:Fatal|Warning|Notice)|upstream timed out|client denied by server configuration/i.test(line)).length;
         const wafSignals = lines.filter((line) => /\b(?:waf|firewall|blocked|deny|challenge|ruleId|rule_id|threat|bot score|security event)\b/i.test(line)).length;

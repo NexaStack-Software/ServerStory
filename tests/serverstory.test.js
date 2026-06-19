@@ -1335,6 +1335,29 @@ test("Preflight klassifiziert Access-, Legacy- und Nicht-Access-Dateien", () => 
   assert.strictEqual(waf.fileClass, "waf_or_security_log");
   assert.strictEqual(waf.isLikelyAccessLog, false);
   assert.match(waf.rejectReasons.join(" "), /WAF|Security/i);
+
+  const searchConsole = ctx.preflightLogSample([
+    "Top pages,Clicks,Impressions,CTR,Position",
+    "https://www.example.de/preise,120,5000,2.4%,4.1",
+    "https://www.example.de/blog,80,3000,2.6%,7.9"
+  ].join("\n"), { sampleLines: 20 });
+  assert.strictEqual(searchConsole.fileClass, "analytics_csv");
+  assert.strictEqual(searchConsole.isLikelyAccessLog, false);
+  assert.match(searchConsole.rejectReasons.join(" "), /Analytics-Export/i);
+
+  const jsonEvents = ctx.preflightLogSample([
+    '{"event":"purchase","page_location":"https://www.example.de/checkout/danke","user_pseudo_id":"abc","timestamp":"2026-06-05T10:00:00Z"}',
+    '{"event":"page_view","page_location":"https://www.example.de/preise","user_pseudo_id":"def","timestamp":"2026-06-05T10:01:00Z"}'
+  ].join("\n"), { sampleLines: 20 });
+  assert.strictEqual(jsonEvents.isLikelyAccessLog, false);
+  assert.match(jsonEvents.recommendedChecks.join(" "), /Access-Logdatei/i);
+
+  const loadBalancerHealth = ctx.preflightLogSample([
+    "2026-06-05T10:00:00Z target=app-1 healthcheck status=healthy latency=12ms",
+    "2026-06-05T10:01:00Z target=app-2 healthcheck status=healthy latency=10ms"
+  ].join("\n"), { sampleLines: 20 });
+  assert.strictEqual(loadBalancerHealth.fileClass, "monitoring_log");
+  assert.strictEqual(loadBalancerHealth.isLikelyAccessLog, false);
 });
 
 test("liest Cloudflare Edge JSON als CDN-Format", () => {

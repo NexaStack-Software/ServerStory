@@ -1,4 +1,5 @@
 const { spawnSync } = require("child_process");
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
@@ -7,6 +8,7 @@ const dist = path.join(root, "dist");
 const staging = path.join(dist, "ServerStory");
 const appDir = path.join(staging, "serverstory-app");
 const zipPath = path.join(dist, "serverstory.zip");
+const manifestPath = path.join(dist, "serverstory-release-manifest.json");
 
 const appFiles = [
   "index.html",
@@ -70,8 +72,22 @@ function writeStarter() {
 run("npm", ["run", "build"]);
 fs.rmSync(staging, { recursive: true, force: true });
 fs.rmSync(zipPath, { force: true });
+fs.rmSync(manifestPath, { force: true });
 fs.mkdirSync(staging, { recursive: true });
 writeStarter();
 for (const file of appFiles) copyFile(file);
 run("zip", ["-qr", zipPath, "ServerStory"], dist);
+const zip = fs.readFileSync(zipPath);
+const manifest = {
+  name: "ServerStory",
+  version: JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version,
+  builtAt: new Date().toISOString(),
+  zipFile: "serverstory.zip",
+  zipBytes: zip.length,
+  sha256: crypto.createHash("sha256").update(zip).digest("hex"),
+  visibleRootEntries: ["START_HIER.html", "serverstory-app"],
+  starter: "START_HIER.html",
+  appEntry: "serverstory-app/index.html"
+};
+fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
 console.log(`release built: ${path.relative(root, zipPath)}`);

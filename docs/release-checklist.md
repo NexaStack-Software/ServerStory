@@ -15,5 +15,7 @@ Vor einer Veroeffentlichung:
 11. `npm run build:release` ausfuehren.
 12. `npm run audit:release` ausfuehren.
 13. `npm run smoke:release` ausfuehren.
-14. Release-ZIP pruefen: oben duerfen nur `START_HIER.html` und `serverstory-app/` sichtbar sein.
-15. ZIP als GitHub-Release-Asset hochladen; nicht den GitHub-Code-ZIP als Nutzerdownload bewerben.
+14. `npm run test:benchmark` ausfuehren, falls nicht schon ueber `npm run verify` passiert.
+15. Release-ZIP pruefen: oben duerfen nur `START_HIER.html` und `serverstory-app/` sichtbar sein.
+16. `dist/serverstory-release-manifest.json` mit ZIP-Groesse und SHA256 zum Release legen.
+17. ZIP als GitHub-Release-Asset hochladen; nicht den GitHub-Code-ZIP als Nutzerdownload bewerben.

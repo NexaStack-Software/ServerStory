@@ -1,11 +1,14 @@
 const { spawnSync } = require("child_process");
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
 const zipPath = path.join(root, "dist", "serverstory.zip");
+const manifestPath = path.join(root, "dist", "serverstory-release-manifest.json");
 
 if (!fs.existsSync(zipPath)) throw new Error("dist/serverstory.zip does not exist. Run npm run build:release first.");
+if (!fs.existsSync(manifestPath)) throw new Error("dist/serverstory-release-manifest.json does not exist. Run npm run build:release first.");
 
 const res = spawnSync("unzip", ["-Z1", zipPath], { encoding: "utf8" });
 if (res.status !== 0) {
@@ -43,6 +46,15 @@ const forbidden = [
 ];
 
 const failures = [];
+const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+const zip = fs.readFileSync(zipPath);
+const sha256 = crypto.createHash("sha256").update(zip).digest("hex");
+if (manifest.zipFile !== "serverstory.zip") failures.push("manifest zipFile must be serverstory.zip");
+if (manifest.zipBytes !== zip.length) failures.push("manifest zipBytes does not match zip size");
+if (manifest.sha256 !== sha256) failures.push("manifest sha256 does not match zip");
+if (!Array.isArray(manifest.visibleRootEntries) || manifest.visibleRootEntries.join(",") !== "START_HIER.html,serverstory-app") {
+  failures.push("manifest visibleRootEntries does not match user-facing layout");
+}
 for (const file of required) if (!entries.includes(file)) failures.push(`missing ${file}`);
 for (const entry of entries) {
   if (!entry.startsWith("ServerStory/")) failures.push(`unexpected root entry ${entry}`);

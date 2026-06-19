@@ -39,6 +39,7 @@ run("node", ["--check", "scripts/build-release.js"]);
 run("node", ["--check", "scripts/audit-release.js"]);
 run("node", ["--check", "tests/realworld.test.js"]);
 run("npm", ["test"]);
+run("npm", ["run", "test:benchmark"]);
 run("npm", ["run", "test:sanitize"]);
 run("npm", ["run", "test:e2e"]);
 run("npm", ["run", "audit:repo"]);

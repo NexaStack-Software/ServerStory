@@ -5,8 +5,10 @@ const path = require("path");
 
 const root = path.resolve(__dirname, "..");
 const zipPath = path.join(root, "dist", "serverstory.zip");
+const manifestPath = path.join(root, "dist", "serverstory-release-manifest.json");
 
 if (!fs.existsSync(zipPath)) throw new Error("dist/serverstory.zip does not exist. Run npm run build:release first.");
+if (!fs.existsSync(manifestPath)) throw new Error("dist/serverstory-release-manifest.json does not exist. Run npm run build:release first.");
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "serverstory-release-"));
 
@@ -30,6 +32,13 @@ try {
   const expectedRoot = ["START_HIER.html", "serverstory-app"];
   if (JSON.stringify(visible) !== JSON.stringify(expectedRoot)) {
     fail(`visible root entries are ${visible.join(", ")}`);
+  }
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  if (JSON.stringify(manifest.visibleRootEntries.slice().sort()) !== JSON.stringify(expectedRoot)) {
+    fail("manifest visibleRootEntries does not describe the visible release root");
+  }
+  if (manifest.starter !== "START_HIER.html" || manifest.appEntry !== "serverstory-app/index.html") {
+    fail("manifest starter/appEntry does not match release layout");
   }
 
   const starter = read("ServerStory/START_HIER.html");
