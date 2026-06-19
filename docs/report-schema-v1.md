@@ -22,6 +22,8 @@ Stabile Kernfelder:
   seine Wirkung begrenzen.
 - `pathCountCapped`, `queryVariantCapped`, `queryVariantCount`: ob Detailtabellen
   wegen sehr hoher Pfad-/Query-Kardinalitaet begrenzt wurden.
+- `scanRequests`, `scanShare`, `probeRequests`, `probeClients`, `probeShare`:
+  signatur- und verhaltensbasierte Scanner-Signale.
 - `proxyKind`: leer, `private` oder `concentrated`; zeigt Proxy-/CDN-Hinweise in der Besucherzaehlung.
 - `filterReasons`: absolute Filtergruende.
 - `accuracyNotes`: menschenlesbare Hinweise zur Belastbarkeit.
@@ -56,6 +58,9 @@ Diagnosefelder:
 - `xForwardedFor.used`, `exactUsed`, `missing`, `privateOnly`
 - `hostFilter.requested`, `rowsWithoutHost`, `unverifiable`
 - `pathCountCapped`, `queryVariantCapped`, `queryVariantCount`
+- `scanRequests`, `scanShare`: bekannte Admin-/Exploit-/Proxy-Scan-Ziele.
+- `probeRequests`, `probeClients`, `probeShare`: IPs mit vielen Aufrufen und
+  fast nur Fehlerantworten, also URL-Probing ohne klare Bot-Kennung.
 - `proxyKind`
 - `filterReasons.host`, `bot`, `status`, `range`, `method`, `emptyUa`, `strict`
 
@@ -79,6 +84,8 @@ Wichtige Unsicherheiten muessen im Report sichtbar bleiben:
   wird erweitert.
 - Nicht erkannte Zeilen: `parser.unrecognizedRows` und `quality.recognitionRate`
   zeigen die Belastungsgrenze; `accuracyNotes.pageViews` nennt die Pruefung.
+- Scanner-Traffic: bekannte Scan-Ziele und verhaltensbasierte 404-Fluten muessen
+  `quality.botReliability` und `quality.scanTrafficRisk` konservativer machen.
 - GA4-Importfehler: `accuracyNotes.ga4` uebernimmt Warnungen wie falsche Metrik
   (`Users` statt `Views`) oder nicht lesbare Exporte.
 

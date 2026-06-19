@@ -743,6 +743,9 @@
         // behaltenen Zeilen, um davor zu warnen. Map wird gedeckelt, damit sie nicht unbegrenzt wächst.
         const clientIpHits = new Map();
         let privateClientHits = 0, clientIpCapped = false, trackingCapped = false;
+        const probeTotal = new Map(), probeErrors = new Map();
+        let probeCapped = false;
+        const PROBE_MIN_HITS = 6, PROBE_ERR_SHARE = 0.8;
         let pathCountCapped = false, queryVariantCapped = false;
         const queryVariantPaths = new Set();
 
@@ -807,6 +810,11 @@
           if (host) hostCounts.set(host, (hostCounts.get(host) || 0) + 1);
 
           if ((dateFrom && pt.date < dateFrom) || (dateTo && pt.date > dateTo)) { stats.filtered++; stats.rRange++; return; }
+          if (!probeCapped) {
+            probeTotal.set(ip0, (probeTotal.get(ip0) || 0) + 1);
+            if (status >= 400) probeErrors.set(ip0, (probeErrors.get(ip0) || 0) + 1);
+            if (probeTotal.size > 50000) { probeTotal.clear(); probeErrors.clear(); probeCapped = true; }
+          }
           if (!okStatus.has(status)) { stats.filtered++; stats.rStatus++; return; }
           if (method !== "GET" && method !== "POST") { stats.filtered++; stats.rMethod++; return; }
           const uaTrim = ua.trim();
@@ -896,6 +904,15 @@
             const assets = keyAssets.get(key) || 0;
             if (hits >= suspiciousHitThreshold && assets / hits < suspiciousAssetShare) stats.suspiciousClients++;
           }
+          let probeClients = 0, probeRequests = 0;
+          if (!probeCapped) {
+            for (const [ip, total] of probeTotal) {
+              if (total >= PROBE_MIN_HITS && (probeErrors.get(ip) || 0) / total >= PROBE_ERR_SHARE) {
+                probeClients++;
+                probeRequests += total;
+              }
+            }
+          }
           let formatKind = "unknown";
           const formatScores = [
             ["cloudflare", format.cloudflare],
@@ -922,6 +939,7 @@
             legacyNoUserAgent: stats.legacyNoUserAgent,
             suspiciousClients: stats.suspiciousClients,
             scanRequests: stats.scanRequests,
+            probeClients, probeRequests,
             trackingCapped, pathCountCapped, queryVariantCapped, queryVariantCount: queryVariantPaths.size,
             hostFilterNoHost: stats.hostFilterNoHost,
             timeRegressions: stats.timeRegressions,
@@ -1185,8 +1203,13 @@
           visitorHigh = Math.max(visitorLow, Math.round(agg.visits * 1.2));
         }
         const scanShare = agg.parsed ? agg.scanRequests / agg.parsed : 0;
-        const scanTrafficRisk = agg.scanRequests >= 20 || (agg.scanRequests >= 5 && scanShare >= 0.2);
-        const heavyScanTrafficRisk = agg.scanRequests >= 50 || (agg.scanRequests >= 10 && scanShare >= 0.5);
+        const probeRequests = agg.probeRequests || 0;
+        const probeClients = agg.probeClients || 0;
+        const probeShare = agg.parsed ? probeRequests / agg.parsed : 0;
+        const scanTrafficRisk = agg.scanRequests >= 20 || (agg.scanRequests >= 5 && scanShare >= 0.2)
+          || probeClients >= 3 || (probeRequests >= 10 && probeShare >= 0.1);
+        const heavyScanTrafficRisk = agg.scanRequests >= 50 || (agg.scanRequests >= 10 && scanShare >= 0.5)
+          || (probeRequests >= 50 && probeShare >= 0.15) || probeShare >= 0.3;
         const scanTrafficText = "Viele Aufrufe wirken wie Admin-, Exploit- oder Proxy-Scans.";
         const botReliability = isLegacyArchive ? "limited" : (heavyScanTrafficRisk ? "limited" : (agg.suspiciousClients > 0 || scanTrafficRisk ? "medium" : "high"));
         const isEdgeLog = edgeKinds.has(agg.formatKind) || userSaysEdgeLog;
@@ -1603,6 +1626,8 @@
             hostFilterNoHost,
             proxyKind: proxyKind || "none",
             scanRequests: agg.scanRequests || 0,
+            probeRequests,
+            probeClients,
             calibration,
             exportCompleteness: exportCompleteness.reliability
           },
@@ -1624,6 +1649,9 @@
           suspiciousClients: agg.suspiciousClients,
           scanRequests: agg.scanRequests || 0,
           scanShare,
+          probeRequests,
+          probeClients,
+          probeShare,
           trackingCapped: agg.trackingCapped,
           pathCountCapped: !!agg.pathCountCapped,
           queryVariantCapped: !!agg.queryVariantCapped,
@@ -1718,7 +1746,12 @@
           return data.exportCompleteness.reasons.slice(0, 2).join(" ");
         }
         if (metric === "bot") {
-          if (data.scanRequests > 0) return `${format(data.scanRequests)} Aufrufe wirken wie Admin-, Exploit- oder Proxy-Scans. Diese Datei nicht als sauberen Besucher-Traffic lesen.`;
+          if (data.scanRequests > 0 || data.probeRequests > 0) {
+            const parts = [];
+            if (data.scanRequests > 0) parts.push(`${format(data.scanRequests)} Aufrufe treffen bekannte Admin-/Exploit-Pfade`);
+            if (data.probeRequests > 0) parts.push(`${format(data.probeRequests)} Aufrufe von ${format(data.probeClients)} Adressen mit Scanner-Muster`);
+            return parts.join("; ") + ". Diese Datei nicht als sauberen Besucher-Traffic lesen.";
+          }
           if (data.diagnostics.botReliability === "medium") return `${format(data.suspiciousClients)} auffällige Muster gefunden. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
           return data.reasons.bot ? `${format(data.reasons.bot)} klare Bot-Zeilen entfernt. Danach keine starke Auffälligkeit.` : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar.";
         }
@@ -1962,6 +1995,9 @@
         if (data.scanRequests > 0) {
           recognitionText += (recognitionText ? " " : "") + `${format(data.scanRequests)} Aufrufe wirken wie Admin-, Exploit- oder Proxy-Scans. Zahlen aus solchen Dateien bitte nur vorsichtig lesen.`;
         }
+        if (data.probeRequests > 0) {
+          recognitionText += (recognitionText ? " " : "") + `${format(data.probeRequests)} Aufrufe (${percent(data.probeShare * 100)} der Datei) stammen von ${format(data.probeClients)} Adressen, die fast nur Fehlversuche auslösen. Die Fehlversuche selbst zählen nicht als Seitenaufruf; behandle die Datei trotzdem nicht als reinen Besucher-Traffic.`;
+        }
         if (data.diagnostics.hostReliability === "limited") {
           recognitionText += (recognitionText ? " " : "") + (data.hostFilterUnverifiable
             ? `Der Website-Filter konnte bei ${format(data.hostFilterNoHost)} Zeilen nicht geprüft werden, weil keine Website-Adresse in der Zeile steht.`
@@ -2058,15 +2094,18 @@
           // ausschließlich über .textContent ausgegeben — das rendert Klartext, kein HTML, also
           // kein XSS. WICHTIG: bleibt das so. Wer diese Ausgabe je auf innerHTML umstellt, MUSS
           // worst.name durch escapeHtml() schicken.
-          const worstText = worst && worst.coverage < 85 ? ` Am wenigsten auf ${worst.name} (${percent(worst.coverage)}).` : "";
           if (cov < 85) {
             setSignal("warn", "!", "Achtung");
-            id("headline").textContent = "Google Analytics sieht deutlich weniger";
-            id("subline").textContent = `Für die ausgewählten Seiten findet Google Analytics nur ${percent(cov)} der Aufrufe, die in der Server-Datei stehen.${worstText}`;
+            id("headline").textContent = "Dein Server zählt deutlich mehr Seitenaufrufe als Google Analytics";
+            const worstGapText = worst && worst.coverage < 85
+              ? ` Am größten ist die Lücke bei ${worst.name}: Dort fehlen Google Analytics ${percent(100 - worst.coverage)} der Aufrufe.`
+              : "";
+            id("subline").textContent = `Für deine ausgewählten Seiten sieht Google Analytics ${percent(100 - cov)} weniger Seitenaufrufe als deine Server-Datei.${worstGapText}`;
             id("action").textContent = "Nächster Schritt: Noch keine Budget-Entscheidung nur daraus ableiten. Prüfe zuerst: gleicher Zeitraum, richtige Website, Seitenaufrufe in Google Analytics, Cookie-Banner, Ad-Blocker und ob ein Cache davor sitzt.";
           } else if (cov < 95) {
             setSignal("medium", "~", "Kleine Lücke");
             id("headline").textContent = "Kleine Abweichung";
+            const worstText = worst && worst.coverage < 85 ? ` Am wenigsten auf ${worst.name} (${percent(worst.coverage)}).` : "";
             id("subline").textContent = `Google Analytics findet ${percent(cov)} der Aufrufe aus der Server-Datei. Eine kleine Lücke ist normal.${worstText}`;
             id("action").textContent = "Nächster Schritt: Im Auge behalten, aber keine große Entscheidung nur wegen dieser kleinen Abweichung treffen.";
           } else if (cov <= 110) {
@@ -2281,6 +2320,9 @@
           suspiciousClients: lastResult.suspiciousClients,
           scanRequests: lastResult.scanRequests,
           scanShare: lastResult.scanShare,
+          probeRequests: lastResult.probeRequests || 0,
+          probeClients: lastResult.probeClients || 0,
+          probeShare: lastResult.probeShare || 0,
           trackingCapped: lastResult.trackingCapped,
           pathCountCapped: lastResult.pathCountCapped,
           queryVariantCapped: lastResult.queryVariantCapped,

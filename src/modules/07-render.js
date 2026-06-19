@@ -63,7 +63,12 @@
           return data.exportCompleteness.reasons.slice(0, 2).join(" ");
         }
         if (metric === "bot") {
-          if (data.scanRequests > 0) return `${format(data.scanRequests)} Aufrufe wirken wie Admin-, Exploit- oder Proxy-Scans. Diese Datei nicht als sauberen Besucher-Traffic lesen.`;
+          if (data.scanRequests > 0 || data.probeRequests > 0) {
+            const parts = [];
+            if (data.scanRequests > 0) parts.push(`${format(data.scanRequests)} Aufrufe treffen bekannte Admin-/Exploit-Pfade`);
+            if (data.probeRequests > 0) parts.push(`${format(data.probeRequests)} Aufrufe von ${format(data.probeClients)} Adressen mit Scanner-Muster`);
+            return parts.join("; ") + ". Diese Datei nicht als sauberen Besucher-Traffic lesen.";
+          }
           if (data.diagnostics.botReliability === "medium") return `${format(data.suspiciousClients)} auffällige Muster gefunden. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
           return data.reasons.bot ? `${format(data.reasons.bot)} klare Bot-Zeilen entfernt. Danach keine starke Auffälligkeit.` : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar.";
         }
@@ -307,6 +312,9 @@
         if (data.scanRequests > 0) {
           recognitionText += (recognitionText ? " " : "") + `${format(data.scanRequests)} Aufrufe wirken wie Admin-, Exploit- oder Proxy-Scans. Zahlen aus solchen Dateien bitte nur vorsichtig lesen.`;
         }
+        if (data.probeRequests > 0) {
+          recognitionText += (recognitionText ? " " : "") + `${format(data.probeRequests)} Aufrufe (${percent(data.probeShare * 100)} der Datei) stammen von ${format(data.probeClients)} Adressen, die fast nur Fehlversuche auslösen. Die Fehlversuche selbst zählen nicht als Seitenaufruf; behandle die Datei trotzdem nicht als reinen Besucher-Traffic.`;
+        }
         if (data.diagnostics.hostReliability === "limited") {
           recognitionText += (recognitionText ? " " : "") + (data.hostFilterUnverifiable
             ? `Der Website-Filter konnte bei ${format(data.hostFilterNoHost)} Zeilen nicht geprüft werden, weil keine Website-Adresse in der Zeile steht.`
@@ -403,15 +411,18 @@
           // ausschließlich über .textContent ausgegeben — das rendert Klartext, kein HTML, also
           // kein XSS. WICHTIG: bleibt das so. Wer diese Ausgabe je auf innerHTML umstellt, MUSS
           // worst.name durch escapeHtml() schicken.
-          const worstText = worst && worst.coverage < 85 ? ` Am wenigsten auf ${worst.name} (${percent(worst.coverage)}).` : "";
           if (cov < 85) {
             setSignal("warn", "!", "Achtung");
-            id("headline").textContent = "Google Analytics sieht deutlich weniger";
-            id("subline").textContent = `Für die ausgewählten Seiten findet Google Analytics nur ${percent(cov)} der Aufrufe, die in der Server-Datei stehen.${worstText}`;
+            id("headline").textContent = "Dein Server zählt deutlich mehr Seitenaufrufe als Google Analytics";
+            const worstGapText = worst && worst.coverage < 85
+              ? ` Am größten ist die Lücke bei ${worst.name}: Dort fehlen Google Analytics ${percent(100 - worst.coverage)} der Aufrufe.`
+              : "";
+            id("subline").textContent = `Für deine ausgewählten Seiten sieht Google Analytics ${percent(100 - cov)} weniger Seitenaufrufe als deine Server-Datei.${worstGapText}`;
             id("action").textContent = "Nächster Schritt: Noch keine Budget-Entscheidung nur daraus ableiten. Prüfe zuerst: gleicher Zeitraum, richtige Website, Seitenaufrufe in Google Analytics, Cookie-Banner, Ad-Blocker und ob ein Cache davor sitzt.";
           } else if (cov < 95) {
             setSignal("medium", "~", "Kleine Lücke");
             id("headline").textContent = "Kleine Abweichung";
+            const worstText = worst && worst.coverage < 85 ? ` Am wenigsten auf ${worst.name} (${percent(worst.coverage)}).` : "";
             id("subline").textContent = `Google Analytics findet ${percent(cov)} der Aufrufe aus der Server-Datei. Eine kleine Lücke ist normal.${worstText}`;
             id("action").textContent = "Nächster Schritt: Im Auge behalten, aber keine große Entscheidung nur wegen dieser kleinen Abweichung treffen.";
           } else if (cov <= 110) {
@@ -626,6 +637,9 @@
           suspiciousClients: lastResult.suspiciousClients,
           scanRequests: lastResult.scanRequests,
           scanShare: lastResult.scanShare,
+          probeRequests: lastResult.probeRequests || 0,
+          probeClients: lastResult.probeClients || 0,
+          probeShare: lastResult.probeShare || 0,
           trackingCapped: lastResult.trackingCapped,
           pathCountCapped: lastResult.pathCountCapped,
           queryVariantCapped: lastResult.queryVariantCapped,

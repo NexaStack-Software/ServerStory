@@ -346,6 +346,9 @@
         // behaltenen Zeilen, um davor zu warnen. Map wird gedeckelt, damit sie nicht unbegrenzt wächst.
         const clientIpHits = new Map();
         let privateClientHits = 0, clientIpCapped = false, trackingCapped = false;
+        const probeTotal = new Map(), probeErrors = new Map();
+        let probeCapped = false;
+        const PROBE_MIN_HITS = 6, PROBE_ERR_SHARE = 0.8;
         let pathCountCapped = false, queryVariantCapped = false;
         const queryVariantPaths = new Set();
 
@@ -410,6 +413,11 @@
           if (host) hostCounts.set(host, (hostCounts.get(host) || 0) + 1);
 
           if ((dateFrom && pt.date < dateFrom) || (dateTo && pt.date > dateTo)) { stats.filtered++; stats.rRange++; return; }
+          if (!probeCapped) {
+            probeTotal.set(ip0, (probeTotal.get(ip0) || 0) + 1);
+            if (status >= 400) probeErrors.set(ip0, (probeErrors.get(ip0) || 0) + 1);
+            if (probeTotal.size > 50000) { probeTotal.clear(); probeErrors.clear(); probeCapped = true; }
+          }
           if (!okStatus.has(status)) { stats.filtered++; stats.rStatus++; return; }
           if (method !== "GET" && method !== "POST") { stats.filtered++; stats.rMethod++; return; }
           const uaTrim = ua.trim();
@@ -499,6 +507,15 @@
             const assets = keyAssets.get(key) || 0;
             if (hits >= suspiciousHitThreshold && assets / hits < suspiciousAssetShare) stats.suspiciousClients++;
           }
+          let probeClients = 0, probeRequests = 0;
+          if (!probeCapped) {
+            for (const [ip, total] of probeTotal) {
+              if (total >= PROBE_MIN_HITS && (probeErrors.get(ip) || 0) / total >= PROBE_ERR_SHARE) {
+                probeClients++;
+                probeRequests += total;
+              }
+            }
+          }
           let formatKind = "unknown";
           const formatScores = [
             ["cloudflare", format.cloudflare],
@@ -525,6 +542,7 @@
             legacyNoUserAgent: stats.legacyNoUserAgent,
             suspiciousClients: stats.suspiciousClients,
             scanRequests: stats.scanRequests,
+            probeClients, probeRequests,
             trackingCapped, pathCountCapped, queryVariantCapped, queryVariantCount: queryVariantPaths.size,
             hostFilterNoHost: stats.hostFilterNoHost,
             timeRegressions: stats.timeRegressions,
@@ -538,4 +556,3 @@
 
         return { processLine, finalize };
       }
-

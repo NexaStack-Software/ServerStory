@@ -102,8 +102,13 @@
           visitorHigh = Math.max(visitorLow, Math.round(agg.visits * 1.2));
         }
         const scanShare = agg.parsed ? agg.scanRequests / agg.parsed : 0;
-        const scanTrafficRisk = agg.scanRequests >= 20 || (agg.scanRequests >= 5 && scanShare >= 0.2);
-        const heavyScanTrafficRisk = agg.scanRequests >= 50 || (agg.scanRequests >= 10 && scanShare >= 0.5);
+        const probeRequests = agg.probeRequests || 0;
+        const probeClients = agg.probeClients || 0;
+        const probeShare = agg.parsed ? probeRequests / agg.parsed : 0;
+        const scanTrafficRisk = agg.scanRequests >= 20 || (agg.scanRequests >= 5 && scanShare >= 0.2)
+          || probeClients >= 3 || (probeRequests >= 10 && probeShare >= 0.1);
+        const heavyScanTrafficRisk = agg.scanRequests >= 50 || (agg.scanRequests >= 10 && scanShare >= 0.5)
+          || (probeRequests >= 50 && probeShare >= 0.15) || probeShare >= 0.3;
         const scanTrafficText = "Viele Aufrufe wirken wie Admin-, Exploit- oder Proxy-Scans.";
         const botReliability = isLegacyArchive ? "limited" : (heavyScanTrafficRisk ? "limited" : (agg.suspiciousClients > 0 || scanTrafficRisk ? "medium" : "high"));
         const isEdgeLog = edgeKinds.has(agg.formatKind) || userSaysEdgeLog;
@@ -520,6 +525,8 @@
             hostFilterNoHost,
             proxyKind: proxyKind || "none",
             scanRequests: agg.scanRequests || 0,
+            probeRequests,
+            probeClients,
             calibration,
             exportCompleteness: exportCompleteness.reliability
           },
@@ -541,6 +548,9 @@
           suspiciousClients: agg.suspiciousClients,
           scanRequests: agg.scanRequests || 0,
           scanShare,
+          probeRequests,
+          probeClients,
+          probeShare,
           trackingCapped: agg.trackingCapped,
           pathCountCapped: !!agg.pathCountCapped,
           queryVariantCapped: !!agg.queryVariantCapped,
@@ -569,4 +579,3 @@
           unrecognizedPct: agg.total ? (agg.unrecognized / agg.total) * 100 : 0
         };
       }
-

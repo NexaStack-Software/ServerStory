@@ -1428,6 +1428,45 @@ test("browser-getarnte Exploit-Scans duerfen keine sicheren Besucher-Befunde erz
   assert.match(result.exportCompleteness.reasons.join(" "), /Exploit|Proxy-Scans|Admin/i);
 });
 
+test("erkennt verhaltensbasierte URL-Scanner an 404-Flut ohne Bot-Kennung", () => {
+  const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
+  const lines = [];
+  for (let i = 0; i < 4; i++) lines.push(combined(`203.0.113.${i}`, combinedStampAt(i * 5), "/start", 200, ua));
+  for (let s = 0; s < 3; s++) {
+    for (let j = 0; j < 8; j++) {
+      lines.push(combined(`45.155.${s}.10`, combinedStampAt(1000 + s * 100 + j), `/nicht-existent-${s}-${j}`, 404, ua));
+    }
+  }
+
+  const result = analyze(lines.join("\n"));
+  assert.strictEqual(result.probeClients, 3);
+  assert.strictEqual(result.probeRequests, 24);
+  assert.strictEqual(result.scanRequests, 0);
+  assert.strictEqual(result.pageViews, 4);
+  assert.strictEqual(result.visits, 4);
+
+  const built = buildResultFor(lines.join("\n"));
+  assert.strictEqual(built.probeClients, 3);
+  assert.strictEqual(built.probeRequests, 24);
+  assert.strictEqual(built.diagnostics.scanTrafficRisk, true);
+  assert.strictEqual(built.diagnostics.botReliability, "limited");
+});
+
+test("vereinzelte 404 normaler Besucher loesen keine Scanner-Erkennung aus", () => {
+  const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
+  const lines = [];
+  for (let i = 0; i < 5; i++) {
+    for (let j = 0; j < 6; j++) lines.push(combined(`203.0.113.${i}`, combinedStampAt(i * 100 + j), `/seite-${j}`, 200, ua));
+    lines.push(combined(`203.0.113.${i}`, combinedStampAt(i * 100 + 9), "/toter-link", 404, ua));
+  }
+
+  const result = analyze(lines.join("\n"));
+  assert.strictEqual(result.probeClients, 0);
+  assert.strictEqual(result.probeRequests, 0);
+  const built = buildResultFor(lines.join("\n"));
+  assert.strictEqual(built.diagnostics.botReliability, "high");
+});
+
 test("filtert gemischte Hosts auf erlaubte Domains", () => {
   const result = analyze(fixture("mixed-hosts.log"), { hostFilter: ["example.test"] });
   assert.strictEqual(result.pageViews, 2);
@@ -2973,7 +3012,28 @@ test("Demo nutzt realistische Groessenordnung und keine harte GA4-zu-wenig-Headl
   assert.doesNotMatch(script, /Google Analytics zählt zu wenig/);
   assert.doesNotMatch(script, /Google Analytics sieht weniger Käufe/);
   assert.doesNotMatch(script, /GA4-Abdeckung ist niedrig/);
-  assert.match(script, /Google Analytics sieht deutlich weniger/);
+  assert.match(script, /Dein Server zählt deutlich mehr Seitenaufrufe als Google Analytics/);
+});
+
+test("GA4-Vergleich nennt die Differenz auf Server-Basis", () => {
+  const demoSample = vm.runInContext("sample", ctx);
+  const data = buildResultFor(demoSample, {
+    successUrl: "/bestellung/danke",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/,1950\n/produkt/0,58\n/produkt/2,54\n/produkt/4,55\n/bestellung/danke,185" },
+    "ga4-conversions": { value: "185" }
+  });
+  const ui = createRenderContext();
+  ui.ctx.render(data);
+  const headline = ui.get("headline").textContent;
+  const subline = ui.get("subline").textContent;
+  assert.match(headline, /Dein Server zählt deutlich mehr Seitenaufrufe/);
+  assert.match(subline, /Google Analytics 26,3 % weniger Seitenaufrufe/);
+  assert.match(subline, /\/produkt\/2/);
+  assert.match(subline, /fehlen Google Analytics 56,8 %/);
+  assert.doesNotMatch(subline, /35,8 %/);
+  assert.doesNotMatch(subline, /131/);
 });
 
 run();
