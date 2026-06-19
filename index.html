@@ -1551,23 +1551,27 @@
 
         <section class="explain">
           <span class="explain-kicker">Gut zu wissen</span>
-          <h2>Warum weichen meine Zahlen von Google Analytics ab?</h2>
-          <p class="lead">Beide messen deinen Traffic - aber auf komplett verschiedene Weise. Keine der beiden Zahlen ist "die Wahrheit". Hier ist, was wirklich dahintersteckt.</p>
+          <h2>Ich habe doch Google Analytics - wozu brauche ich dann die Server-Logs?</h2>
+          <p class="lead">Es stimmt: Sowohl Google Analytics als auch deine Server-Logs messen deinen Traffic - aber auf komplett verschiedene Weise. Darum kann keines der beiden Tools "die Wahrheit" liefern. Wenn du mehr darüber erfahren willst, lies weiter.</p>
 
           <details>
-            <summary>Wieso kann Google Analytics Besucher zählen - und mein Server nur schätzen?</summary>
-            <p>Dein Server führt nur eine Liste: "Um 10:05 Uhr wurde Seite X angefragt." Ein Name oder eine Person steht da nicht dabei. Um daraus "Besucher" zu machen, müsste der Server raten, welche Anfragen zur selben Person gehören - und dafür hat er nur die IP-Adresse. Die ist aber unzuverlässig: Eine ganze Firma oder ein Mobilfunk-Anbieter teilt sich oft eine einzige IP, und dieselbe Person wechselt die IP, sobald sie von WLAN auf Handynetz springt.</p>
-            <p>Google Analytics macht es anders: Es lädt ein kleines Programm direkt im Browser des Besuchers und hinterlegt dort ein unsichtbares Kennzeichen (ein Cookie). Kommt dieselbe Person wieder, erkennt Google sie an genau diesem Kennzeichen. Diese Identität fehlt deinem Server komplett - deshalb kann er Besucher nur schätzen, Google sie aber scheinbar genau zählen.</p>
+            <summary>Wieso kann Google Analytics Besucher zählen - aber mein Server nur schätzen?</summary>
+            <p>Dein Server führt nur eine Liste: "Um 10:05 Uhr wurde Seite X von der IP Y angefragt." Ein Name oder eine Person steht da nicht dabei. Um daraus "Besucher" zu machen, müsste der Server raten, welche Anfragen zur selben Person gehören - und dafür hat er nur die IP-Adresse. Die ist aber unzuverlässig: Eine ganze Firma oder ein Mobilfunk-Anbieter teilt sich oft eine einzige IP, und dieselbe Person wechselt die IP, sobald sie von WLAN auf Handynetz springt.</p>
+            <p>Daraus folgt: 100 Aufrufe von derselben IP bedeuten nicht, dass eine Person deine Seite 100 mal aufgerufen hat. Ebenso wenig bedeuten 100 Aufrufe von derselben IP, dass 100 Personen deine Seite je ein Mal aufgerufen haben. Man kann es einfach nicht wissen.</p>
+            <p>Darum macht es Google Analytics anders: Es lädt ein kleines Programm direkt im Browser des Besuchers und hinterlegt dort ein unsichtbares Kennzeichen (ein Cookie). Kommt dieselbe Person wieder, erkennt Google sie an genau diesem Kennzeichen.</p>
+            <p>Diese Identität fehlt deinem Server komplett - deshalb kann er Besucher nur schätzen, Google sie aber scheinbar genau zählen.</p>
           </details>
 
           <details>
-            <summary>Warum sieht Google weniger Besucher als mein Server?</summary>
-            <p>Weil das Google-Programm im Browser laufen muss, um überhaupt etwas zu zählen - und genau das verhindern viele Besucher:</p>
+            <summary>Ist also Google Analytics richtig und der Server falsch?</summary>
+            <p>Nein - denn auch Google Analytics sieht nicht alle Besucher zuverlässig.</p>
+            <p>Damit es mit dem Cookie einen Besucher richtig identifizieren kann, muss der Nutzer erlauben, dass Google diesen Cookie in seinen Browser legt. Genau das verhindern viele Besucher - hauptsächlich auf zwei Wegen:</p>
             <ul>
               <li><strong>Cookie-Banner abgelehnt:</strong> Wer "Ablehnen" klickt, wird von Google nicht gezählt. Dein Server hat ihn trotzdem gesehen.</li>
               <li><strong>Ad-Blocker / Tracking-Schutz:</strong> Blockiert das Google-Programm, bevor es startet. In Deutschland betrifft das einen zweistelligen Prozentsatz der Besucher.</li>
             </ul>
-            <p>Diese Leute sind echte Besucher - sie tauchen in deinem Server-Log auf, aber nicht in Google Analytics. Genau diese Lücke macht ServerStory sichtbar.</p>
+            <p>Davon abgesehen nutzen Menschen heute unterschiedliche Geräte: Computer, Tablet, Telefon, Smartwatch und andere. Wenn Google ein Cookie in den Computer-Browser des Nutzers legt, der später aber per Telefon oder in einem anderen Browser auf die Seite zugreift, ist das für Google oft ein neuer Besucher.</p>
+            <p>Du siehst also: Viele Dinge tauchen in deinem Server-Log auf, aber nicht in Google Analytics. Genau diese Lücke macht ServerStory sichtbar.</p>
           </details>
 
           <details>
