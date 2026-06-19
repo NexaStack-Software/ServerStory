@@ -8,11 +8,15 @@ Google Analytics 4. Die Logdatei wird nicht hochgeladen.
 
 ## Nutzung
 
-1. Repository als ZIP herunterladen oder die bereitgestellte ZIP-Datei entpacken.
+1. Die bereitgestellte ServerStory-ZIP-Datei entpacken.
 2. `START_HIER.html` im Browser öffnen.
 3. Access-Log-Datei auswählen (`.log`, `.txt`, `.gz`).
 4. Optional GA4-Seitenaufrufe und Kaufzahlen eintragen.
 5. `Datei kurz prüfen` oder `Jetzt auswerten` klicken.
+
+Die Nutzer-ZIP zeigt auf der obersten Ebene nur `START_HIER.html` und den Ordner
+`serverstory-app/`. Alles Technische liegt im Ordner; normale Nutzer müssen nur die
+Startdatei öffnen.
 
 Moderne Browser können gzip-komprimierte Logs direkt verarbeiten. Sehr große Dateien
 werden gestreamt; bei internen Schutzgrenzen markiert ServerStory die betroffenen
@@ -145,6 +149,8 @@ stehen in [docs/design-rationale.md](docs/design-rationale.md).
 ## Release
 
 Release-Schritte stehen in [docs/release-checklist.md](docs/release-checklist.md).
+Die Nutzer-ZIP wird mit `npm run build:release` erzeugt und mit `npm run audit:release`
+geprüft.
 
 ## Lizenz
 

@@ -12,3 +12,6 @@ Vor einer Veroeffentlichung:
 8. `serverstory-logs/` bleibt lokal und ist per `.gitignore` ausgeschlossen.
 9. Bei neuen Report-Feldern Snapshot `tests/snapshots/analysis-report-v1.json` bewusst aktualisieren.
 10. Bei neuen Parserformaten mindestens ein Fixture und einen Invariant-Test ergaenzen.
+11. `npm run build:release` ausfuehren.
+12. `npm run audit:release` ausfuehren.
+13. Release-ZIP pruefen: oben duerfen nur `START_HIER.html` und `serverstory-app/` sichtbar sein.
