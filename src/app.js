@@ -1,6 +1,7 @@
 
 
 
+
       const sample = (() => {
         const lines = [];
         const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0 Safari/537.36";
@@ -685,6 +686,14 @@
         // behaltenen Zeilen, um davor zu warnen. Map wird gedeckelt, damit sie nicht unbegrenzt wächst.
         const clientIpHits = new Map();
         let privateClientHits = 0, clientIpCapped = false, trackingCapped = false;
+        // Verhaltensbasierte Scanner-Erkennung: Ein Host, der viele verschiedene URLs abklappert und
+        // fast nur Fehler (4xx/5xx) zurückbekommt, ist ein URL-Probing-Scanner — auch ohne Bot-UA und
+        // ohne bekannten Exploit-Pfad, wo Signatur-Erkennung (looksLikeScanTarget) und UA-Bot-Filter
+        // nicht greifen. Wir zählen je Quell-IP Gesamt- und Fehler-Requests, vor dem Status-Filter,
+        // weil die 404-Flut sonst schon verworfen wäre, bevor das Muster sichtbar wird.
+        const probeTotal = new Map(), probeErrors = new Map();
+        let probeCapped = false;
+        const PROBE_MIN_HITS = 6, PROBE_ERR_SHARE = 0.8;
 
         function prune() {
           if (maxTime === -Infinity) return;
@@ -742,6 +751,11 @@
           if (host) hostCounts.set(host, (hostCounts.get(host) || 0) + 1);
 
           if ((dateFrom && pt.date < dateFrom) || (dateTo && pt.date > dateTo)) { stats.filtered++; stats.rRange++; return; }
+          if (!probeCapped) {
+            probeTotal.set(ip0, (probeTotal.get(ip0) || 0) + 1);
+            if (status >= 400) probeErrors.set(ip0, (probeErrors.get(ip0) || 0) + 1);
+            if (probeTotal.size > 50000) { probeTotal.clear(); probeErrors.clear(); probeCapped = true; }
+          }
           if (!okStatus.has(status)) { stats.filtered++; stats.rStatus++; return; }
           if (method !== "GET" && method !== "POST") { stats.filtered++; stats.rMethod++; return; }
           const uaTrim = ua.trim();
@@ -823,6 +837,14 @@
             const assets = keyAssets.get(key) || 0;
             if (hits >= suspiciousHitThreshold && assets / hits < suspiciousAssetShare) stats.suspiciousClients++;
           }
+          let probeClients = 0, probeRequests = 0;
+          if (!probeCapped) {
+            for (const [ip, total] of probeTotal) {
+              if (total >= PROBE_MIN_HITS && (probeErrors.get(ip) || 0) / total >= PROBE_ERR_SHARE) {
+                probeClients++; probeRequests += total;
+              }
+            }
+          }
           let formatKind = "unknown";
           const formatScores = [
             ["cloudflare", format.cloudflare],
@@ -847,6 +869,7 @@
             legacyNoUserAgent: stats.legacyNoUserAgent,
             suspiciousClients: stats.suspiciousClients,
             scanRequests: stats.scanRequests,
+            probeClients, probeRequests,
             trackingCapped,
             timeRegressions: stats.timeRegressions,
             minTime: minTime === Infinity ? null : minTime,
@@ -1103,8 +1126,16 @@
           visitorHigh = Math.max(visitorLow, Math.round(agg.visits * 1.2));
         }
         const scanShare = agg.parsed ? agg.scanRequests / agg.parsed : 0;
-        const scanTrafficRisk = agg.scanRequests >= 20 || (agg.scanRequests >= 5 && scanShare >= 0.2);
-        const heavyScanTrafficRisk = agg.scanRequests >= 50 || (agg.scanRequests >= 10 && scanShare >= 0.5);
+        // Verhaltensbasiertes Scan-Signal (404-Probing) ergänzt die Signatur-Erkennung: Hosts, die
+        // viele URLs abklappern und fast nur Fehler bekommen. Greift dort, wo kein Exploit-Pfad und
+        // keine Bot-Kennung vorliegt — sonst bliebe diese Last in der Datei unsichtbar.
+        const probeRequests = agg.probeRequests || 0;
+        const probeClients = agg.probeClients || 0;
+        const probeShare = agg.parsed ? probeRequests / agg.parsed : 0;
+        const scanTrafficRisk = agg.scanRequests >= 20 || (agg.scanRequests >= 5 && scanShare >= 0.2)
+          || probeClients >= 3 || (probeRequests >= 10 && probeShare >= 0.1);
+        const heavyScanTrafficRisk = agg.scanRequests >= 50 || (agg.scanRequests >= 10 && scanShare >= 0.5)
+          || (probeRequests >= 50 && probeShare >= 0.15) || probeShare >= 0.3;
         const scanTrafficText = "Viele Aufrufe wirken wie Admin-, Exploit- oder Proxy-Scans.";
         const botReliability = isLegacyArchive ? "limited" : (heavyScanTrafficRisk ? "limited" : (agg.suspiciousClients > 0 || scanTrafficRisk ? "medium" : "high"));
         const isEdgeLog = edgeKinds.has(agg.formatKind) || userSaysEdgeLog;
@@ -1506,6 +1537,7 @@
             hostCount: hosts.total,
             proxyKind: proxyKind || "none",
             scanRequests: agg.scanRequests || 0,
+            probeRequests, probeClients,
             calibration,
             exportCompleteness: exportCompleteness.reliability
           },
@@ -1527,6 +1559,7 @@
           suspiciousClients: agg.suspiciousClients,
           scanRequests: agg.scanRequests || 0,
           scanShare,
+          probeRequests, probeClients, probeShare,
           trackingCapped: agg.trackingCapped,
           minTime: agg.minTime, maxTime: agg.maxTime, maxGapMs: agg.maxGapMs,
           visitorRange: { low: visitorLow, high: visitorHigh },
@@ -1613,7 +1646,12 @@
           return data.exportCompleteness.reasons.slice(0, 2).join(" ");
         }
         if (metric === "bot") {
-          if (data.scanRequests > 0) return `${format(data.scanRequests)} Aufrufe wirken wie Admin-, Exploit- oder Proxy-Scans. Diese Datei nicht als sauberen Besucher-Traffic lesen.`;
+          if (data.scanRequests > 0 || data.probeRequests > 0) {
+            const parts = [];
+            if (data.scanRequests > 0) parts.push(`${format(data.scanRequests)} Aufrufe treffen bekannte Admin-/Exploit-Pfade`);
+            if (data.probeRequests > 0) parts.push(`${format(data.probeRequests)} Aufrufe von ${format(data.probeClients)} Adressen mit Scanner-Muster (fast nur Fehlversuche)`);
+            return parts.join("; ") + ". Diese Datei nicht als sauberen Besucher-Traffic lesen.";
+          }
           if (data.diagnostics.botReliability === "medium") return `${format(data.suspiciousClients)} auffällige Muster gefunden. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
           return data.reasons.bot ? `${format(data.reasons.bot)} klare Bot-Zeilen entfernt. Danach keine starke Auffälligkeit.` : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar.";
         }
@@ -1853,6 +1891,9 @@
         }
         if (data.scanRequests > 0) {
           recognitionText += (recognitionText ? " " : "") + `${format(data.scanRequests)} Aufrufe wirken wie Admin-, Exploit- oder Proxy-Scans. Zahlen aus solchen Dateien bitte nur vorsichtig lesen.`;
+        }
+        if (data.probeRequests > 0) {
+          recognitionText += (recognitionText ? " " : "") + `${format(data.probeRequests)} Aufrufe (${percent(data.probeShare * 100)} der Datei) stammen von ${format(data.probeClients)} Adressen, die fast nur Fehlversuche auslösen — ein typisches Scanner-Muster, kein echter Besucher-Traffic. Die Fehlversuche selbst zählen nicht als Seitenaufruf; behandle die Datei trotzdem nicht als reinen Besucher-Traffic.`;
         }
         if (data.diagnostics.hostReliability === "limited") {
           recognitionText += (recognitionText ? " " : "") + `Die Datei enthält mehrere Websites oder Subdomains (${format(data.hosts.total)} erkannt). Setze oben einen Filter, damit ServerStory und Google Analytics wirklich dieselbe Website vergleichen.`;
@@ -2170,6 +2211,9 @@
           suspiciousClients: lastResult.suspiciousClients,
           scanRequests: lastResult.scanRequests,
           scanShare: lastResult.scanShare,
+          probeRequests: lastResult.probeRequests || 0,
+          probeClients: lastResult.probeClients || 0,
+          probeShare: lastResult.probeShare || 0,
           trackingCapped: lastResult.trackingCapped,
           legacyNoUserAgent: lastResult.legacyNoUserAgent,
           proxyKind: lastResult.proxyKind,
@@ -2209,4 +2253,6 @@
       if (location.protocol === "file:") id("offline-note").classList.add("hidden");
     
     
+    
+
     

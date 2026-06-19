@@ -334,6 +334,8 @@
       "hostCount": 0,
       "proxyKind": "none",
       "scanRequests": 0,
+      "probeRequests": 0,
+      "probeClients": 0,
       "calibration": {
         "preset": "unknown",
         "cache": "unknown",
@@ -403,6 +405,9 @@
   "suspiciousClients": 0,
   "scanRequests": 0,
   "scanShare": 0,
+  "probeRequests": 0,
+  "probeClients": 0,
+  "probeShare": 0,
   "trackingCapped": false,
   "legacyNoUserAgent": 0,
   "proxyKind": "",

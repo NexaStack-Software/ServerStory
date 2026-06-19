@@ -1371,6 +1371,48 @@ test("browser-getarnte Exploit-Scans duerfen keine sicheren Besucher-Befunde erz
   assert.match(result.exportCompleteness.reasons.join(" "), /Exploit|Proxy-Scans|Admin/i);
 });
 
+test("erkennt verhaltensbasierte URL-Scanner an 404-Flut ohne Bot-Kennung", () => {
+  const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
+  const lines = [];
+  // Echte Besucher: vier IPs mit je einem sauberen 200-Seitenaufruf.
+  for (let i = 0; i < 4; i++) lines.push(combined(`203.0.113.${i}`, combinedStampAt(i * 5), "/start", 200, ua));
+  // Drei Scanner-IPs: je acht generische Pfade, alle 404 — kein Exploit-Pfad (Signatur greift nicht),
+  // echte Browser-Kennung (Bot-Filter greift nicht). Nur das Verhalten verrät den Scanner.
+  for (let s = 0; s < 3; s++) {
+    for (let j = 0; j < 8; j++) {
+      lines.push(combined(`45.155.${s}.10`, combinedStampAt(1000 + s * 100 + j), `/nicht-existent-${s}-${j}`, 404, ua));
+    }
+  }
+  const result = analyze(lines.join("\n"));
+  assert.strictEqual(result.probeClients, 3);
+  assert.strictEqual(result.probeRequests, 24);
+  assert.strictEqual(result.scanRequests, 0);
+  // Echte Besucher- und Seitenzahlen bleiben durch die Scanner-Last unverfälscht.
+  assert.strictEqual(result.pageViews, 4);
+  assert.strictEqual(result.visits, 4);
+
+  const built = buildResultFor(lines.join("\n"));
+  assert.strictEqual(built.probeClients, 3);
+  assert.strictEqual(built.probeRequests, 24);
+  assert.strictEqual(built.diagnostics.scanTrafficRisk, true);
+  assert.strictEqual(built.diagnostics.botReliability, "limited");
+});
+
+test("vereinzelte 404 normaler Besucher loesen keine Scanner-Erkennung aus", () => {
+  const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
+  const lines = [];
+  // Fünf normale Besucher: je sechs erfolgreiche Seitenaufrufe und ein einzelner toter Link.
+  for (let i = 0; i < 5; i++) {
+    for (let j = 0; j < 6; j++) lines.push(combined(`203.0.113.${i}`, combinedStampAt(i * 100 + j), `/seite-${j}`, 200, ua));
+    lines.push(combined(`203.0.113.${i}`, combinedStampAt(i * 100 + 9), "/toter-link", 404, ua));
+  }
+  const result = analyze(lines.join("\n"));
+  assert.strictEqual(result.probeClients, 0);
+  assert.strictEqual(result.probeRequests, 0);
+  const built = buildResultFor(lines.join("\n"));
+  assert.strictEqual(built.diagnostics.botReliability, "high");
+});
+
 test("filtert gemischte Hosts auf erlaubte Domains", () => {
   const result = analyze(fixture("mixed-hosts.log"), { hostFilter: ["example.test"] });
   assert.strictEqual(result.pageViews, 2);
