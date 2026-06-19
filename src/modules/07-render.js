@@ -426,11 +426,6 @@
             id("subline").textContent = `Für die verglichenen Seiten meldet Google Analytics mehr als die Server-Datei (${percent(cov)}). Häufige Ursache: Cache/CDN — ein Teil der Aufrufe landet dann nicht in dieser Server-Datei. Auch Mehrfachzählung oder Bots können Google Analytics aufblähen.`;
             id("action").textContent = "Nächster Schritt: Prüfen, ob Cloudflare oder ein anderer Cache vor der Seite sitzt — dann fehlen Aufrufe in dieser Server-Datei. Sonst Bots oder Mehrfachzählung in Google Analytics prüfen.";
           }
-          if (hasConv && data.convDiff > 0) {
-            id("action").textContent += ` Beim Kauf-Check zählt dein Webserver ${kauf(data.convDiff)} mehr als Google Analytics.`;
-          } else if (hasConv && data.convDiff < 0) {
-            id("action").textContent += ` Beim Kauf-Check zählt Google Analytics dagegen ${kauf(Math.abs(data.convDiff))} mehr — Details unten beim Kauf-Check.`;
-          }
           return;
         }
 

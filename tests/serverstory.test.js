@@ -3035,7 +3035,7 @@ test("GA4-Vergleich nennt Server-Mehrwert mit korrekter Prozentbasis", () => {
   assert.match(action, /keine strategischen Entscheidungen ableiten/);
   assert.match(action, /gleichen Zeitraum und die richtige Website/);
   assert.match(action, /Cookie-Banner, Ad-Blocker oder ein Cache/);
-  assert.match(action, /Beim Kauf-Check zählt dein Webserver 65 Käufe mehr als Google Analytics/);
+  assert.doesNotMatch(action, /Kauf-Check/);
   assert.doesNotMatch(subline, /26,3 % mehr/);
   assert.doesNotMatch(subline, /56,8 % mehr/);
 });
