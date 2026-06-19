@@ -3027,10 +3027,15 @@ test("GA4-Vergleich nennt Server-Mehrwert mit korrekter Prozentbasis", () => {
   ui.ctx.render(data);
   const headline = ui.get("headline").textContent;
   const subline = ui.get("subline").textContent;
+  const action = ui.get("action").textContent;
   assert.match(headline, /Dein Server zählt deutlich mehr Seitenaufrufe/);
   assert.match(subline, /Server-Datei verzeichnet insgesamt 35,8 % mehr Seitenaufrufe als Google Analytics/);
   assert.match(subline, /\/produkt\/2/);
   assert.match(subline, /Dort verzeichnet dein Server 131,5 % mehr Seitenaufrufe als Google Analytics/);
+  assert.match(action, /keine strategischen Entscheidungen ableiten/);
+  assert.match(action, /gleichen Zeitraum und die richtige Website/);
+  assert.match(action, /Cookie-Banner, Ad-Blocker oder ein Cache/);
+  assert.match(action, /Beim Kauf-Check zählt dein Webserver 65 Käufe mehr als Google Analytics/);
   assert.doesNotMatch(subline, /26,3 % mehr/);
   assert.doesNotMatch(subline, /56,8 % mehr/);
 });

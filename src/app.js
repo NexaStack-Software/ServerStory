@@ -2091,7 +2091,7 @@
               ? ` Den größten Unterschied hat deine Unterseite ${worst.name}: Dort verzeichnet dein Server ${worst.coverage > 0 ? percent((10000 / worst.coverage) - 100) : "deutlich"} mehr Seitenaufrufe als Google Analytics.`
               : "";
             id("subline").textContent = `In deiner Server-Datei stehen für deine ausgewählten Seiten deutlich mehr Seitenaufrufe als in deinem Google Analytics-Dashboard. Deine Server-Datei verzeichnet insgesamt ${serverGap} mehr Seitenaufrufe als Google Analytics.${worstGapText}`;
-            id("action").textContent = "Nächster Schritt: Noch keine Budget-Entscheidung nur daraus ableiten. Prüfe zuerst: gleicher Zeitraum, richtige Website, Seitenaufrufe in Google Analytics, Cookie-Banner, Ad-Blocker und ob ein Cache davor sitzt.";
+            id("action").textContent = "Nächster Schritt: Du solltest aus den Ergebnissen jetzt noch keine strategischen Entscheidungen ableiten. Prüfe zuerst: Hast du wirklich den gleichen Zeitraum und die richtige Website geprüft? Stimmen die Seitenaufrufe in Google Analytics? Hast du geprüft, ob Cookie-Banner, Ad-Blocker oder ein Cache die Differenz erklären können?";
           } else if (cov < 95) {
             setSignal("medium", "~", "Kleine Lücke");
             id("headline").textContent = "Kleine Abweichung";
