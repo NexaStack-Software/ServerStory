@@ -42,6 +42,7 @@ run("npm", ["test"]);
 run("npm", ["run", "test:benchmark"]);
 run("npm", ["run", "test:sanitize"]);
 run("npm", ["run", "test:e2e"]);
+run("npm", ["run", "test:visual"]);
 run("npm", ["run", "audit:repo"]);
 run("npm", ["run", "build:release"]);
 run("npm", ["run", "audit:release"]);

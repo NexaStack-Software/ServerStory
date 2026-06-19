@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.1 - 2026-06-19
+
 - Multi-Format-Parser fuer Apache/Nginx Combined, JSON, IIS/W3C, Cloudflare, CloudFront, Fastly und Akamai-nahe Logs erweitert.
 - No-False-Confidence-Schicht ergaenzt: Befunde werden lieber als eingeschraenkt/unsicher markiert, statt falsche Praezision zu behaupten.
 - Evidence-/Claim-Safety-Schicht im Analyse-Protokoll ergaenzt: Kennzahlen werden als `measured`, `estimated`, `lower_bound`, `comparison` oder `not_determinable` klassifiziert.

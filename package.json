@@ -1,6 +1,6 @@
 {
   "name": "serverstory",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "private": true,
   "license": "MIT",
   "scripts": {
@@ -12,9 +12,11 @@
     "test:sanitize": "node tests/sanitize-log.test.js",
     "download:realworld": "node scripts/download-realworld-fixtures.js",
     "test:e2e": "node scripts/browser-e2e.js",
+    "test:visual": "node scripts/visual-smoke.js",
     "audit:repo": "node scripts/audit-repo.js",
     "audit:release": "node scripts/audit-release.js",
     "smoke:release": "node scripts/release-smoke.js",
+    "publish:release": "node scripts/publish-release.js",
     "verify": "node scripts/verify.js"
   }
 }
