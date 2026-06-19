@@ -321,6 +321,14 @@ function calibrationScore(results) {
   ]));
 }
 
+function statusRank(status) {
+  return { allowed: 2, limited: 1, blocked: 0 }[status] ?? -1;
+}
+
+function reliabilityRank(value) {
+  return { high: 2, medium: 1, limited: 0, none: -1 }[value] ?? -1;
+}
+
 const baselineCombined = [
   combined("203.0.113.10", "05/Jun/2026:10:00:00 +0000", "/preise?gclid=abc"),
   combined("203.0.113.10", "05/Jun/2026:10:02:00 +0000", "/assets/app.css"),
@@ -1718,6 +1726,151 @@ test("Kalibrierung: Wahrheitsszenarien erzwingen konservative Claims und vollsta
     reportCompleteness: 1,
     languageSafety: 1
   });
+});
+
+test("Metamorphic: gleiche Besuchsrealitaet bleibt ueber Varianten stabil oder konservativer", async () => {
+  const combinedCase = createLargeGoldenCorpus("combined");
+  const cloudflareCase = createLargeGoldenCorpus("cloudflare");
+  const cloudfrontCase = createLargeGoldenCorpus("cloudfront");
+  const withNoise = [
+    ...combinedCase.text.split("\n"),
+    combined("198.51.100.220", combinedStampAt(9999), "/assets/extra.js"),
+    combined("198.51.100.221", combinedStampAt(10000), "/assets/extra.css"),
+    combined("198.51.100.222", combinedStampAt(10001), "/landing?utm_source=x&gclid=y")
+  ].join("\n");
+  const withKeptQuery = createLargeGoldenCorpus("combined", {
+    hostFor: () => "EXAMPLE.TEST"
+  });
+  const cases = [
+    ["combined", await copyReportFor(buildResultFor(combinedCase.text, {
+      successPattern: "/checkout/*",
+      orderParam: "order_id",
+      hasSuccessUrl: true
+    }))],
+    ["cloudflare", await copyReportFor(buildResultFor(cloudflareCase.text, {
+      successPattern: "/checkout/*",
+      orderParam: "order_id",
+      hasSuccessUrl: true
+    }))],
+    ["cloudfront", await copyReportFor(buildResultFor(cloudfrontCase.text, {
+      successPattern: "/checkout/*",
+      orderParam: "order_id",
+      hasSuccessUrl: true
+    }))],
+    ["noise", await copyReportFor(buildResultFor(withNoise, {
+      successPattern: "/checkout/*",
+      orderParam: "order_id",
+      hasSuccessUrl: true
+    }))],
+    ["uppercase-host", await copyReportFor(buildResultFor(withKeptQuery.text, {
+      successPattern: "/checkout/*",
+      orderParam: "order_id",
+      hasSuccessUrl: true
+    }))]
+  ];
+
+  for (const [name, report] of cases) {
+    assert.strictEqual(report.totals.success, combinedCase.expected.success, name);
+    assert.strictEqual(report.claimMatrix.visits.status, "allowed", name);
+    assert.strictEqual(report.claimMatrix.conversions.status, "allowed", name);
+    assert.ok(statusRank(report.claimMatrix.pageViews.status) >= statusRank("limited"), name);
+    assert.ok(reliabilityRank(report.quality.pageviewReliability) >= reliabilityRank("medium"), name);
+  }
+  assert.strictEqual(cases[0][1].totals.pageViews, combinedCase.expected.pageViews);
+  assert.strictEqual(cases[1][1].totals.pageViews, combinedCase.expected.pageViews);
+  assert.strictEqual(cases[2][1].totals.pageViews, combinedCase.expected.pageViews);
+  assert.strictEqual(cases[3][1].totals.pageViews, combinedCase.expected.pageViews + 1);
+});
+
+test("Monotonicity: schlechtere Daten duerfen Claims nie optimistischer machen", async () => {
+  const large = createLargeGoldenCorpus("combined");
+  const base = await copyReportFor(buildResultFor(large.text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/landing,1250" }
+  }));
+  const noisy = await copyReportFor(buildResultFor(`${large.text}\n${Array.from({ length: 200 }, (_, i) => `kaputte zeile ${i}`).join("\n")}`, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/landing,1250" }
+  }));
+  const broken = await copyReportFor(buildResultFor(`${large.text}\n${Array.from({ length: 2200 }, (_, i) => `kaputte zeile ${i}`).join("\n")}`, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/landing,1250" }
+  }));
+
+  assert.ok(noisy.quality.recognitionRate < base.quality.recognitionRate);
+  assert.ok(broken.quality.recognitionRate < noisy.quality.recognitionRate);
+  assert.ok(reliabilityRank(noisy.quality.pageviewReliability) <= reliabilityRank(base.quality.pageviewReliability));
+  assert.ok(reliabilityRank(broken.quality.pageviewReliability) <= reliabilityRank(noisy.quality.pageviewReliability));
+  assert.ok(statusRank(noisy.claimMatrix.pageViews.status) <= statusRank(base.claimMatrix.pageViews.status));
+  assert.ok(statusRank(broken.claimMatrix.pageViews.status) <= statusRank(noisy.claimMatrix.pageViews.status));
+  assert.ok(statusRank(broken.claimMatrix.ga4.status) <= statusRank(noisy.claimMatrix.ga4.status));
+
+  const proxyLow = await copyReportFor(buildResultFor(createLargeGoldenCorpus("combined").text));
+  const proxyHigh = await copyReportFor(buildResultFor(createLargeGoldenCorpus("combined", {
+    proxyIp: "10.0.0.5",
+    xff: true
+  }).text));
+  assert.ok(statusRank(proxyHigh.claimMatrix.visits.status) <= statusRank(proxyLow.claimMatrix.visits.status));
+  assert.ok(reliabilityRank(proxyHigh.quality.visitorReliability) <= reliabilityRank(proxyLow.quality.visitorReliability));
+
+  const hostClean = await copyReportFor(buildResultFor(createLargeGoldenCorpus("cloudflare").text));
+  const hostMixed = await copyReportFor(buildResultFor(createLargeGoldenCorpus("cloudflare", {
+    hostFor: (i) => (i % 4 === 0 ? "other.example.test" : "example.test")
+  }).text));
+  assert.ok(statusRank(hostMixed.claimMatrix.hostScope.status) <= statusRank(hostClean.claimMatrix.hostScope.status));
+  assert.ok(reliabilityRank(hostMixed.quality.hostReliability) <= reliabilityRank(hostClean.quality.hostReliability));
+
+  const ga4Clean = await copyReportFor(buildResultFor(baselineCombined, {}, {
+    "ga4-url-views": { value: "/preise,2\n/checkout/danke,2" }
+  }));
+  const ga4Duplicate = await copyReportFor(buildResultFor(baselineCombined, {}, {
+    "ga4-url-views": { value: "/preise,1\n/preise,1\n/checkout/danke,2" }
+  }));
+  assert.ok(statusRank(ga4Duplicate.claimMatrix.ga4.status) <= statusRank(ga4Clean.claimMatrix.ga4.status));
+  assert.ok(reliabilityRank(ga4Duplicate.quality.ga4Reliability) <= reliabilityRank(ga4Clean.quality.ga4Reliability));
+});
+
+test("Report und UI spiegeln Matrix-Unsicherheit ohne stille Gruende", async () => {
+  const data = buildResultFor(createLargeGoldenCorpus("combined", {
+    proxyIp: "10.0.0.5",
+    xff: true
+  }).text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  }, {
+    "ga4-url-views": { value: "/landing,2500\n/checkout/danke,300" }
+  });
+  const ui = createRenderContext();
+  ui.ctx.render(data);
+  await ui.get("copy-report").click();
+  const report = JSON.parse(ui.ctx.__clipboard);
+
+  for (const [key, claim] of Object.entries(report.claimMatrix)) {
+    assert.strictEqual(report.claims[key].status, claim.status, key);
+    if (claim.status !== "allowed") {
+      assert.ok(claim.reason || claim.evidenceFailures.length || claim.forbiddenConclusions.length, key);
+    }
+    if (claim.evidenceFailures.length) {
+      assert.notStrictEqual(claim.status, "allowed", key);
+      assert.deepStrictEqual(report.auditProtocol.evidenceFailures[key], claim.evidenceFailures, key);
+    }
+  }
+
+  assert.strictEqual(ui.get("q-visits").textContent, "Nicht verlässlich");
+  assert.match(ui.get("q-visits-reason").textContent, /Proxy|CDN/i);
+  assert.strictEqual(ui.get("q-ga4").textContent, "Mit Vorsicht");
+  assert.match(ui.get("claim-forbidden").innerHTML, /Keine feste Besucherzahl|alle Aufrufe|Tracking-Entscheidung/i);
+  assert.match(ui.get("claim-checks").innerHTML, /Proxy|Cache|Zeitraum|Besucheradresse/i);
 });
 
 test("Copy-Report macht Proxy-XFF-Risiko mit Besucher-Bandbreite sichtbar", async () => {
