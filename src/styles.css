@@ -686,6 +686,38 @@
         line-height: 1.35;
       }
 
+      .guided-box {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .guided-box > div {
+        border: 1px solid var(--black);
+        background: var(--white);
+        padding: 14px;
+      }
+
+      .guided-box strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+      }
+
+      .guided-box ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .guided-box li {
+        margin: 7px 0;
+        line-height: 1.35;
+      }
+
       .purchase-box {
         margin-top: 18px;
         border: 1px solid var(--black);
@@ -1005,6 +1037,7 @@
         .workspace,
         .flow,
         .numbers,
+        .guided-box,
         .purchase-grid,
         .server-grid,
         dl,

@@ -1516,6 +1516,90 @@
         id("claim-checks").innerHTML = listHtml(checks, "Zeitraum, Website und Export kurz gegenprüfen.");
         id("claim-box").classList.remove("hidden");
       }
+      function buildGuidedDiagnosis(data, hasGa4, hasConv) {
+        const usable = [];
+        const limits = [];
+        const next = [];
+
+        if (data.claimMatrix.pageViews.status === "allowed") usable.push("Seitenaufrufe als robuste Hauptzahl verwenden.");
+        else if (data.claimMatrix.pageViews.status === "limited") limits.push("Seitenaufrufe nur als Richtwert lesen, weil Teile der Datei unsicher sind.");
+        else limits.push("Keine feste Aussage zu Seitenaufrufen treffen.");
+
+        if (data.claimMatrix.visits.status === "allowed") usable.push("Besuche als grobe Größenordnung verwenden.");
+        else if (data.claimMatrix.visits.status === "limited") limits.push("Besuche nur als Spanne lesen, nicht als exakte Personenzahl.");
+        else limits.push("Besuche mit dieser Datei nicht als Zahl behaupten.");
+
+        if (data.hasSuccessUrl && data.claimMatrix.conversions.status === "allowed") usable.push("Käufe über die Danke-Seite prüfen.");
+        else if (data.hasSuccessUrl) limits.push("Käufe vorsichtig lesen, wenn Reloads oder fehlende Bestellnummern möglich sind.");
+
+        if (hasGa4 && data.claimMatrix.ga4.status === "allowed") usable.push("Google Analytics mit den Server-Zahlen vergleichen.");
+        else if (hasGa4) limits.push("Google-Analytics-Vergleich erst nach Gegencheck für Zeitraum, Website und Seiten nutzen.");
+
+        if (data.diagnostics.hostReliability === "limited") {
+          limits.push("Die Datei enthält mehrere Websites oder Subdomains.");
+          next.push("Website-Filter setzen und erneut auswerten.");
+        }
+        if (data.proxyKind && !data.xffUsed) {
+          limits.push("Besucheradressen wirken durch Cache oder Zwischenstation verdeckt.");
+          next.push("Falls Cloudflare, Proxy oder Cache davor sitzt: echte Besucheradresse aktivieren und erneut auswerten.");
+        }
+        if (data.diagnostics.pageviewReliability !== "high") {
+          next.push("Prüfen, ob die Datei wirklich eine vollständige Server-Besuchsliste ist.");
+        }
+        if (data.diagnostics.chronologyIssue || data.maxGapMs >= 6 * 60 * 60 * 1000) {
+          limits.push("Zeitliche Lücken oder unsortierte Einträge können Besuche und Käufe verzerren.");
+          next.push("Zeitraum und Vollständigkeit der Datei gegenprüfen.");
+        }
+        if (hasGa4 && data.ga4Import && data.ga4Import.warning) {
+          next.push("Google-Analytics-Export neu holen: Seitenaufrufe verwenden, nicht Nutzer oder Sitzungen.");
+        } else if (hasGa4) {
+          next.push("In Google Analytics denselben Zeitraum und dieselbe Website prüfen.");
+        } else {
+          next.push("Optional Google-Analytics-Seitenaufrufe eintragen, wenn du die Tracking-Lücke sehen willst.");
+        }
+        if (data.hasSuccessUrl && data.diagnostics.conversionReliability !== "high") {
+          next.push("Wenn möglich Bestellnummer-Parameter eintragen, damit Reloads nicht wie neue Käufe wirken.");
+        }
+        if (data.suspiciousClients > 0) {
+          limits.push("Auffällige Zugriffsmuster können Bot-, Monitoring- oder Test-Traffic sein.");
+          next.push("Bei auffälligen Mustern strengen Bot-Filter testen und Ergebnis vergleichen.");
+        }
+        if (data.trackingCapped) {
+          limits.push("Bei dieser großen Datei sind Detailhinweise gröber.");
+          next.push("Für Detailprüfungen eine kleinere Zeitspanne zusätzlich auswerten.");
+        }
+
+        return {
+          usable: unique(usable).slice(0, 4),
+          limits: unique(limits).slice(0, 5),
+          next: unique(next).slice(0, 5)
+        };
+      }
+      function renderGuidedDiagnosis(data, hasGa4, hasConv) {
+        const diagnosis = buildGuidedDiagnosis(data, hasGa4, hasConv);
+        const listHtml = (items, fallback) => (items.length ? items : [fallback]).map((text) => `<li>${escapeHtml(text)}</li>`).join("");
+        id("guided-use").innerHTML = listHtml(diagnosis.usable, "Seitenaufrufe als ersten Richtwert verwenden.");
+        id("guided-limits").innerHTML = listHtml(diagnosis.limits, "Keine harte Entscheidung treffen, ohne Zeitraum und Website zu prüfen.");
+        id("guided-next").innerHTML = listHtml(diagnosis.next, "Zeitraum, Website und Export kurz gegenprüfen.");
+        id("guided-box").classList.remove("hidden");
+        return diagnosis;
+      }
+      function preflightGuidance(preflight) {
+        const ok = [];
+        const check = [];
+        if (preflight.classification === "access_log" || preflight.classification === "legacy_access_log") {
+          ok.push("Die Datei sieht wie eine passende Server-Besuchsliste aus.");
+        } else {
+          check.push(`${preflight.classificationLabel} Das ist wahrscheinlich nicht die richtige Datei für diese Auswertung.`);
+        }
+        if (preflight.quality.pageviews === "high") ok.push("Seitenaufrufe wirken gut lesbar.");
+        else check.push("Seitenaufrufe nur vorsichtig verwenden, bis das Format geprüft ist.");
+        if (preflight.hosts.total > 1) check.push("Mehrere Websites/Subdomains erkannt: Website-Filter setzen.");
+        if (preflight.proxySignal && !preflight.fields.xff) check.push("Cache oder Zwischenstation möglich: Besucherzahl kann unsicher sein.");
+        if (preflight.fields.xff) ok.push("Proxy-Feld gefunden; bei Bedarf echte Besucheradresse aktivieren.");
+        if (preflight.recommendedChecks.length) check.push(...preflight.recommendedChecks);
+        return { ok: unique(ok).slice(0, 3), check: unique(check).slice(0, 4) };
+      }
       function render(data) {
         analyzed = true;
         lastResult = data;
@@ -1557,6 +1641,7 @@
         setQualityReason("q-bot", qualityReason(data, "bot", hasGa4));
         setQualityReason("q-tracking", qualityReason(data, "tracking", hasGa4));
         setPrecisionChecklist(data, hasGa4);
+        data.guidedDiagnosis = renderGuidedDiagnosis(data, hasGa4, hasConv);
         renderClaimBox(data, hasGa4, hasConv);
 
         // Kauf-Check (signierte Differenz)
@@ -1842,9 +1927,10 @@
           const rangeText = preflight.sampleTimeRange.from && preflight.sampleTimeRange.to
             ? ` Zeitraum: ${formatDateTime(Date.parse(preflight.sampleTimeRange.from))} bis ${formatDateTime(Date.parse(preflight.sampleTimeRange.to))}.`
             : "";
-          const riskText = preflight.claimBlockers.length ? ` Risiken: ${preflight.claimBlockers.join(" ")}` : "";
-          const checkText = preflight.recommendedChecks.length ? ` Erst prüfen: ${preflight.recommendedChecks.join(" ")}` : "";
-          id("message").textContent = `Kurzprüfung: ${preflight.classificationLabel}. ${percent(preflight.recognitionRate * 100)} der Stichprobe lesbar, ${hostText}${xffText}. Beispiel: ${preflight.fields.method || "-"} ${preflight.fields.path || "-"} → ${preflight.fields.status || "-"}.${rangeText}${riskText}${checkText}`;
+          const guidance = preflightGuidance(preflight);
+          const okText = guidance.ok.length ? ` Gut: ${guidance.ok.join(" ")}` : "";
+          const checkText = guidance.check.length ? ` Erst prüfen: ${guidance.check.join(" ")}` : "";
+          id("message").textContent = `Kurzprüfung: ${preflight.classificationLabel}. ${percent(preflight.recognitionRate * 100)} der Stichprobe lesbar, ${hostText}${xffText}. Beispiel: ${preflight.fields.method || "-"} ${preflight.fields.path || "-"} → ${preflight.fields.status || "-"}.${rangeText}${okText}${checkText}`;
         } catch (error) {
           id("message").textContent = error && error.message ? error.message : "Kurzprüfung fehlgeschlagen.";
         }
@@ -1906,6 +1992,11 @@
           evidenceFailures: lastResult.evidenceFailures,
           claims: lastResult.claims,
           claimMatrix: lastResult.claimMatrix,
+          guidedDiagnosis: lastResult.guidedDiagnosis || buildGuidedDiagnosis(
+            lastResult,
+            !!(lastResult.overall && lastResult.overall.coverage !== null),
+            !!(lastResult.hasSuccessUrl && lastResult.ga4Conversions !== null)
+          ),
           auditProtocol: lastResult.auditProtocol,
           conflicts: lastResult.conflicts,
           ga4Validation: lastResult.ga4Validation,

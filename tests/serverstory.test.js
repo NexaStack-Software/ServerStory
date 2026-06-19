@@ -255,6 +255,7 @@ function visibleDecisionText(ui) {
   return [
     "headline", "subline", "action", "table-caption", "compare-note", "purchase-note",
     "proxy-hint", "recognition-hint", "chrono-hint", "precision-checklist",
+    "guided-use", "guided-limits", "guided-next",
     "claim-allowed", "claim-forbidden", "claim-checks",
     "q-visits", "q-visits-reason", "q-views", "q-views-reason",
     "q-purchases", "q-purchases-reason", "q-ga4", "q-ga4-reason",
@@ -275,7 +276,7 @@ function assertAnalysisReportSchema(report) {
   const statusValues = ["allowed", "limited", "blocked"];
   for (const key of [
     "schema", "schemaVersion", "generatedAt", "format", "totals", "quality", "timeRange",
-    "evidence", "evidenceFailures", "claims", "claimMatrix", "auditProtocol",
+    "evidence", "evidenceFailures", "claims", "claimMatrix", "guidedDiagnosis", "auditProtocol",
     "conflicts", "ga4Validation", "exportCompleteness", "parser", "accuracyNotes", "topPages"
   ]) {
     assert.ok(Object.prototype.hasOwnProperty.call(report, key), `report.${key}`);
@@ -284,6 +285,11 @@ function assertAnalysisReportSchema(report) {
   assert.strictEqual(report.schemaVersion, 1);
   assert.strictEqual(typeof report.generatedAt, "string");
   assert.ok(!Number.isNaN(Date.parse(report.generatedAt)));
+  assert.ok(Array.isArray(report.guidedDiagnosis.usable));
+  assert.ok(Array.isArray(report.guidedDiagnosis.limits));
+  assert.ok(Array.isArray(report.guidedDiagnosis.next));
+  assert.ok(report.guidedDiagnosis.usable.length > 0 || report.guidedDiagnosis.limits.length > 0);
+  assert.ok(report.guidedDiagnosis.next.length > 0);
   for (const key of ["rows", "parsed", "kept", "filtered", "pageViews", "visits", "success"]) {
     assert.strictEqual(Number.isFinite(report.totals[key]), true, `totals.${key}`);
     assert.ok(report.totals[key] >= 0, `totals.${key}`);
@@ -1553,6 +1559,8 @@ test("Render setzt Ampeln und sichtbare Gruende pro Kennzahl", () => {
   assert.match(ui.get("claim-allowed").innerHTML, /Seitenaufrufe sind gut nutzbar/i);
   assert.match(ui.get("claim-forbidden").innerHTML, /Tracking-Verlust/i);
   assert.match(ui.get("claim-checks").innerHTML, /Zeitraum/i);
+  assert.match(ui.get("guided-use").innerHTML, /Seitenaufrufe/i);
+  assert.match(ui.get("guided-next").innerHTML, /Google Analytics|Zeitraum/i);
   assert.strictEqual(ui.get("n-views").textContent, "4");
   assert.strictEqual(ui.get("n-purchases").textContent, "1");
 });
@@ -1631,6 +1639,8 @@ test("Render verhindert falsche Sicherheit bei Proxy, Bot-Anomalien und Tracking
   assert.match(proxyUi.get("q-visits-reason").textContent, /Nicht verlässlich bestimmbar/i);
   assert.match(proxyUi.get("claim-forbidden").innerHTML, /Keine feste Besucherzahl/i);
   assert.match(proxyUi.get("claim-checks").innerHTML, /Besucheradresse hinter Proxy/i);
+  assert.match(proxyUi.get("guided-limits").innerHTML, /Besuche|Besucheradressen/i);
+  assert.match(proxyUi.get("guided-next").innerHTML, /Besucheradresse|erneut auswerten/i);
   assert.doesNotMatch(proxyUi.get("subline").textContent, /1 Besuche|1 Besuch/i);
   assert.match(proxyUi.get("proxy-hint").textContent, /Proxy|Loadbalancer|CDN/i);
 

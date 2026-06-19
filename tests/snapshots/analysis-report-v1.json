@@ -264,6 +264,19 @@
       "forbiddenConclusions": []
     }
   },
+  "guidedDiagnosis": {
+    "usable": [
+      "Seitenaufrufe als robuste Hauptzahl verwenden.",
+      "Besuche als grobe Größenordnung verwenden.",
+      "Käufe über die Danke-Seite prüfen."
+    ],
+    "limits": [
+      "Google-Analytics-Vergleich erst nach Gegencheck für Zeitraum, Website und Seiten nutzen."
+    ],
+    "next": [
+      "In Google Analytics denselben Zeitraum und dieselbe Website prüfen."
+    ]
+  },
   "auditProtocol": {
     "dataBasis": {
       "format": "combined",
