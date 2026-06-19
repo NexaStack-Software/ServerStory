@@ -18,7 +18,7 @@ const BLOCKED_EXT = /\.(zip|tar|tgz|gz|7z|rar)$/i;
 function walk(dir, prefix = "") {
   const files = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === ".git" || entry.name === "node_modules" || entry.name === "serverstory-logs" || entry.name === "dist") continue;
+    if (entry.name === ".git" || entry.name === "node_modules" || entry.name === "serverstory-logs" || entry.name === "realworld-cache" || entry.name === "dist") continue;
     const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) files.push(...walk(full, rel));

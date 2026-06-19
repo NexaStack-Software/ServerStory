@@ -408,6 +408,26 @@
           if (Number.isNaN(t)) return null;
           return { date: m[3] + "-" + mo + "-" + m[1], timeMs: t };
         }
+        function parseLegacyArchiveTime(raw) {
+          const text = String(raw || "").trim().replace(/\s+/g, " ");
+          let m = text.match(/^(?:[A-Za-z]{3} )?([A-Za-z]{3}) (\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})$/);
+          if (m) {
+            const mo = monthMap[m[1]];
+            if (!mo) return null;
+            const day = String(m[2]).padStart(2, "0");
+            const t = Date.parse(`${m[6]}-${mo}-${day}T${m[3]}:${m[4]}:${m[5]}-04:00`);
+            if (Number.isNaN(t)) return null;
+            return { date: `${m[6]}-${mo}-${day}`, timeMs: t };
+          }
+          m = text.match(/^(\d{1,2}):(\d{2}):(\d{2}):(\d{2})$/);
+          if (m) {
+            const day = String(m[1]).padStart(2, "0");
+            const t = Date.parse(`1995-08-${day}T${m[2]}:${m[3]}:${m[4]}-04:00`);
+            if (Number.isNaN(t)) return null;
+            return { date: `1995-08-${day}`, timeMs: t };
+          }
+          return parseTime(text);
+        }
         function parseIsoTime(raw) {
           const t = Date.parse(String(raw || ""));
           if (Number.isNaN(t)) return null;
@@ -528,12 +548,21 @@
           if (!pt) return null;
           return { kind: "combined", ip0: m[1], pt, method: m[3], target: m[4], host: "", status: +m[6], ua: m[8], trailing: m[9] || "" };
         }
+        function parseLegacyArchiveLine(line) {
+          const m = line.match(/^(\S+)(?:[ \t]+\S+[ \t]+\S+)?[ \t]+\[([^\]]+)\][ \t]+"([A-Z]+)[ \t]+([^"]*?)(?:[ \t]+HTTP\/[0-9.]+)?"[ \t]+(\d{3})[ \t]+\S+/);
+          if (!m) return null;
+          const pt = parseLegacyArchiveTime(m[2]);
+          if (!pt) return null;
+          return { kind: "legacy_http_archive", ip0: m[1], pt, method: m[3], target: m[4], host: "", status: +m[5], ua: "__legacy_no_user_agent__", trailing: "", noUserAgent: true };
+        }
         function parseLogLine(line) {
           const combined = parseCombinedLine(line);
           if (combined) return combined;
           const json = parseJsonLine(line);
           if (json) return json;
-          return parseIisLine(line);
+          const iis = parseIisLine(line);
+          if (iis) return iis;
+          return parseLegacyArchiveLine(line);
         }
 
         const pathCounts = new Map(), statusCounts = new Map(), methodCounts = new Map(), hostCounts = new Map();
@@ -544,9 +573,9 @@
           rBot: 0, rStatus: 0, rRange: 0, rMethod: 0, rEmptyUa: 0, rStrict: 0,
           visits: 0, successRaw: 0, success: 0, timeRegressions: 0,
           xffUsed: 0, xffMissing: 0, xffPrivate: 0, suspiciousClients: 0, rHost: 0,
-          meta: 0
+          meta: 0, legacyNoUserAgent: 0
         };
-        const format = { checked: 0, combined: 0, json: 0, iis: 0, cloudflare: 0, cloudfront: 0, fastly: 0, akamai: 0 };
+        const format = { checked: 0, combined: 0, json: 0, iis: 0, cloudflare: 0, cloudfront: 0, fastly: 0, akamai: 0, legacy_http_archive: 0 };
         let prevTime = -Infinity, maxTime = -Infinity, minTime = Infinity, maxGapMs = 0, seen = 0;
         // Proxy-/CDN-Erkennung (nur relevant, wenn X-Forwarded-For NICHT genutzt wird): Sitzt die
         // Seite hinter einem Reverse-Proxy/Loadbalancer/CDN, steht in Spalte 1 immer dieselbe
@@ -582,6 +611,7 @@
               else if (w3cKind === "cloudfront") format.cloudfront++;
               else format.iis++;
             }
+            else if (/^\S+(?:\s+\S+\s+\S+)?\s+\[[^\]]+\]\s+"[A-Z]+\s+[^"]+(?:\s+HTTP\/[0-9.]+)?"\s+\d{3}\s+\S+/.test(line)) format.legacy_http_archive++;
           }
           const rec = parseLogLine(line);
           if (rec && rec.meta) { stats.meta++; return; }
@@ -596,6 +626,7 @@
           else if (rec.kind === "json") format.json++;
           else if (rec.kind === "iis") format.iis++;
           else if (rec.kind === "combined") format.combined++;
+          else if (rec.kind === "legacy_http_archive") format.legacy_http_archive++;
           if (pt.timeMs < prevTime) stats.timeRegressions++;
           else if (prevTime !== -Infinity && pt.timeMs - prevTime > maxGapMs) maxGapMs = pt.timeMs - prevTime;
           prevTime = pt.timeMs;
@@ -611,9 +642,12 @@
           if (!okStatus.has(status)) { stats.filtered++; stats.rStatus++; return; }
           if (method !== "GET" && method !== "POST") { stats.filtered++; stats.rMethod++; return; }
           const uaTrim = ua.trim();
-          if (uaTrim === "" || uaTrim === "-" || uaTrim.length < 8) { stats.filtered++; stats.rEmptyUa++; return; }
-          if (botRe.test(ua)) { stats.filtered++; stats.rBot++; return; }
-          if (strictBot && !browserRe.test(ua)) { stats.filtered++; stats.rStrict++; return; }
+          if (rec.noUserAgent) stats.legacyNoUserAgent++;
+          else {
+            if (uaTrim === "" || uaTrim === "-" || uaTrim.length < 8) { stats.filtered++; stats.rEmptyUa++; return; }
+            if (botRe.test(ua)) { stats.filtered++; stats.rBot++; return; }
+            if (strictBot && !browserRe.test(ua)) { stats.filtered++; stats.rStrict++; return; }
+          }
 
           stats.kept++;
           if (!useXff) {
@@ -689,6 +723,7 @@
             ["cloudfront", format.cloudfront],
             ["fastly", format.fastly],
             ["akamai", format.akamai],
+            ["legacy_http_archive", format.legacy_http_archive],
             ["combined", format.combined],
             ["json", format.json],
             ["iis", format.iis]
@@ -703,6 +738,7 @@
             adVisitors: adVisitors.size, adSuccess: adSuccess.size,
             formatKind, formatChecked: format.checked, formatCombined: format.combined,
             xffUsed: stats.xffUsed, xffMissing: stats.xffMissing, xffPrivate: stats.xffPrivate,
+            legacyNoUserAgent: stats.legacyNoUserAgent,
             suspiciousClients: stats.suspiciousClients,
             trackingCapped,
             timeRegressions: stats.timeRegressions,
@@ -900,16 +936,19 @@
         const chronologyIssue = agg.timeRegressions >= 5 && agg.parsed && agg.timeRegressions / agg.parsed >= 0.01;
         const cacheRisk = proxyKind ? "elevated" : "normal";
         const hostReliability = hosts.total > 1 && !(config.hostFilter && config.hostFilter.filter(Boolean).length) ? "limited" : "high";
-        const visitorReliability = config.useXff
+        const isLegacyArchive = agg.formatKind === "legacy_http_archive";
+        const visitorReliability = isLegacyArchive
+          ? "medium"
+          : config.useXff
           ? (agg.xffUsed > 0 && agg.xffMissing === 0 ? "high" : "limited")
           : (proxyKind ? "limited" : (chronologyIssue ? "medium" : "high"));
         const edgeKinds = new Set(["cloudflare", "cloudfront", "fastly", "akamai"]);
-        const structuredKinds = new Set([...edgeKinds, "iis"]);
+        const structuredKinds = new Set([...edgeKinds, "iis", "legacy_http_archive"]);
         const pageviewReliability = recognitionRate >= 0.95 && (agg.formatKind === "combined" || structuredKinds.has(agg.formatKind)) ? "high" : recognitionRate >= 0.8 ? "medium" : "limited";
         const ga4InputProblem = ga4Validation.duplicateCount > 0 || (ga4Validation.unmatchedRows > 0 && ga4Validation.unmatchedShare >= 0.5);
-        const ga4Reliability = lastGa4Import.warning || ga4InputProblem ? "limited" : (ga4Rows.length && pageviewReliability !== "limited" ? "medium" : "limited");
+        const ga4Reliability = lastGa4Import.warning || ga4InputProblem ? "limited" : (ga4Rows.length && pageviewReliability !== "limited" ? (isLegacyArchive ? "limited" : "medium") : "limited");
         const conversionReliability = config.hasSuccessUrl
-          ? (config.orderParam ? "high" : (agg.successRaw > agg.success * 1.25 ? "medium" : "high"))
+          ? (isLegacyArchive ? "medium" : (config.orderParam ? "high" : (agg.successRaw > agg.success * 1.25 ? "medium" : "high")))
           : "none";
         let visitorLow = agg.visits, visitorHigh = agg.visits;
         if (visitorReliability === "limited") {
@@ -920,7 +959,7 @@
           visitorLow = Math.max(1, Math.round(agg.visits * 0.8));
           visitorHigh = Math.max(visitorLow, Math.round(agg.visits * 1.2));
         }
-        const botReliability = agg.suspiciousClients > 0 ? "medium" : "high";
+        const botReliability = isLegacyArchive ? "limited" : (agg.suspiciousClients > 0 ? "medium" : "high");
         const isEdgeLog = edgeKinds.has(agg.formatKind);
         const originCacheRisk = !!(proxyKind && !isEdgeLog);
         const conflicts = [];
@@ -996,6 +1035,7 @@
           ...(agg.maxGapMs >= 6 * 60 * 60 * 1000 ? [{ level: "medium", text: `Große Lücke von ${Math.round(agg.maxGapMs / 3600000)} Stunden gefunden.`, check: "Prüfen, ob im Export Stunden oder Teil-Dateien fehlen." }] : []),
           ...(hostReliability === "limited" ? [{ level: "medium", text: "Mehrere Websites oder Subdomains in derselben Datei.", check: "Website-Filter setzen oder passende Datei exportieren." }] : []),
           ...(originCacheRisk ? [{ level: "medium", text: "Cache oder Proxy kann Aufrufe vor dieser Server-Datei abfangen.", check: "Prüfen, ob ein CDN-/Cache-Export verfügbar ist." }] : []),
+          ...(isLegacyArchive ? [{ level: "medium", text: "Altes Archivformat ohne Browserkennung erkannt.", check: "Besucher-, Bot- und Conversion-Aussagen nur als grobe Plausibilitätswerte nutzen." }] : []),
           ...(recognitionRate < 0.8 ? [{ level: "limited", text: `Nur ${percent(recognitionRate * 100)} der Datei konnte gelesen werden.`, check: "Exportformat prüfen." }] : (recognitionRate < 0.95 ? [{ level: "medium", text: `${percent(recognitionRate * 100)} der Datei wurde gelesen.`, check: "Exportformat prüfen." }] : [])),
           ...(filterShare >= 0.75 ? [{ level: "limited", text: "Sehr viele Zeilen wurden aussortiert.", check: "Prüfen, ob die Datei wirklich Besucheraufrufe enthält." }] : (filterShare >= 0.5 ? [{ level: "medium", text: "Viele Zeilen wurden aussortiert.", check: "Filtergründe prüfen." }] : []))
         ];
@@ -1026,14 +1066,16 @@
             range: { low: visitorLow, high: visitorHigh },
             reason: proxyKind && !config.useXff
               ? "Diese Datei zeigt vor allem Proxy-/CDN-Adressen. Echte Besucher sind damit nicht verlaesslich bestimmbar."
+              : (isLegacyArchive ? "Altes Archivformat ohne Browserkennung. Besucher werden nur aus Host und 30-Minuten-Fenster geschaetzt."
               : "Besucher werden aus Adresse, Browserkennung und 30-Minuten-Fenster geschaetzt."
+              )
           },
           conversions: {
             type: config.hasSuccessUrl ? (config.orderParam ? "measured" : "estimated") : "not_determinable",
             reliability: conversionReliability,
             canAnswer: !!config.hasSuccessUrl,
             reason: config.hasSuccessUrl
-              ? (config.orderParam ? "Conversions werden ueber Erfolgs-URL und Order-ID dedupliziert." : "Conversions werden ueber Erfolgs-URL und Zeitfenster dedupliziert; Reloads koennen stoeren.")
+              ? (isLegacyArchive ? "Conversions werden im alten Archivformat nur ueber Pfad und Zeitfenster erkannt; Browserkennung fehlt." : (config.orderParam ? "Conversions werden ueber Erfolgs-URL und Order-ID dedupliziert." : "Conversions werden ueber Erfolgs-URL und Zeitfenster dedupliziert; Reloads koennen stoeren."))
               : "Ohne Danke-Seite oder Conversion-Muster kann ServerStory keine Conversions bestimmen."
           },
           ga4: {
@@ -1090,12 +1132,14 @@
               : (visitorReliability === "high" ? "Besucherzahl ist gut nutzbar." : "Besucherzahl ist nur als Spanne nutzbar."),
             blockingReasons: [
               ...(exportCompleteness.reliability === "limited" ? ["Der Export ist nicht vollständig genug für feste Besucher-Aussagen."] : []),
+              ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; Besucher werden nur grob aus Host und Zeitfenster abgeleitet."] : []),
               ...(proxyKind && !config.useXff ? ["Proxy oder Cache verdeckt echte Besucheradressen."] : []),
               ...(chronologyIssue ? ["Die Datei ist nicht sauber zeitlich sortiert."] : []),
               ...(config.useXff && visitorReliability === "limited" ? ["Das Proxy-Feld enthält keine durchgehend brauchbaren Besucheradressen."] : [])
             ],
             recommendedChecks: [
               ...exportCompleteness.recommendedChecks,
+              ...(isLegacyArchive ? ["Besucherzahl bei alten Archivlogs nur als grobe Plausibilitätsgröße nutzen."] : []),
               ...(proxyKind && !config.useXff ? ["Echte Besucheradresse hinter Proxy verwenden, falls der Proxy vertrauenswürdig ist."] : []),
               ...(chronologyIssue ? ["Logdateien vor der Analyse zeitlich sortieren oder einzeln auswerten."] : [])
             ],
@@ -1109,6 +1153,7 @@
             statement: overall ? "GA4-Vergleich ist nur mit gleicher Website, gleichem Zeitraum und gleichen Seiten belastbar." : "GA4-Vergleich nicht vorhanden.",
             blockingReasons: [
               ...(exportCompleteness.reliability === "limited" ? ["Der Server-Export ist nicht vollständig genug für einen belastbaren GA4-Vergleich."] : []),
+              ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; GA4-Vergleiche sind nur eingeschränkt belastbar."] : []),
               ...(lastGa4Import.warning ? [lastGa4Import.warning] : []),
               ...(!overall ? ["Keine GA4-Seitenzahlen eingetragen."] : []),
               ...(hostReliability === "limited" ? ["Die Server-Datei enthält mehrere Websites oder Subdomains."] : []),
@@ -1117,6 +1162,7 @@
             ],
             recommendedChecks: [
               ...exportCompleteness.recommendedChecks,
+              ...(isLegacyArchive ? ["Bei Archivlogs keinen modernen GA4-Trackingverlust ableiten."] : []),
               "Zeitraum in Google Analytics und Server-Datei abgleichen.",
               "Prüfen, ob wirklich Seitenaufrufe aus Google Analytics eingetragen wurden.",
               ...(hostReliability === "limited" ? ["Website-Filter setzen."] : []),
@@ -1142,11 +1188,13 @@
               : "Käufe sind ohne Kauf-/Danke-Seite nicht bestimmbar.",
             blockingReasons: [
               ...(!config.hasSuccessUrl ? ["Keine Kauf-/Danke-Seite angegeben."] : []),
+              ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; Conversion-Deduplizierung ist eingeschränkt."] : []),
               ...(conversionReliability === "medium" ? ["Ohne Bestellnummer können Reloads oder Mehrfachaufrufe stören."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("purchase_comparison")).map((conflict) => conflict.text)
             ],
             recommendedChecks: [
               ...(!config.hasSuccessUrl ? ["Kauf-/Danke-Seite angeben."] : []),
+              ...(isLegacyArchive ? ["Käufe aus Archivlogs nur als Plausibilitätswert nutzen."] : []),
               ...(conversionReliability === "medium" ? ["Bestellnummer-Parameter angeben, falls vorhanden."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("purchase_comparison")).map((conflict) => conflict.check)
             ],
@@ -1193,6 +1241,7 @@
           visits: dedupe([
             ...(exportCompleteness.reliability === "limited" ? ["Der Export ist nicht vollständig genug für feste Besucher-Aussagen."] : []),
             ...(proxyKind && !config.useXff ? ["Proxy oder Cache verdeckt echte Besucheradressen."] : []),
+            ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; Besucher-Sessions sind nur grob ableitbar."] : []),
             ...(config.useXff && visitorReliability === "limited" ? ["Das Proxy-Feld enthält keine durchgehend brauchbaren Besucheradressen."] : []),
             ...(chronologyIssue ? ["Die Datei ist nicht sauber zeitlich sortiert."] : [])
           ]),
@@ -1203,6 +1252,7 @@
             ...(hostReliability === "limited" ? ["Die Server-Datei enthält mehrere Websites oder Subdomains."] : []),
             ...(pageviewReliability === "limited" ? ["Die Server-Datei wurde nicht zuverlässig genug gelesen."] : []),
             ...(exportCompleteness.reliability === "limited" ? ["Der Server-Export ist nicht vollständig genug für einen belastbaren GA4-Vergleich."] : []),
+            ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; moderner GA4-Vergleich ist nur eingeschränkt belastbar."] : []),
             ...(originCacheRisk ? ["Cache/CDN kann Server-Aufrufe vor dieser Datei abfangen; der GA4-Vergleich ist nur eingeschränkt nutzbar."] : []),
             ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.text)
           ]),
@@ -1212,6 +1262,7 @@
           conversions: dedupe([
             ...(!config.hasSuccessUrl ? ["Keine Kauf-/Danke-Seite angegeben."] : []),
             ...(conversionReliability === "medium" ? ["Ohne Bestellnummer können Reloads oder Mehrfachaufrufe stören."] : []),
+            ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; Conversion-Sessions sind nur eingeschränkt deduplizierbar."] : []),
             ...(visitorReliability === "limited" ? ["Eine Conversion-Rate auf Besucherbasis ist nicht belastbar, weil die Besucherzahl unsicher ist."] : []),
             ...conflicts.filter((conflict) => conflict.blocks.includes("purchase_comparison")).map((conflict) => conflict.text)
           ])
@@ -1276,6 +1327,7 @@
           adVisitors: agg.adVisitors, adSuccess: agg.adSuccess, timeRegressions: agg.timeRegressions,
           formatKind: agg.formatKind, formatChecked: agg.formatChecked, formatCombined: agg.formatCombined,
           xffUsed: agg.xffUsed, xffMissing: agg.xffMissing, xffPrivate: agg.xffPrivate,
+          legacyNoUserAgent: agg.legacyNoUserAgent || 0,
           suspiciousClients: agg.suspiciousClients,
           trackingCapped: agg.trackingCapped,
           minTime: agg.minTime, maxTime: agg.maxTime, maxGapMs: agg.maxGapMs,
@@ -1807,6 +1859,7 @@
           },
           suspiciousClients: lastResult.suspiciousClients,
           trackingCapped: lastResult.trackingCapped,
+          legacyNoUserAgent: lastResult.legacyNoUserAgent,
           proxyKind: lastResult.proxyKind,
           filterReasons: lastResult.reasons,
           parser: {

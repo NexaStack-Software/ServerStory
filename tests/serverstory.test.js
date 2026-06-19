@@ -938,6 +938,35 @@ test("liest gzip-komprimierte Logs", async () => {
   assert.strictEqual(result.pathCounts.get("/preise"), 1);
 });
 
+test("liest alte ITA-HTTP-Archivlogs ohne User-Agent konservativ", async () => {
+  const legacy = [
+    'spider.example.org [29:23:53:25] "GET /robots.txt HTTP/1.0" 200 120',
+    'client-a.example.org [29:23:54:00] "GET /index.html HTTP/1.0" 200 1024',
+    'client-a.example.org [29:23:55:00] "GET /assets/app.css HTTP/1.0" 200 2048',
+    'client-b.example.org [30:00:01:00] "GET /checkout/danke HTTP/1.0" 200 900',
+    'client-b.example.org [30:00:04:00] "GET /checkout/danke HTTP/1.0" 200 900',
+    'client-c.example.org [30:00:10:00] "POST /form HTTP/1.0" 200 50',
+    'nasa.example.org [Tue Jul 01 00:00:01 1995] "GET /history/apollo/ HTTP/1.0" 200 6245'
+  ].join("\n");
+  const report = await copyReportFor(buildResultFor(legacy, {
+    successPattern: "/checkout/*",
+    hasSuccessUrl: true
+  }));
+
+  assert.strictEqual(report.format, "legacy_http_archive");
+  assert.strictEqual(report.totals.rows, 7);
+  assert.strictEqual(report.totals.parsed, 7);
+  assert.strictEqual(report.totals.pageViews, 5);
+  assert.strictEqual(report.totals.success, 1);
+  assert.strictEqual(report.quality.visitorReliability, "medium");
+  assert.strictEqual(report.quality.botReliability, "limited");
+  assert.strictEqual(report.claimMatrix.visits.status, "limited");
+  assert.strictEqual(report.claimMatrix.conversions.status, "limited");
+  assert.match(report.evidenceFailures.visits.join(" "), /Archivformat ohne Browserkennung/i);
+  assert.match(report.exportCompleteness.reasons.join(" "), /Archivformat ohne Browserkennung/i);
+  assert.strictEqual(report.legacyNoUserAgent, 7);
+});
+
 test("normalisiert URLs mit Query-Parametern, absoluten URLs und Slash-Varianten", () => {
   const result = analyze(fixture("url-normalization.log"));
   assert.strictEqual(result.formatKind, "combined");

@@ -330,6 +330,7 @@
   },
   "suspiciousClients": 0,
   "trackingCapped": false,
+  "legacyNoUserAgent": 0,
   "proxyKind": "",
   "filterReasons": {
     "bot": 0,
