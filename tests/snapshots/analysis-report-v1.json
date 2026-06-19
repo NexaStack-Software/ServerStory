@@ -264,6 +264,47 @@
       "forbiddenConclusions": []
     }
   },
+  "decisionReadiness": {
+    "pageViews": {
+      "canUseForDecision": true,
+      "decisionRisk": "low",
+      "plainLanguageWarning": "Diese Zahl ist für eine erste Entscheidung nutzbar.",
+      "reason": "Seitenaufrufe sind gut nutzbar.",
+      "missingEvidence": []
+    },
+    "visits": {
+      "canUseForDecision": true,
+      "decisionRisk": "low",
+      "plainLanguageWarning": "Diese Zahl ist für eine erste Entscheidung nutzbar.",
+      "reason": "Besucherzahl ist gut nutzbar.",
+      "missingEvidence": []
+    },
+    "ga4": {
+      "canUseForDecision": false,
+      "decisionRisk": "medium",
+      "plainLanguageWarning": "Diese Zahl nur als vorsichtigen Richtwert verwenden.",
+      "reason": "Google-Analytics-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen.",
+      "missingEvidence": [
+        "Google-Analytics-Seitenaufrufe, keine Nutzer- oder Sitzungsmetrik",
+        "Gleicher Zeitraum, gleiche Website, gleiche Seitenauswahl",
+        "Server-Export ohne harte Vollständigkeits-Blocker"
+      ]
+    },
+    "hostScope": {
+      "canUseForDecision": true,
+      "decisionRisk": "low",
+      "plainLanguageWarning": "Diese Zahl ist für eine erste Entscheidung nutzbar.",
+      "reason": "Die Datei wirkt auf eine Website begrenzt.",
+      "missingEvidence": []
+    },
+    "conversions": {
+      "canUseForDecision": true,
+      "decisionRisk": "low",
+      "plainLanguageWarning": "Diese Zahl ist für eine erste Entscheidung nutzbar.",
+      "reason": "Käufe sind gut nutzbar.",
+      "missingEvidence": []
+    }
+  },
   "guidedDiagnosis": {
     "usable": [
       "Seitenaufrufe als robuste Hauptzahl verwenden.",
@@ -292,10 +333,12 @@
       "hostCount": 0,
       "proxyKind": "none",
       "calibration": {
+        "preset": "unknown",
         "cache": "unknown",
         "logSource": "unknown",
         "exportComplete": "unknown",
-        "ga4MetricKind": "unknown"
+        "ga4MetricKind": "unknown",
+        "presetApplied": false
       },
       "exportCompleteness": "high"
     },
@@ -334,10 +377,12 @@
     "duplicatePaths": []
   },
   "calibration": {
+    "preset": "unknown",
     "cache": "unknown",
     "logSource": "unknown",
     "exportComplete": "unknown",
-    "ga4MetricKind": "unknown"
+    "ga4MetricKind": "unknown",
+    "presetApplied": false
   },
   "exportCompleteness": {
     "reliability": "high",
@@ -403,15 +448,17 @@
     }
   },
   "accuracyNotes": {
-    "pageViews": "Die Datei wurde sauber gelesen (100,0 %).",
-    "visits": "Keine starke Proxy-Verzerrung sichtbar.",
-    "conversions": "Kaufseite erkannt und mit Google-Analytics-Käufen verglichen.",
-    "ga4": "Vergleich ist nutzbar, wenn Zeitraum und Seitenauswahl wirklich gleich sind.",
+    "pageViews": "Gut nutzbar: Die Datei wurde sauber gelesen (100,0 %).",
+    "visits": "Gut nutzbar: Keine starke Proxy-Verzerrung sichtbar.",
+    "conversions": "Gut nutzbar: Kaufseite erkannt und mit Google-Analytics-Käufen verglichen.",
+    "ga4": "Nur nach Gegencheck nutzbar: Zeitraum und Seitenauswahl müssen wirklich gleich sein; die Website muss ebenfalls passen.",
     "setup": {
+      "preset": "unknown",
       "cache": "unknown",
       "logSource": "unknown",
       "exportComplete": "unknown",
-      "ga4MetricKind": "unknown"
+      "ga4MetricKind": "unknown",
+      "presetApplied": false
     },
     "hostScope": "Die Datei wirkt auf eine Website begrenzt.",
     "botAnomaly": "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."

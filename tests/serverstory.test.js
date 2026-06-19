@@ -276,7 +276,7 @@ function assertAnalysisReportSchema(report) {
   const statusValues = ["allowed", "limited", "blocked"];
   for (const key of [
     "schema", "schemaVersion", "generatedAt", "format", "totals", "quality", "timeRange",
-    "evidence", "evidenceFailures", "claims", "claimMatrix", "guidedDiagnosis", "auditProtocol",
+    "evidence", "evidenceFailures", "claims", "claimMatrix", "decisionReadiness", "guidedDiagnosis", "auditProtocol",
     "conflicts", "ga4Validation", "calibration", "exportCompleteness", "parser", "accuracyNotes", "topPages"
   ]) {
     assert.ok(Object.prototype.hasOwnProperty.call(report, key), `report.${key}`);
@@ -309,6 +309,7 @@ function assertAnalysisReportSchema(report) {
   for (const key of claimKeys) {
     assert.ok(report.claims[key], `claims.${key}`);
     assert.ok(report.claimMatrix[key], `claimMatrix.${key}`);
+    assert.ok(report.decisionReadiness[key], `decisionReadiness.${key}`);
     assert.ok(report.evidenceFailures[key], `evidenceFailures.${key}`);
     assert.ok(report.evidence[key], `evidence.${key}`);
     assert.strictEqual(report.claims[key].status, report.claimMatrix[key].status, key);
@@ -331,6 +332,12 @@ function assertAnalysisReportSchema(report) {
     assert.deepStrictEqual(report.claims[key].evidenceFailures, report.evidenceFailures[key], key);
     if (report.evidenceFailures[key].length) assert.notStrictEqual(report.claimMatrix[key].status, "allowed", key);
     if (report.claimMatrix[key].status === "blocked") assert.ok(report.claimMatrix[key].reason.length > 0, key);
+    assert.strictEqual(typeof report.decisionReadiness[key].canUseForDecision, "boolean", key);
+    assert.ok(["low", "medium", "high"].includes(report.decisionReadiness[key].decisionRisk), key);
+    assert.strictEqual(typeof report.decisionReadiness[key].plainLanguageWarning, "string", key);
+    assert.strictEqual(typeof report.decisionReadiness[key].reason, "string", key);
+    assert.ok(Array.isArray(report.decisionReadiness[key].missingEvidence), key);
+    assert.strictEqual(report.decisionReadiness[key].canUseForDecision, report.claimMatrix[key].status === "allowed", key);
   }
   assert.deepStrictEqual(report.auditProtocol.evidenceFailures, report.evidenceFailures);
   for (const list of ["allowedClaims", "limitedClaims", "blockedClaims"]) {
@@ -353,9 +360,10 @@ function assertAnalysisReportSchema(report) {
   assert.ok(Array.isArray(report.ga4Validation.unmatchedPaths));
   assert.ok(Array.isArray(report.ga4Validation.duplicatePaths));
   assert.ok(report.calibration);
-  for (const key of ["cache", "logSource", "exportComplete", "ga4MetricKind"]) {
+  for (const key of ["preset", "cache", "logSource", "exportComplete", "ga4MetricKind"]) {
     assert.strictEqual(typeof report.calibration[key], "string", `calibration.${key}`);
   }
+  assert.strictEqual(typeof report.calibration.presetApplied, "boolean", "calibration.presetApplied");
   for (const key of ["dataRows", "metaRows", "unrecognizedRows"]) assert.strictEqual(Number.isFinite(report.parser[key]), true, key);
   assert.ok(Array.isArray(report.parser.statusCounts));
   assert.ok(Array.isArray(report.parser.methodCounts));
@@ -2228,8 +2236,25 @@ test("Copy-Report verschweigt Chronologie- und Recognition-Risiken nicht", async
 
 test("Setup-Kalibrierung verhindert falsche Sicherheit bei Cache, Export und Google-Zahl", async () => {
   const large = createLargeGoldenCorpus("combined");
+  const cloudflarePreset = await copyReportFor(buildResultFor(large.text, {
+    calibration: {
+      preset: "cloudflare",
+      cache: "unknown",
+      logSource: "unknown",
+      exportComplete: "unknown",
+      ga4MetricKind: "unknown"
+    }
+  }));
+  assert.strictEqual(cloudflarePreset.calibration.preset, "cloudflare");
+  assert.strictEqual(cloudflarePreset.calibration.cache, "yes");
+  assert.strictEqual(cloudflarePreset.calibration.logSource, "edge");
+  assert.strictEqual(cloudflarePreset.calibration.presetApplied, true);
+  assert.strictEqual(cloudflarePreset.evidence.pageViews.type, "measured");
+  assert.strictEqual(cloudflarePreset.decisionReadiness.pageViews.decisionRisk, "low");
+
   const originBehindCache = await copyReportFor(buildResultFor(large.text, {
     calibration: {
+      preset: "apache_nginx",
       cache: "yes",
       logSource: "origin",
       exportComplete: "unknown",
@@ -2238,10 +2263,14 @@ test("Setup-Kalibrierung verhindert falsche Sicherheit bei Cache, Export und Goo
   }, {
     "ga4-url-views": { value: "/landing,2500\n/checkout/danke,300" }
   }));
+  assert.strictEqual(originBehindCache.calibration.preset, "apache_nginx");
   assert.strictEqual(originBehindCache.calibration.cache, "yes");
   assert.strictEqual(originBehindCache.calibration.logSource, "origin");
   assert.strictEqual(originBehindCache.quality.cacheRisk, "elevated");
   assert.strictEqual(originBehindCache.evidence.pageViews.type, "lower_bound");
+  assert.strictEqual(originBehindCache.decisionReadiness.pageViews.canUseForDecision, false);
+  assert.strictEqual(originBehindCache.decisionReadiness.pageViews.decisionRisk, "medium");
+  assert.match(originBehindCache.decisionReadiness.pageViews.plainLanguageWarning, /Richtwert|vorsichtig/i);
   assert.match(originBehindCache.evidenceFailures.pageViews.join(" "), /Cache|Schutzdienst|Aufrufe/i);
   assert.match(originBehindCache.claimMatrix.pageViews.reason, /Cache|Schutzdienst|Aufrufe/i);
   assert.match(originBehindCache.claims.pageViews.forbiddenConclusions.join(" "), /alle Aufrufe/i);
@@ -2249,6 +2278,7 @@ test("Setup-Kalibrierung verhindert falsche Sicherheit bei Cache, Export und Goo
 
   const incomplete = await copyReportFor(buildResultFor(large.text, {
     calibration: {
+      preset: "unknown",
       cache: "unknown",
       logSource: "unknown",
       exportComplete: "no",
@@ -2257,6 +2287,7 @@ test("Setup-Kalibrierung verhindert falsche Sicherheit bei Cache, Export und Goo
   }));
   assert.strictEqual(incomplete.calibration.exportComplete, "no");
   assert.strictEqual(incomplete.exportCompleteness.reliability, "limited");
+  assert.strictEqual(incomplete.decisionReadiness.pageViews.decisionRisk, "high");
   assert.match(incomplete.exportCompleteness.reasons.join(" "), /nicht vollständig/i);
   assert.strictEqual(incomplete.claimMatrix.pageViews.allowed, false);
   assert.match(incomplete.claimMatrix.pageViews.reason, /nicht vollständig/i);
@@ -2264,6 +2295,7 @@ test("Setup-Kalibrierung verhindert falsche Sicherheit bei Cache, Export und Goo
 
   const wrongGoogleNumber = await copyReportFor(buildResultFor(baselineCombined, {
     calibration: {
+      preset: "unknown",
       cache: "unknown",
       logSource: "unknown",
       exportComplete: "unknown",
@@ -2275,6 +2307,8 @@ test("Setup-Kalibrierung verhindert falsche Sicherheit bei Cache, Export und Goo
   assert.strictEqual(wrongGoogleNumber.calibration.ga4MetricKind, "users_or_sessions");
   assert.strictEqual(wrongGoogleNumber.quality.ga4Reliability, "limited");
   assert.strictEqual(wrongGoogleNumber.claimMatrix.ga4.status, "blocked");
+  assert.strictEqual(wrongGoogleNumber.decisionReadiness.ga4.canUseForDecision, false);
+  assert.strictEqual(wrongGoogleNumber.decisionReadiness.ga4.decisionRisk, "high");
   assert.match(wrongGoogleNumber.evidenceFailures.ga4.join(" "), /Nutzer|Sitzungen|Seitenaufrufe/i);
   assert.match(wrongGoogleNumber.accuracyNotes.ga4, /Nutzer|Sitzungen|Seitenaufrufe/i);
   assert.match(wrongGoogleNumber.auditProtocol.requiredChecks.join(" "), /Seitenaufrufe\/Views/i);

@@ -129,6 +129,19 @@
               <div class="ga4-fields">
                 <p class="helper">Wenn du es nicht sicher weißt, lass „Weiß ich nicht“ stehen. ServerStory wird dann vorsichtiger formulieren.</p>
                 <label>
+                  Woher kommt die Datei ungefähr?
+                  <select id="log-preset">
+                    <option value="unknown">Weiß ich nicht</option>
+                    <option value="apache_nginx">Normales Apache-/Nginx-Hosting</option>
+                    <option value="cloudflare">Cloudflare-Datei</option>
+                    <option value="cloudfront">Amazon-CloudFront-Datei</option>
+                    <option value="fastly">Fastly-Datei</option>
+                    <option value="akamai">Akamai-Datei</option>
+                    <option value="iis">Microsoft-IIS-/Windows-Hosting</option>
+                  </select>
+                  <span class="helper">Diese Auswahl hilft ServerStory einzuschätzen, ob die Datei eher direkt vom Server oder von einem Cache-/Schutzdienst kommt.</span>
+                </label>
+                <label>
                   Sitzt Cloudflare, ein Cache oder ein Schutzdienst vor der Website?
                   <select id="site-cache">
                     <option value="unknown">Weiß ich nicht</option>

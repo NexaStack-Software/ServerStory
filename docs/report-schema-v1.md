@@ -12,6 +12,10 @@ Stabile Kernfelder:
 - `quality`: Belastbarkeit je Kennzahl und zentrale Diagnoseflags.
 - `evidence`: Claim-Safety-Schicht je Kennzahl; trennt Messung, Schaetzung,
   Mindestwert und nicht bestimmbare Aussagen.
+- `decisionReadiness`: Entscheidungsschicht je Kennzahl mit `canUseForDecision`,
+  `decisionRisk`, Klartextwarnung und fehlender Evidenz.
+- `calibration`: Nutzer- oder Preset-Angaben zu Dateiquelle, Cache/CDN,
+  Export-Vollstaendigkeit und Google-Analytics-Zahl.
 - `timeRange`: erkannter Logzeitraum und groesste Luecke.
 - `xForwardedFor`: XFF-Nutzung, fehlende oder nur private XFF-Werte.
 - `proxyKind`: leer, `private` oder `concentrated`; zeigt Proxy-/CDN-Hinweise in der Besucherzaehlung.
@@ -30,6 +34,16 @@ Diagnosefelder:
 - `evidence.*.canAnswer`: ob ServerStory die Frage mit diesen Daten serioes
   beantworten kann.
 - `evidence.*.reason`: konkrete Begruendung fuer die Aussagegrenze.
+- `decisionReadiness.*.canUseForDecision`: ob die Kennzahl als Grundlage fuer
+  eine Entscheidung verwendet werden darf.
+- `decisionReadiness.*.decisionRisk`: `low`, `medium` oder `high`.
+- `decisionReadiness.*.plainLanguageWarning`: kurze Warnung ohne Fachsprache.
+- `decisionReadiness.*.missingEvidence`: welche Belege fuer eine haertere
+  Aussage fehlen.
+- `calibration.preset`: `unknown`, `apache_nginx`, `cloudflare`, `cloudfront`,
+  `fastly`, `akamai` oder `iis`.
+- `calibration.cache`, `logSource`, `exportComplete`, `ga4MetricKind`
+- `calibration.presetApplied`: ob ein Preset als Annahme verwendet wurde.
 - `parser.dataRows`, `metaRows`, `unrecognizedRows`, `unrecognizedPct`
 - `parser.formatCounters`
 - `parser.hosts`
@@ -46,6 +60,9 @@ Wichtige Unsicherheiten muessen im Report sichtbar bleiben:
   `evidence.visits.type` wird `not_determinable`.
 - Origin-Logs hinter Proxy/CDN: `evidence.pageViews.type` kann `lower_bound`
   werden, weil CDN-Cache-Hits im Origin-Log fehlen koennen.
+- Presets duerfen falsche Sicherheit nicht erhoehen: Edge-Presets koennen
+  Cache-Hits als abgedeckt markieren, Origin-Presets hinter Cache muessen
+  Seitenaufrufe als Mindestwert behandeln.
 - Mehrere Hosts ohne Hostfilter: `quality.hostReliability` ist `limited` und
   `accuracyNotes.hostScope` empfiehlt Eingrenzung.
 - Unsortierte Logs: `quality.chronologyIssue` wird gesetzt und die Besucher-Bandbreite

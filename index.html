@@ -1200,6 +1200,19 @@
               <div class="ga4-fields">
                 <p class="helper">Wenn du es nicht sicher weißt, lass „Weiß ich nicht“ stehen. ServerStory wird dann vorsichtiger formulieren.</p>
                 <label>
+                  Woher kommt die Datei ungefähr?
+                  <select id="log-preset">
+                    <option value="unknown">Weiß ich nicht</option>
+                    <option value="apache_nginx">Normales Apache-/Nginx-Hosting</option>
+                    <option value="cloudflare">Cloudflare-Datei</option>
+                    <option value="cloudfront">Amazon-CloudFront-Datei</option>
+                    <option value="fastly">Fastly-Datei</option>
+                    <option value="akamai">Akamai-Datei</option>
+                    <option value="iis">Microsoft-IIS-/Windows-Hosting</option>
+                  </select>
+                  <span class="helper">Diese Auswahl hilft ServerStory einzuschätzen, ob die Datei eher direkt vom Server oder von einem Cache-/Schutzdienst kommt.</span>
+                </label>
+                <label>
                   Sitzt Cloudflare, ein Cache oder ein Schutzdienst vor der Website?
                   <select id="site-cache">
                     <option value="unknown">Weiß ich nicht</option>
@@ -2480,6 +2493,7 @@
           suspiciousAssetShare: (number("bot-asset-share") === null ? 5 : number("bot-asset-share")) / 100,
           maxTrackedClients: number("tracking-cap") || 100000,
           calibration: {
+            preset: selectValue("log-preset", "unknown"),
             cache: selectValue("site-cache", "unknown"),
             logSource: selectValue("log-source", "unknown"),
             exportComplete: selectValue("export-complete", "unknown"),
@@ -2491,12 +2505,29 @@
       }
 
       function buildResult(agg, config) {
-        const calibration = {
+        const preset = (config.calibration && config.calibration.preset) || "unknown";
+        const presetDefaults = {
+          cloudflare: { cache: "yes", logSource: "edge" },
+          cloudfront: { cache: "yes", logSource: "edge" },
+          fastly: { cache: "yes", logSource: "edge" },
+          akamai: { cache: "yes", logSource: "edge" },
+          apache_nginx: { logSource: "origin" },
+          iis: { logSource: "origin" }
+        }[preset] || {};
+        const rawCalibration = {
           cache: "unknown",
           logSource: "unknown",
           exportComplete: "unknown",
           ga4MetricKind: "unknown",
           ...(config.calibration || {})
+        };
+        const calibration = {
+          preset,
+          cache: rawCalibration.cache === "unknown" && presetDefaults.cache ? presetDefaults.cache : rawCalibration.cache,
+          logSource: rawCalibration.logSource === "unknown" && presetDefaults.logSource ? presetDefaults.logSource : rawCalibration.logSource,
+          exportComplete: rawCalibration.exportComplete,
+          ga4MetricKind: rawCalibration.ga4MetricKind,
+          presetApplied: preset !== "unknown"
         };
         const chosen = compareUrls();
         const tableRows = buildRows(agg.pathCounts, chosen);
@@ -2924,6 +2955,23 @@
           evidenceFailures: claimMatrix[key].evidenceFailures,
           requiredEvidence: claimMatrix[key].requiredEvidence
         }]));
+        const decisionReadiness = Object.fromEntries(Object.entries(claimMatrix).map(([key, claim]) => {
+          const missingEvidence = dedupe([
+            ...(claim.evidenceFailures || []),
+            ...(claim.blockingReasons || []),
+            ...(claim.requiredEvidence || []).filter((item) => claim.status !== "allowed" && !(claim.evidenceFailures || []).length)
+          ]).slice(0, 6);
+          const hardDecisionRisk = claim.status === "blocked" || missingEvidence.some((item) => /nicht vollständig|Zu viele Einträge|Zu viele Zeilen|nicht zuverlässig genug/i.test(item));
+          return [key, {
+            canUseForDecision: claim.status === "allowed",
+            decisionRisk: claim.status === "allowed" ? "low" : (hardDecisionRisk ? "high" : "medium"),
+            plainLanguageWarning: claim.status === "allowed"
+              ? "Diese Zahl ist für eine erste Entscheidung nutzbar."
+              : (claim.status === "limited" ? "Diese Zahl nur als vorsichtigen Richtwert verwenden." : "Diese Zahl nicht als Entscheidungsgrundlage verwenden."),
+            reason: claim.reason,
+            missingEvidence
+          }];
+        }));
         const auditProtocol = {
           dataBasis: {
             format: agg.formatKind,
@@ -2964,6 +3012,7 @@
           evidence,
           claims: claimsWithMatrix,
           claimMatrix,
+          decisionReadiness,
           evidenceFailures,
           auditProtocol,
           conflicts,
@@ -3008,37 +3057,37 @@
         if (metric === "views") {
           const recognized = percent(data.diagnostics.recognitionRate * 100);
           if (data.evidence && data.evidence.pageViews && data.evidence.pageViews.type === "lower_bound") return `Nur Mindestwert: Deine Logdatei sieht wahrscheinlich nicht alle Aufrufe, weil ein Cache/CDN dazwischen sitzen kann.`;
-          if (data.diagnostics.pageviewReliability === "high") return `Die Datei wurde sauber gelesen (${recognized}).`;
-          if (data.diagnostics.pageviewReliability === "medium") return `${recognized} der Datei wurde gelesen. Einzelne Einträge passen nicht zum erwarteten Format.`;
-          return `Zu viele Einträge passen nicht zum erwarteten Format (${recognized} gelesen).`;
+          if (data.diagnostics.pageviewReliability === "high") return `Gut nutzbar: Die Datei wurde sauber gelesen (${recognized}).`;
+          if (data.diagnostics.pageviewReliability === "medium") return `Nur Richtwert: ${recognized} der Datei wurde gelesen. Einzelne Einträge passen nicht zum erwarteten Format.`;
+          return `Nicht entscheidungsfähig: Zu viele Einträge passen nicht zum erwarteten Format (${recognized} gelesen).`;
         }
         if (metric === "visits") {
           if (data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable") return "Nicht verlässlich bestimmbar: Die Datei zeigt vor allem Proxy-/CDN-Adressen, nicht echte Besucher.";
-          if (data.diagnostics.visitorReliability === "high") return data.xffUsed ? "Echte Besucher-IPs aus dem Proxy-Feld wurden genutzt." : "Keine starke Proxy-Verzerrung sichtbar.";
-          if (data.proxyKind) return "Proxy oder CDN erkannt. Besucher nur als grobe Spanne lesen.";
+          if (data.diagnostics.visitorReliability === "high") return data.xffUsed ? "Gut nutzbar: Echte Besucher-IPs aus dem Proxy-Feld wurden genutzt." : "Gut nutzbar: Keine starke Proxy-Verzerrung sichtbar.";
+          if (data.proxyKind) return "Nur Spanne: Proxy oder CDN erkannt. Besucher nicht als exakte Zahl lesen.";
           if (data.xffMissing || data.xffPrivate) return "Das Proxy-Feld enthält keine brauchbaren Besucher-IPs.";
-          return "Die Reihenfolge der Einträge oder die Besucher-Erkennung macht diese Zahl ungenauer.";
+          return "Nur Richtwert: Die Reihenfolge der Einträge oder die Besucher-Erkennung macht diese Zahl ungenauer.";
         }
         if (metric === "purchases") {
           if (!data.hasSuccessUrl) return "Keine Kauf-/Danke-Seite angegeben.";
-          if (data.diagnostics.conversionReliability === "high") return data.ga4Conversions === null ? "Kaufseite erkannt; doppelte Reloads werden reduziert." : "Kaufseite erkannt und mit Google-Analytics-Käufen verglichen.";
-          return "Kaufseite erkannt, aber ohne Bestellnummer können Reloads die Zahl verzerren.";
+          if (data.diagnostics.conversionReliability === "high") return data.ga4Conversions === null ? "Gut nutzbar: Kaufseite erkannt; doppelte Reloads werden reduziert." : "Gut nutzbar: Kaufseite erkannt und mit Google-Analytics-Käufen verglichen.";
+          return "Nur Richtwert: Kaufseite erkannt, aber ohne Bestellnummer können Reloads die Zahl verzerren.";
         }
         if (metric === "ga4") {
           if (data.ga4Import && data.ga4Import.warning) return data.ga4Import.warning;
           if (!hasGa4) return "Keine Google-Analytics-Seitenzahlen eingetragen.";
           if (data.calibration && data.calibration.ga4MetricKind === "users_or_sessions") return "Für diesen Vergleich wurden Nutzer oder Sitzungen markiert. Bitte Seitenaufrufe aus Google Analytics verwenden.";
           if (data.evidence && data.evidence.ga4 && !data.evidence.ga4.canAnswer) return data.evidence.ga4.reason;
-          if (data.diagnostics.ga4Reliability === "medium") return "Vergleich ist nutzbar, wenn Zeitraum und Seitenauswahl wirklich gleich sind.";
-          return "Vergleich nur eingeschränkt nutzbar. Prüfe Zeitraum, Seiten und ob in Google Analytics wirklich Seitenaufrufe stehen.";
+          if (data.diagnostics.ga4Reliability === "medium") return "Nur nach Gegencheck nutzbar: Zeitraum und Seitenauswahl müssen wirklich gleich sein; die Website muss ebenfalls passen.";
+          return "Nicht entscheidungsfähig: Prüfe Zeitraum, Seiten und ob in Google Analytics wirklich Seitenaufrufe stehen.";
         }
         if (metric === "host") {
           if (data.diagnostics.hostReliability === "limited") return `${format(data.hosts.total)} Domains/Subdomains gefunden. Ohne Filter können fremde Seiten mit drin sein.`;
-          return "Die Datei wirkt auf eine Website begrenzt.";
+          return "Gut nutzbar: Die Datei wirkt auf eine Website begrenzt.";
         }
         if (metric === "export") {
           if (data.calibration && data.calibration.exportComplete === "no") return "Du hast angegeben, dass der Export vermutlich nicht vollständig ist. Zahlen nur als Ausschnitt lesen.";
-          if (!data.exportCompleteness || data.exportCompleteness.reliability === "high") return "Zeitraum, Lesbarkeit und Filterquote wirken plausibel.";
+          if (!data.exportCompleteness || data.exportCompleteness.reliability === "high") return "Gut nutzbar: Zeitraum, Lesbarkeit und Filterquote wirken plausibel.";
           return data.exportCompleteness.reasons.slice(0, 2).join(" ");
         }
         if (metric === "bot") {
@@ -3576,6 +3625,7 @@
           evidenceFailures: lastResult.evidenceFailures,
           claims: lastResult.claims,
           claimMatrix: lastResult.claimMatrix,
+          decisionReadiness: lastResult.decisionReadiness,
           guidedDiagnosis: lastResult.guidedDiagnosis || buildGuidedDiagnosis(
             lastResult,
             !!(lastResult.overall && lastResult.overall.coverage !== null),
