@@ -14,4 +14,6 @@ Vor einer Veroeffentlichung:
 10. Bei neuen Parserformaten mindestens ein Fixture und einen Invariant-Test ergaenzen.
 11. `npm run build:release` ausfuehren.
 12. `npm run audit:release` ausfuehren.
-13. Release-ZIP pruefen: oben duerfen nur `START_HIER.html` und `serverstory-app/` sichtbar sein.
+13. `npm run smoke:release` ausfuehren.
+14. Release-ZIP pruefen: oben duerfen nur `START_HIER.html` und `serverstory-app/` sichtbar sein.
+15. ZIP als GitHub-Release-Asset hochladen; nicht den GitHub-Code-ZIP als Nutzerdownload bewerben.

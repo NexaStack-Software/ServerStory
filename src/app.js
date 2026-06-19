@@ -230,13 +230,24 @@
       function preflightLogSample(text, options = {}) {
         const sampleLines = options.sampleLines || 500;
         const reLine = /^(\S+)[ \t]+\S+[ \t]+\S+[ \t]+\[([^\]]+)\][ \t]+"([A-Z]+)[ \t]+([^"]*?)[ \t]+(HTTP\/[0-9.]+)"[ \t]+(\d{3})[ \t]+\S+[ \t]+"([^"]*)"[ \t]+"([^"]*)"(.*)$/;
+        const reVhostLine = /^(\S+)[ \t]+(\S+)[ \t]+\S+[ \t]+\S+[ \t]+\[([^\]]+)\][ \t]+"([A-Z]+)[ \t]+([^"]*?)[ \t]+(HTTP\/[0-9.]+)"[ \t]+(\d{3})[ \t]+\S+[ \t]+"([^"]*)"[ \t]+"([^"]*)"(.*)$/;
         let first = null;
+        function cleanHost(value) {
+          let host = String(value || "").trim().toLowerCase();
+          host = host.replace(/^https?:\/\//, "").split("/")[0];
+          if (host.startsWith("[") && host.includes("]")) return host.slice(1, host.indexOf("]"));
+          return host.replace(/:\d+$/, "");
+        }
+        function looksLikeIp(value) {
+          const text = String(value || "");
+          return /^(\d{1,3}\.){3}\d{1,3}$/.test(text) || (/^[0-9a-fA-F:]+$/.test(text) && text.includes(":"));
+        }
         function norm(value) {
           try {
             const u = new URL(value, "http://x.invalid");
             let path = u.pathname.replace(/\/(?:index|default)\.(?:html?|php|aspx?)$/i, "/");
             path = path === "/" ? "/" : path.replace(/\/$/, "");
-            return { path, host: u.hostname === "x.invalid" ? "" : u.hostname };
+            return { path, host: u.hostname === "x.invalid" ? "" : cleanHost(u.hostname) };
           } catch {
             return { path: String(value || "/").split("?")[0].replace(/\/$/, "") || "/", host: "" };
           }
@@ -275,11 +286,20 @@
         });
         for (const line of lines) {
           agg.processLine(line);
+          const vhost = reVhostLine.exec(line);
           const m = reLine.exec(line);
-          if (!m) continue;
-          const target = norm(m[4]);
-          const xff = options.useXff ? firstXff(m[9] || "") : "";
-          if (!first) first = { ip: m[1], xff, method: m[3], path: target.path, host: target.host, status: Number(m[6]) };
+          if (!m && !vhost) continue;
+          const isVhost = !!(vhost && cleanHost(vhost[1]) && looksLikeIp(vhost[2]));
+          const target = norm(isVhost ? vhost[5] : m[4]);
+          const xff = options.useXff ? firstXff(isVhost ? (vhost[10] || "") : (m[9] || "")) : "";
+          if (!first) first = {
+            ip: isVhost ? vhost[2] : m[1],
+            xff,
+            method: isVhost ? vhost[4] : m[3],
+            path: target.path,
+            host: isVhost ? cleanHost(vhost[1]) : target.host,
+            status: Number(isVhost ? vhost[7] : m[6])
+          };
         }
         const result = agg.finalize();
         const recognitionRate = result.dataRows ? result.parsed / result.dataRows : 0;
@@ -595,6 +615,20 @@
             return null;
           }
         }
+        function cleanHost(value) {
+          let host = String(value || "").trim().toLowerCase();
+          host = host.replace(/^https?:\/\//, "").split("/")[0];
+          if (host.startsWith("[") && host.includes("]")) return host.slice(1, host.indexOf("]"));
+          return host.replace(/:\d+$/, "");
+        }
+        const reVhostLine = /^(\S+)[ \t]+(\S+)[ \t]+\S+[ \t]+\S+[ \t]+\[([^\]]+)\][ \t]+"([A-Z]+)[ \t]+([^"]*?)[ \t]+(HTTP\/[0-9.]+)"[ \t]+(\d{3})[ \t]+\S+[ \t]+"([^"]*)"[ \t]+"([^"]*)"(.*)$/;
+        function parseVhostCombinedLine(line) {
+          const m = reVhostLine.exec(line);
+          if (!m || !normalizeIpToken(m[2])) return null;
+          const pt = parseTime(m[3]);
+          if (!pt) return null;
+          return { kind: "combined", ip0: m[2], pt, method: m[4], target: m[5], host: cleanHost(m[1]), status: +m[7], ua: m[9], trailing: m[10] || "" };
+        }
         function parseCombinedLine(line) {
           const m = reLine.exec(line);
           if (!m) return null;
@@ -610,6 +644,8 @@
           return { kind: "legacy_http_archive", ip0: m[1], pt, method: m[3], target: m[4], host: "", status: +m[5], ua: "__legacy_no_user_agent__", trailing: "", noUserAgent: true };
         }
         function parseLogLine(line) {
+          const vhost = parseVhostCombinedLine(line);
+          if (vhost) return vhost;
           const combined = parseCombinedLine(line);
           if (combined) return combined;
           const json = parseJsonLine(line);
@@ -689,7 +725,7 @@
           if (pt.timeMs > maxTime) maxTime = pt.timeMs;
 
           const normalized = normTarget(target);
-          const host = String(rec.host || normalized.host || "").toLowerCase();
+          const host = cleanHost(rec.host || normalized.host || "");
           if (allowedHosts.size && host && !allowedHosts.has(host)) { stats.filtered++; stats.rHost++; return; }
           if (host) hostCounts.set(host, (hostCounts.get(host) || 0) + 1);
 

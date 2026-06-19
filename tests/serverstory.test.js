@@ -1441,6 +1441,55 @@ test("liest dokumentationsnahes Fastly Custom-JSON", () => {
   assert.strictEqual(result.success, 1);
 });
 
+test("liest Apache-vHost/cPanel-nahe Combined Logs mit Host vor IP", () => {
+  const result = buildResultFor(fixturePath("provider-docs/apache-vhost-combined.txt"), {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  });
+  assertBuiltResultInvariants(result);
+  assert.strictEqual(result.formatKind, "combined");
+  assert.strictEqual(result.parsed, 3);
+  assert.strictEqual(result.pageViews, 2);
+  assert.strictEqual(result.success, 1);
+  assert.strictEqual(result.hosts.total, 2);
+  assert.strictEqual(JSON.stringify(result.hosts.top.map((host) => [host.name, host.count])), JSON.stringify([["www.example.de", 2], ["shop.example.de", 1]]));
+  assert.strictEqual(result.diagnostics.hostReliability, "limited");
+
+  const filtered = buildResultFor(fixturePath("provider-docs/apache-vhost-combined.txt"), {
+    hostFilter: ["www.example.de"]
+  });
+  assert.strictEqual(filtered.hosts.total, 1);
+  assert.strictEqual(filtered.pageViews, 1);
+  assert.strictEqual(filtered.diagnostics.hostReliability, "high");
+
+  const preflight = ctx.preflightLogSample(fixture("provider-docs/apache-vhost-combined.txt"), { sampleLines: 20 });
+  assert.strictEqual(preflight.fileClass, "access_log");
+  assert.strictEqual(preflight.fields.ip, "203.0.113.10");
+  assert.strictEqual(preflight.fields.host, "www.example.de");
+  assert.match(preflight.recommendedChecks.join(" "), /Website-Filter/i);
+});
+
+test("liest nginx-Proxy-Combined mit absoluter URL und XFF-Feld", () => {
+  const withoutXff = buildResultFor(fixturePath("provider-docs/nginx-proxy-combined.txt"));
+  assertBuiltResultInvariants(withoutXff);
+  assert.strictEqual(withoutXff.formatKind, "combined");
+  assert.strictEqual(withoutXff.hosts.total, 1);
+  assert.strictEqual(JSON.stringify(withoutXff.hosts.top.map((host) => [host.name, host.count])), JSON.stringify([["www.example.de", 3]]));
+  assert.strictEqual(withoutXff.pageViews, 3);
+  assert.strictEqual(withoutXff.visits, 2);
+
+  const withXff = buildResultFor(fixturePath("provider-docs/nginx-proxy-combined.txt"), { useXff: true });
+  assert.strictEqual(withXff.xffUsed, 3);
+  assert.strictEqual(withXff.visits, 2);
+  assert.strictEqual(withXff.diagnostics.visitorReliability, "high");
+
+  const preflight = ctx.preflightLogSample(fixture("provider-docs/nginx-proxy-combined.txt"), { sampleLines: 20, useXff: true });
+  assert.strictEqual(preflight.fileClass, "access_log");
+  assert.strictEqual(preflight.fields.host, "www.example.de");
+  assert.strictEqual(preflight.fields.xff, "203.0.113.50");
+});
+
 test("nutzt konfigurierbare Bot-Anomalie-Schwellen", () => {
   const low = analyze(fixture("suspicious-volume.log"), { suspiciousHitThreshold: 50, suspiciousAssetShare: 0.1 });
   const high = analyze(fixture("suspicious-volume.log"), { suspiciousHitThreshold: 200, suspiciousAssetShare: 0.1 });

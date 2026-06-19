@@ -44,6 +44,7 @@ run("npm", ["run", "test:e2e"]);
 run("npm", ["run", "audit:repo"]);
 run("npm", ["run", "build:release"]);
 run("npm", ["run", "audit:release"]);
+run("npm", ["run", "smoke:release"]);
 const render = spawnSync("firefox", [
   "--headless",
   "--window-size",
