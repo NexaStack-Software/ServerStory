@@ -9,6 +9,7 @@
     "test": "node tests/serverstory.test.js",
     "test:realworld": "node tests/realworld.test.js",
     "test:access-realworld": "node tests/access-realworld.test.js",
+    "test:local-logs": "node tests/local-log-corpus.test.js",
     "test:benchmark": "node tests/benchmark.test.js",
     "test:sanitize": "node tests/sanitize-log.test.js",
     "download:realworld": "node scripts/download-realworld-fixtures.js",

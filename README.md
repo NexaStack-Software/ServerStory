@@ -135,6 +135,7 @@ npm run test:sanitize # Log-Sanitizer prüfen
 npm run audit:repo    # Repo-Hygiene gegen echte Logs/Archive/PII
 npm run test:realworld # optional, wenn Real-World-Logs lokal im Cache liegen
 npm run test:access-realworld # optional, wenn echte Combined-Access-Logs lokal liegen
+npm run test:local-logs # optionaler Corpus unter ~/test-logs oder SERVERSTORY_LOCAL_LOG_DIR
 ```
 
 Optionale Real-World-Fixtures:
@@ -144,6 +145,7 @@ npm run download:realworld -- epa,nasa
 npm run download:access -- secrepo,elastic,lukaszog
 npm run test:realworld
 npm run test:access-realworld
+npm run test:local-logs
 ```
 
 Die heruntergeladenen Dateien liegen unter `tests/realworld-cache/` bzw.

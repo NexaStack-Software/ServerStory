@@ -26,7 +26,8 @@
     "botReliability": "high",
     "hostReliability": "high",
     "exportCompletenessReliability": "high",
-    "trackingReliability": "high"
+    "trackingReliability": "high",
+    "scanTrafficRisk": false
   },
   "evidence": {
     "pageViews": {
@@ -332,6 +333,7 @@
       },
       "hostCount": 0,
       "proxyKind": "none",
+      "scanRequests": 0,
       "calibration": {
         "preset": "unknown",
         "cache": "unknown",
@@ -399,6 +401,8 @@
     "privateOnly": 0
   },
   "suspiciousClients": 0,
+  "scanRequests": 0,
+  "scanShare": 0,
   "trackingCapped": false,
   "legacyNoUserAgent": 0,
   "proxyKind": "",

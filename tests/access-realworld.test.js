@@ -197,7 +197,9 @@ function assertReliability(label, result, independent, elapsedMs) {
 
   const built = buildResult(result);
   if (built.diagnostics.pageviewReliability !== "high") throw new Error(`${rel}: pageviews should be high reliability`);
-  if (built.diagnostics.botReliability === "limited") throw new Error(`${rel}: bot reliability should not be limited for UA-rich logs`);
+  if (built.diagnostics.botReliability === "limited" && !built.diagnostics.scanTrafficRisk) {
+    throw new Error(`${rel}: limited bot reliability needs scan/suspicious evidence`);
+  }
   if (built.claimMatrix.pageViews.status === "allowed") {
     if (!built.decisionReadiness.pageViews.canUseForDecision) throw new Error(`${rel}: allowed pageviews should be decision-ready`);
   } else {

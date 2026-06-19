@@ -108,6 +108,10 @@ einen unabhaengigen Zaehler. So wird nicht nur getestet, ob die App irgendetwas
 berechnet, sondern ob sie echte Webserver-Logs konservativ und reproduzierbar
 bewertet. Wenn mindestens zehn SecRepo-Tageslogs lokal liegen, prueft der Test
 zusaetzlich einen kombinierten Corpus mit deutlich mehr als 1.000 Besuchen.
+`test:local-logs` prueft zusaetzlich einen lokalen Corpus unter `~/test-logs` oder
+`SERVERSTORY_LOCAL_LOG_DIR`, falls vorhanden. Dieser Corpus wird nicht committet, kann
+aber echte Security-, Bot- und Kleinsite-Logs gegen feste No-False-Confidence-Regeln
+testen.
 
 ## Parser-Robustheit
 

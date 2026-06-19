@@ -1926,6 +1926,7 @@
         const suspiciousHitThreshold = Math.max(10, Number(config.suspiciousHitThreshold) || 100);
         const suspiciousAssetShare = Math.max(0, Math.min(1, Number(config.suspiciousAssetShare) || 0.05));
         const maxTrackedClients = Math.max(1000, Number(config.maxTrackedClients) || 100000);
+        const scanTargetRe = /(?:^|\/)(?:wp-login\.php|xmlrpc\.php|wp-admin(?:\/|$)|wp-content\/themes\/[^?\s]+\.php|theme-editor\.php|admin(?:\/|$)|administrator(?:\/|$)|manager\/html|phpmyadmin|pma(?:\/|$)|cfide\/administrator|\.env(?:$|\?)|\.git(?:\/|$)|testproxy\.php|azenv\.php|setup\.php|shell\.php|cmd\.php|upload\.php|eval-stdin\.php|vendor\/phpunit|cgi-bin)(?:$|[\/?\s])|(?:^|\/)(?:panel|backup|config|database)\.(?:zip|tar|tgz|gz|sql)(?:$|[?\s])|(?:^|\/)(?:HNAP1|boaform|GponForm)(?:$|[\/?\s])|(?:^|\/)(?:\.\.|%2e%2e)|https?:\/\/[^/\s]+\/(?:testproxy|azenv)\.php(?:$|[?\s])|(?:^|[;&|`$<>])(?:wget|curl|chmod|\/bin\/bash|powershell|cmd\.exe)(?:\s|$)/i;
 
         function normPath(value) {
           const raw = String(value || "").trim();
@@ -1980,6 +1981,10 @@
           } catch {
             return "";
           }
+        }
+        function looksLikeScanTarget(method, target, ua, trailing) {
+          const haystack = `${method || ""} ${target || ""} ${ua || ""} ${trailing || ""}`;
+          return scanTargetRe.test(haystack);
         }
         function parseTime(raw) {
           const m = raw.match(/^(\d{2})\/([A-Za-z]{3})\/(\d{4}):(\d{2}):(\d{2}):(\d{2})[ \t]+([+-])(\d{2})(\d{2})$/);
@@ -2176,7 +2181,7 @@
           rBot: 0, rStatus: 0, rRange: 0, rMethod: 0, rEmptyUa: 0, rStrict: 0,
           visits: 0, successRaw: 0, success: 0, timeRegressions: 0,
           xffUsed: 0, xffMissing: 0, xffPrivate: 0, suspiciousClients: 0, rHost: 0,
-          meta: 0, legacyNoUserAgent: 0
+          meta: 0, legacyNoUserAgent: 0, scanRequests: 0
         };
         const format = { checked: 0, combined: 0, json: 0, iis: 0, cloudflare: 0, cloudfront: 0, fastly: 0, akamai: 0, legacy_http_archive: 0 };
         let prevTime = -Infinity, maxTime = -Infinity, minTime = Infinity, maxGapMs = 0, seen = 0;
@@ -2238,6 +2243,7 @@
           if (pt.timeMs > maxTime) maxTime = pt.timeMs;
 
           const normalized = normTarget(target);
+          if (looksLikeScanTarget(method, target, ua, trailing)) stats.scanRequests++;
           const host = cleanHost(rec.host || normalized.host || "");
           if (allowedHosts.size && host && !allowedHosts.has(host)) { stats.filtered++; stats.rHost++; return; }
           if (host) hostCounts.set(host, (hostCounts.get(host) || 0) + 1);
@@ -2347,6 +2353,7 @@
             xffUsed: stats.xffUsed, xffMissing: stats.xffMissing, xffPrivate: stats.xffPrivate,
             legacyNoUserAgent: stats.legacyNoUserAgent,
             suspiciousClients: stats.suspiciousClients,
+            scanRequests: stats.scanRequests,
             trackingCapped,
             timeRegressions: stats.timeRegressions,
             minTime: minTime === Infinity ? null : minTime,
@@ -2602,7 +2609,11 @@
           visitorLow = Math.max(1, Math.round(agg.visits * 0.8));
           visitorHigh = Math.max(visitorLow, Math.round(agg.visits * 1.2));
         }
-        const botReliability = isLegacyArchive ? "limited" : (agg.suspiciousClients > 0 ? "medium" : "high");
+        const scanShare = agg.parsed ? agg.scanRequests / agg.parsed : 0;
+        const scanTrafficRisk = agg.scanRequests >= 20 || (agg.scanRequests >= 5 && scanShare >= 0.2);
+        const heavyScanTrafficRisk = agg.scanRequests >= 50 || (agg.scanRequests >= 10 && scanShare >= 0.5);
+        const scanTrafficText = "Viele Aufrufe wirken wie Admin-, Exploit- oder Proxy-Scans.";
+        const botReliability = isLegacyArchive ? "limited" : (heavyScanTrafficRisk ? "limited" : (agg.suspiciousClients > 0 || scanTrafficRisk ? "medium" : "high"));
         const isEdgeLog = edgeKinds.has(agg.formatKind) || userSaysEdgeLog;
         const manualOriginCacheRisk = userSaysCache && !userSaysEdgeLog && (userSaysOriginLog || !edgeKinds.has(agg.formatKind));
         const originCacheRisk = !!((proxyKind && !isEdgeLog) || manualOriginCacheRisk);
@@ -2691,6 +2702,7 @@
           ...(hostReliability === "limited" ? [{ level: "medium", text: "Mehrere Websites oder Subdomains in derselben Datei.", check: "Website-Filter setzen oder passende Datei exportieren." }] : []),
           ...(originCacheRisk ? [{ level: "medium", text: userSaysCache ? "Du hast angegeben, dass ein Cache oder Schutzdienst vor der Website sitzt. Diese Server-Datei kann dadurch Aufrufe verpassen." : "Cache oder Proxy kann Aufrufe vor dieser Server-Datei abfangen.", check: "Prüfen, ob eine Cloudflare-/CDN-Datei verfügbar ist." }] : []),
           ...(isLegacyArchive ? [{ level: "medium", text: "Altes Archivformat ohne Browserkennung erkannt.", check: "Besucher-, Bot- und Conversion-Aussagen nur als grobe Plausibilitätswerte nutzen." }] : []),
+          ...(heavyScanTrafficRisk ? [{ level: "limited", text: scanTrafficText, check: "Log mit Security-/Scan-Traffic getrennt von Besucher-Traffic auswerten." }] : (scanTrafficRisk ? [{ level: "medium", text: scanTrafficText, check: "Prüfen, ob die Datei Angriffsscans oder Admin-Traffic enthält." }] : [])),
           ...(recognitionRate < 0.8 ? [{ level: "limited", text: `Nur ${percent(recognitionRate * 100)} der Datei konnte gelesen werden.`, check: "Exportformat prüfen." }] : (recognitionRate < 0.95 ? [{ level: "medium", text: `${percent(recognitionRate * 100)} der Datei wurde gelesen.`, check: "Exportformat prüfen." }] : [])),
           ...(filterShare >= 0.75 ? [{ level: "limited", text: "Sehr viele Zeilen wurden aussortiert.", check: "Prüfen, ob die Datei wirklich Besucheraufrufe enthält." }] : (filterShare >= 0.5 ? [{ level: "medium", text: "Viele Zeilen wurden aussortiert.", check: "Filtergründe prüfen." }] : []))
         ];
@@ -2753,7 +2765,11 @@
             type: "estimated",
             reliability: botReliability,
             canAnswer: !agg.trackingCapped,
-            reason: agg.trackingCapped ? "Die Schutzgrenze fuer sehr grosse Dateien begrenzt Bot- und Auffaelligkeits-Hinweise." : (agg.suspiciousClients ? "Auffaellige Muster mit vielen Aufrufen fast ohne normale Seitenbestandteile gefunden." : "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar.")
+            reason: agg.trackingCapped
+              ? "Die Schutzgrenze fuer sehr grosse Dateien begrenzt Bot- und Auffaelligkeits-Hinweise."
+              : (scanTrafficRisk
+                ? "Admin-, Exploit- oder Proxy-Scan-Muster gefunden."
+                : (agg.suspiciousClients ? "Auffaellige Muster mit vielen Aufrufen fast ohne normale Seitenbestandteile gefunden." : "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."))
           }
         };
         const claims = {
@@ -2766,16 +2782,18 @@
             blockingReasons: [
               ...(exportCompleteness.reliability === "limited" ? exportCompleteness.reasons : []),
               ...(pageviewReliability === "limited" ? ["Zu viel der Datei konnte nicht gelesen werden."] : []),
+              ...(scanTrafficRisk ? [scanTrafficText] : []),
               ...(originCacheRisk ? ["Cache/CDN kann Aufrufe vor dieser Server-Datei abfangen."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("complete_server_pageviews")).map((conflict) => conflict.text)
             ],
             recommendedChecks: [
               ...exportCompleteness.recommendedChecks,
               ...(pageviewReliability !== "high" ? ["Exportformat prüfen."] : []),
+              ...(scanTrafficRisk ? ["Security-/Scan-Traffic getrennt vom Besucher-Traffic auswerten."] : []),
               ...(originCacheRisk ? ["Prüfen, ob Cloudflare oder ein anderer Cache davor sitzt."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("complete_server_pageviews") || conflict.blocks.includes("complete_time_range")).map((conflict) => conflict.check)
             ],
-            forbiddenConclusions: exportCompleteness.reliability === "limited" || pageviewReliability === "limited"
+            forbiddenConclusions: exportCompleteness.reliability === "limited" || pageviewReliability === "limited" || scanTrafficRisk
               ? ["Keine harte Aussage über die Gesamtzahl der Seitenaufrufe treffen."]
               : (originCacheRisk || conflicts.some((conflict) => conflict.blocks.includes("complete_server_pageviews")) ? ["Nicht behaupten, dass die Server-Datei alle Aufrufe enthält."] : [])
           },
@@ -2789,6 +2807,7 @@
               ...(exportCompleteness.reliability === "limited" ? ["Der Export ist nicht vollständig genug für feste Besucher-Aussagen."] : []),
               ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; Besucher werden nur grob aus Host und Zeitfenster abgeleitet."] : []),
               ...(proxyKind && !config.useXff ? ["Proxy oder Cache verdeckt echte Besucheradressen."] : []),
+              ...(scanTrafficRisk ? [scanTrafficText] : []),
               ...(chronologyIssue ? ["Die Datei ist nicht sauber zeitlich sortiert."] : []),
               ...(config.useXff && visitorReliability === "limited" ? ["Das Proxy-Feld enthält keine durchgehend brauchbaren Besucheradressen."] : [])
             ],
@@ -2796,9 +2815,10 @@
               ...exportCompleteness.recommendedChecks,
               ...(isLegacyArchive ? ["Besucherzahl bei alten Archivlogs nur als grobe Plausibilitätsgröße nutzen."] : []),
               ...(proxyKind && !config.useXff ? ["Echte Besucheradresse hinter Proxy verwenden, falls der Proxy vertrauenswürdig ist."] : []),
+              ...(scanTrafficRisk ? ["Security-/Scan-Traffic getrennt vom Besucher-Traffic auswerten."] : []),
               ...(chronologyIssue ? ["Logdateien vor der Analyse zeitlich sortieren oder einzeln auswerten."] : [])
             ],
-            forbiddenConclusions: visitorReliability === "limited"
+            forbiddenConclusions: visitorReliability === "limited" || scanTrafficRisk
               ? ["Keine feste Besucherzahl behaupten.", "Keine Conversion-Rate auf Basis dieser Besucherzahl entscheiden."]
               : (visitorReliability === "medium" ? ["Besucherzahl nicht als exakten Wert behandeln."] : [])
           },
@@ -2812,6 +2832,7 @@
               ...(ga4MetricMismatch ? ["Die eingetragene Google-Analytics-Zahl ist nicht als Seitenaufruf-Zahl bestätigt."] : []),
               ...(lastGa4Import.warning ? [lastGa4Import.warning] : []),
               ...(!overall ? ["Keine Google-Analytics-Seitenzahlen eingetragen."] : []),
+              ...(scanTrafficRisk ? ["Die Server-Datei enthält auffälligen Security-/Scan-Traffic."] : []),
               ...(hostReliability === "limited" ? ["Die Server-Datei enthält mehrere Websites oder Subdomains."] : []),
               ...(pageviewReliability === "limited" ? ["Die Server-Datei wurde nicht zuverlässig genug gelesen."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.text)
@@ -2822,6 +2843,7 @@
               "Zeitraum in Google Analytics und Server-Datei abgleichen.",
               "Prüfen, ob wirklich Seitenaufrufe aus Google Analytics eingetragen wurden.",
               ...(ga4MetricMismatch ? ["Google Analytics neu exportieren: Seitenaufrufe/Views nach Seite verwenden."] : []),
+              ...(scanTrafficRisk ? ["Security-/Scan-Traffic vor dem Google-Analytics-Vergleich getrennt prüfen."] : []),
               ...(hostReliability === "limited" ? ["Website-Filter setzen."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.check)
             ],
@@ -2892,6 +2914,7 @@
             ...(!agg.minTime || !agg.maxTime ? ["Der Zeitraum der Datei ist nicht sicher lesbar."] : []),
             ...(exportCompleteness.reliability === "limited" ? exportCompleteness.reasons : []),
             ...(pageviewReliability === "limited" ? ["Zu viele Zeilen konnten nicht sicher gelesen werden."] : []),
+            ...(scanTrafficRisk ? [scanTrafficText] : []),
             ...(originCacheRisk ? ["Die Datei kommt wahrscheinlich vom Origin-Server hinter Cache/CDN; gecachte Aufrufe können fehlen."] : []),
             ...conflicts.filter((conflict) => conflict.blocks.includes("complete_server_pageviews") || conflict.blocks.includes("complete_time_range")).map((conflict) => conflict.text)
           ]),
@@ -2899,6 +2922,7 @@
             ...(exportCompleteness.reliability === "limited" ? ["Der Export ist nicht vollständig genug für feste Besucher-Aussagen."] : []),
             ...(proxyKind && !config.useXff ? ["Proxy oder Cache verdeckt echte Besucheradressen."] : []),
             ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; Besucher-Sessions sind nur grob ableitbar."] : []),
+            ...(scanTrafficRisk ? [scanTrafficText] : []),
             ...(config.useXff && visitorReliability === "limited" ? ["Das Proxy-Feld enthält keine durchgehend brauchbaren Besucheradressen."] : []),
             ...(chronologyIssue ? ["Die Datei ist nicht sauber zeitlich sortiert."] : [])
           ]),
@@ -2911,6 +2935,7 @@
             ...(pageviewReliability === "limited" ? ["Die Server-Datei wurde nicht zuverlässig genug gelesen."] : []),
             ...(exportCompleteness.reliability === "limited" ? ["Der Server-Export ist nicht vollständig genug für einen belastbaren Google-Analytics-Vergleich."] : []),
             ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; moderner Google-Analytics-Vergleich ist nur eingeschränkt belastbar."] : []),
+            ...(scanTrafficRisk ? ["Die Server-Datei enthält auffälligen Security-/Scan-Traffic."] : []),
             ...(originCacheRisk ? ["Cache/CDN kann Server-Aufrufe vor dieser Datei abfangen; der Google-Analytics-Vergleich ist nur eingeschränkt nutzbar."] : []),
             ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.text)
           ]),
@@ -2922,6 +2947,7 @@
             ...(conversionReliability === "medium" ? ["Ohne Bestellnummer können Reloads oder Mehrfachaufrufe stören."] : []),
             ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; Conversion-Sessions sind nur eingeschränkt deduplizierbar."] : []),
             ...(visitorReliability === "limited" ? ["Eine Conversion-Rate auf Besucherbasis ist nicht belastbar, weil die Besucherzahl unsicher ist."] : []),
+            ...(scanTrafficRisk ? [scanTrafficText] : []),
             ...conflicts.filter((conflict) => conflict.blocks.includes("purchase_comparison")).map((conflict) => conflict.text)
           ])
         };
@@ -2986,6 +3012,7 @@
             },
             hostCount: hosts.total,
             proxyKind: proxyKind || "none",
+            scanRequests: agg.scanRequests || 0,
             calibration,
             exportCompleteness: exportCompleteness.reliability
           },
@@ -3005,6 +3032,8 @@
           xffUsed: agg.xffUsed, xffMissing: agg.xffMissing, xffPrivate: agg.xffPrivate,
           legacyNoUserAgent: agg.legacyNoUserAgent || 0,
           suspiciousClients: agg.suspiciousClients,
+          scanRequests: agg.scanRequests || 0,
+          scanShare,
           trackingCapped: agg.trackingCapped,
           minTime: agg.minTime, maxTime: agg.maxTime, maxGapMs: agg.maxGapMs,
           visitorRange: { low: visitorLow, high: visitorHigh },
@@ -3020,7 +3049,7 @@
           calibration,
           exportCompleteness,
           ga4Import: lastGa4Import,
-          diagnostics: { recognitionRate, pageviewReliability, visitorReliability, ga4Reliability, conversionReliability, cacheRisk, chronologyIssue, botReliability, hostReliability, exportCompletenessReliability, trackingReliability: agg.trackingCapped ? "medium" : "high" },
+          diagnostics: { recognitionRate, pageviewReliability, visitorReliability, ga4Reliability, conversionReliability, cacheRisk, chronologyIssue, botReliability, hostReliability, exportCompletenessReliability, trackingReliability: agg.trackingCapped ? "medium" : "high", scanTrafficRisk },
           hasSuccessUrl: config.hasSuccessUrl, ga4Conversions, convDiff, serverCr,
           proxyKind, hasChosen: chosen.length > 0, tableRows, overall, pathCounts: agg.pathCounts,
           statusCounts: topEntries(agg.statusCounts, 12), methodCounts: topEntries(agg.methodCounts, 6),
@@ -3091,6 +3120,7 @@
           return data.exportCompleteness.reasons.slice(0, 2).join(" ");
         }
         if (metric === "bot") {
+          if (data.scanRequests > 0) return `${format(data.scanRequests)} Aufrufe wirken wie Admin-, Exploit- oder Proxy-Scans. Diese Datei nicht als sauberen Besucher-Traffic lesen.`;
           if (data.diagnostics.botReliability === "medium") return `${format(data.suspiciousClients)} auffällige Muster gefunden. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
           return data.reasons.bot ? `${format(data.reasons.bot)} klare Bot-Zeilen entfernt. Danach keine starke Auffälligkeit.` : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar.";
         }
@@ -3327,6 +3357,9 @@
         }
         if (data.suspiciousClients > 0) {
           recognitionText += (recognitionText ? " " : "") + `${format(data.suspiciousClients)} auffällige Muster gefunden: sehr viele Aufrufe, aber kaum Bilder oder technische Dateien. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
+        }
+        if (data.scanRequests > 0) {
+          recognitionText += (recognitionText ? " " : "") + `${format(data.scanRequests)} Aufrufe wirken wie Admin-, Exploit- oder Proxy-Scans. Zahlen aus solchen Dateien bitte nur vorsichtig lesen.`;
         }
         if (data.diagnostics.hostReliability === "limited") {
           recognitionText += (recognitionText ? " " : "") + `Die Datei enthält mehrere Websites oder Subdomains (${format(data.hosts.total)} erkannt). Setze oben einen Filter, damit ServerStory und Google Analytics wirklich dieselbe Website vergleichen.`;
@@ -3642,6 +3675,8 @@
             privateOnly: lastResult.xffPrivate
           },
           suspiciousClients: lastResult.suspiciousClients,
+          scanRequests: lastResult.scanRequests,
+          scanShare: lastResult.scanShare,
           trackingCapped: lastResult.trackingCapped,
           legacyNoUserAgent: lastResult.legacyNoUserAgent,
           proxyKind: lastResult.proxyKind,
