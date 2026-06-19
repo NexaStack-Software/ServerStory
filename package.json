@@ -1,4 +1,8 @@
 {
+  "name": "serverstory",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
   "scripts": {
     "build": "node scripts/build-single-html.js",
     "build:release": "node scripts/build-release.js",
