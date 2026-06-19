@@ -1576,10 +1576,10 @@
 
           <details>
             <summary>Und warum sieht mein Server manchmal weniger als Google?</summary>
-            <p>Zwei Gründe ziehen in die andere Richtung:</p>
+            <p>Auch das kann passieren - vor allem, wenn zwischen Besucher und Webserver noch ein Zwischenspeicher sitzt.</p>
             <ul>
-              <li><strong>Zwischengespeicherte Seiten (Cache/CDN):</strong> Wird eine Seite aus dem Zwischenspeicher des Browsers oder eines vorgeschalteten Dienstes geladen, erreicht die Anfrage deinen Server gar nicht - der Besuch fehlt im Log, Google zählt ihn aber.</li>
-              <li><strong>Eine Person, mehrfach gezählt:</strong> Löscht jemand seine Cookies oder nutzt ein zweites Gerät, hält Google ihn für einen neuen Besucher. Googles Besucherzahl ist dadurch eher zu hoch.</li>
+              <li><strong>Cache oder CDN:</strong> Manche Websites speichern fertige Seiten zwischen, damit sie schneller laden. Dann bekommt der Besucher die Seite aus diesem Zwischenspeicher - und nicht direkt von deinem Webserver. In so einem Fall kann der Besuch in deiner Server-Datei fehlen, obwohl Google Analytics ihn zählt.</li>
+              <li><strong>Eine Person, mehrfach gezählt:</strong> Wenn jemand Cookies löscht, den Browser wechselt oder ein zweites Gerät nutzt, kann Google Analytics dieselbe Person mehrfach als neuen Besucher zählen. Die Google-Besucherzahl kann dadurch höher wirken, als sie wirklich ist.</li>
             </ul>
           </details>
 
