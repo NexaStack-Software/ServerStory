@@ -913,7 +913,7 @@ test("Ground Truth: doppelte GA4-Zeilen blockieren glatten Vergleich", async () 
   assert.deepStrictEqual(report.ga4Validation.duplicatePaths, ["/preise"]);
   assert.ok(report.conflicts.some((conflict) => conflict.id === "ga4_duplicate_pages"));
   assert.strictEqual(report.claims.ga4.claimAllowed, false);
-  assert.match(report.claims.ga4.recommendedChecks.join(" "), /Doppelte GA4-Zeilen/i);
+  assert.match(report.claims.ga4.recommendedChecks.join(" "), /Doppelte Google-Analytics-Zeilen/i);
 });
 
 test("Ground Truth: Danke-Seiten-Reloads ohne Bestellnummer senken Kauf-Sicherheit", () => {
@@ -1544,7 +1544,7 @@ test("Render setzt Ampeln und sichtbare Gruende pro Kennzahl", () => {
   assert.strictEqual(ui.get("q-views").textContent, "Gut nutzbar");
   assert.match(ui.get("q-views-reason").textContent, /Datei wurde sauber gelesen.*100/i);
   assert.match(ui.get("q-visits-reason").textContent, /Keine starke Proxy-Verzerrung/i);
-  assert.match(ui.get("q-purchases-reason").textContent, /mit GA4-Käufen verglichen/i);
+  assert.match(ui.get("q-purchases-reason").textContent, /mit Google-Analytics-Käufen verglichen/i);
   assert.match(ui.get("q-ga4-reason").textContent, /Zeitraum und Seitenauswahl/i);
   assert.match(ui.get("precision-checklist").innerHTML, /eine Website begrenzt/i);
   assert.match(ui.get("precision-checklist").innerHTML, /Datei wurde verstanden/i);
@@ -1688,7 +1688,7 @@ test("Copy-Report liefert versioniertes Schema mit Genauigkeitshinweisen", async
   assert.ok(report.auditProtocol.allowedClaims.includes("hostScope"));
   assert.ok(report.auditProtocol.limitedClaims.includes("ga4"));
   assert.deepStrictEqual(report.auditProtocol.evidenceFailures, report.evidenceFailures);
-  assert.match(report.auditProtocol.cannotSay.join(" "), /GA4-Abweichung/i);
+  assert.match(report.auditProtocol.cannotSay.join(" "), /Google-Analytics-Abweichung/i);
   assert.strictEqual(report.topPages[0].name, "/preise");
 });
 
@@ -2119,7 +2119,7 @@ test("Copy-Report verschweigt Chronologie- und Recognition-Risiken nicht", async
   assert.strictEqual(unsortedReport.quality.visitorReliability, "medium");
   assert.ok(unsortedReport.totals.visitorRange.low < unsortedReport.totals.visits);
   assert.ok(unsortedReport.totals.visitorRange.high > unsortedReport.totals.visits);
-  assert.match(unsortedReport.accuracyNotes.visits, /Reihenfolge der Logs/i);
+  assert.match(unsortedReport.accuracyNotes.visits, /Reihenfolge der Einträge/i);
   assert.strictEqual(unsortedReport.claims.visits.claimAllowed, true);
   assert.match(unsortedReport.claims.visits.blockingReasons.join(" "), /zeitlich sortiert/i);
   assert.match(unsortedReport.claims.visits.forbiddenConclusions.join(" "), /exakten Wert/i);
@@ -2130,7 +2130,7 @@ test("Copy-Report verschweigt Chronologie- und Recognition-Risiken nicht", async
   assert.strictEqual(noisyReport.totals.pageViews, expected.pageViews);
   assert.strictEqual(noisyReport.quality.pageviewReliability, "medium");
   assert.ok(noisyReport.quality.recognitionRate < 0.95);
-  assert.match(noisyReport.accuracyNotes.pageViews, /Einzelne Zeilen passen nicht/i);
+  assert.match(noisyReport.accuracyNotes.pageViews, /Einzelne Einträge passen nicht/i);
   assert.strictEqual(noisyReport.claims.pageViews.claimAllowed, true);
   assert.strictEqual(noisyReport.claims.pageViews.confidence, "medium");
 
@@ -2191,7 +2191,7 @@ test("Demo nutzt realistische Groessenordnung und keine harte GA4-zu-wenig-Headl
   assert.doesNotMatch(script, /Google Analytics zählt zu wenig/);
   assert.doesNotMatch(script, /Google Analytics sieht weniger Käufe/);
   assert.doesNotMatch(script, /GA4-Abdeckung ist niedrig/);
-  assert.match(script, /GA4 sieht deutlich weniger/);
+  assert.match(script, /Google Analytics sieht deutlich weniger/);
 });
 
 run();

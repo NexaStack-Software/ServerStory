@@ -1075,7 +1075,7 @@
           <h1>Was hat deine Website <span>wirklich gesehen?</span></h1>
           <p class="lead">ServerStory liest die Besuchsliste deines Webservers (der Computer, auf dem deine Website läuft) und zeigt dir, welche Seiten wie oft aufgerufen wurden und ungefähr, wie viele Besucher du hattest — auch die, die ein Tracking-Tool durch Cookie-Banner oder Ad-Blocker verpasst.</p>
           <ul class="lead-points">
-            <li>Seitenaufrufe pro Adresse — direkt vom Server gezählt</li>
+            <li>Seitenaufrufe — direkt vom Server gezählt</li>
             <li>Deine meistbesuchten Seiten sofort auf einen Blick</li>
             <li>Optional: die Lücke zu Google Analytics sichtbar machen</li>
           </ul>
@@ -1087,7 +1087,7 @@
 
           <div class="steps">
             <label>
-              Besuchsliste vom Webserver hochladen
+              Besuchsliste vom Webserver auswählen
               <input id="log-file" type="file" accept=".log,.txt,.gz">
               <span class="helper">Datei-Endung meist .log, .txt oder .gz. Große Dateien werden mit Fortschrittsanzeige verarbeitet, ohne den Browser einzufrieren.</span>
             </label>
@@ -1147,12 +1147,12 @@
                 <label>
                   Kauf-URL-Muster
                   <input id="success-pattern" placeholder="/bestellung/*">
-                  <span class="helper">Optional. Nutze `*` als Platzhalter, wenn mehrere Danke-URLs zählen sollen.</span>
+                  <span class="helper">Optional. Schreib ein Sternchen (*) als Lückenfüller, wenn mehrere Danke-Seiten zählen sollen.</span>
                 </label>
                 <label>
                   Bestellnummer-Parameter
                   <input id="order-param" placeholder="order_id">
-                  <span class="helper">Optional. Wenn die Danke-URL eine eindeutige Bestellnummer enthält, dedupliziert ServerStory Käufe genauer.</span>
+                  <span class="helper">Optional. Wenn die Danke-URL eine eindeutige Bestellnummer enthält, zählt ServerStory jeden Kauf nur einmal — auch wenn die Danke-Seite neu geladen wurde.</span>
                 </label>
                 <label>
                   Käufe laut Google Analytics
@@ -1163,7 +1163,7 @@
             </details>
 
             <details id="advanced-toggle" class="opt">
-              <summary>Optional: Erweiterte Filter</summary>
+              <summary>Optional: Feineinstellungen (eher für deine IT)</summary>
               <div class="ga4-fields">
                 <label class="check">
                   <input type="checkbox" id="use-xff">
@@ -1178,7 +1178,7 @@
                 <label>
                   Adress-Zusätze behalten
                   <input id="keep-query" placeholder="variant, product_id">
-                  <span class="helper">Optional. Standardmäßig zählt ServerStory `/preise?utm_source=...` als `/preise`. Trag hier nur Zusätze ein, die wirklich eigene Seitenvarianten bilden.</span>
+                  <span class="helper">Optional. Standardmäßig zählt ServerStory eine Seite mit Werbe-Anhängseln in der Adresse (z. B. ?utm_source=…) trotzdem als dieselbe Seite. Trag hier nur Anhängsel ein, die wirklich verschiedene Seiten kennzeichnen.</span>
                 </label>
                 <div class="two">
                   <label>
@@ -1186,14 +1186,14 @@
                     <input id="bot-hit-threshold" type="number" min="10" placeholder="100">
                   </label>
                   <label>
-                    Max. Asset-Anteil in %
+                    Max. Anteil technischer Dateien in %
                     <input id="bot-asset-share" type="number" min="0" max="100" placeholder="5">
                   </label>
                 </div>
                 <label>
                   Schutzgrenze für sehr große Dateien
                   <input id="tracking-cap" type="number" min="1000" placeholder="100000">
-                  <span class="helper">Schützt sehr große Dateien vor zu hohem Speicherverbrauch. Bei Überschreitung zeigt ServerStory einen Genauigkeitshinweis.</span>
+                  <span class="helper">Bremst sehr große Dateien, damit dein Browser nicht überlastet wird. Wird die Grenze erreicht, weist ServerStory darauf hin.</span>
                 </label>
               </div>
             </details>
@@ -1229,14 +1229,14 @@
                 <strong id="n-visits">-</strong>
                 <em id="q-visits" class="quality-badge">-</em>
                 <p id="q-visits-reason" class="helper"></p>
-                <p class="helper">Grobe Schätzung: Aufrufe per IP + Browser im 30-Min-Fenster zusammengefasst. Mehrere Personen hinter einer IP zählen als eine.</p>
+                <p class="helper">Grobe Schätzung: Aufrufe vom selben IP-Anschluss und Browser kurz nacheinander zählen wir als einen Besuch. Mehrere Personen hinter einer IP zählen als einer.</p>
               </div>
               <div class="number">
                 <span>Seitenaufrufe gesamt</span>
                 <strong id="n-views">-</strong>
                 <em id="q-views" class="quality-badge">-</em>
                 <p id="q-views-reason" class="helper"></p>
-                <p class="helper">Echte Seiten — ohne Bilder, CSS oder JS. Vergleichbar mit „Seitenaufrufen" in Google Analytics.</p>
+                <p class="helper">Echte Seiten — ohne Bilder und technische Dateien. Vergleichbar mit „Seitenaufrufen" in Google Analytics.</p>
               </div>
               <div class="number purchase-only">
                 <span>Käufe laut Webserver</span>
@@ -1307,7 +1307,7 @@
                 </div>
                 <div>
                   <strong id="pc-gap">-</strong>
-                  <p>Differenz (Webserver − GA4)</p>
+                  <p>Differenz (Webserver − Google Analytics)</p>
                 </div>
               </div>
               <p id="purchase-note" class="purchase-note"></p>
@@ -1319,7 +1319,7 @@
               <div class="table-wrap">
                 <table class="mini-table">
                   <thead>
-                    <tr><th>Seite</th><th>Webserver</th><th class="ga4-col">Google Analytics</th><th class="ga4-col">Differenz</th><th class="ga4-col">GA4 sieht</th></tr>
+                    <tr><th>Seite</th><th>Webserver</th><th class="ga4-col">Google Analytics</th><th class="ga4-col">Differenz</th><th class="ga4-col">Google Analytics sieht</th></tr>
                   </thead>
                   <tbody id="page-table">
                     <tr><td>-</td><td>-</td><td class="ga4-col">-</td><td class="ga4-col">-</td><td class="ga4-col">-</td></tr>
@@ -1333,9 +1333,9 @@
               <summary>Was aus der Datei gelesen wurde</summary>
               <div class="server-grid">
                 <div class="server-card">
-                  <span>Alle Zeilen in der Datei</span>
+                  <span>Alle Einträge in der Datei</span>
                   <strong id="server-total">-</strong>
-                  <p class="helper">So viele Zeilen standen in der Datei.</p>
+                  <p class="helper">So viele Einträge standen in der Datei.</p>
                 </div>
                 <div class="server-card">
                   <span>Verwendete Aufrufe</span>
@@ -1356,8 +1356,8 @@
               <dl>
                 <div><dt>Besuche im Webserver</dt><dd id="visits">-</dd></div>
                 <div><dt>Verwendete Aufrufe nach Filter</dt><dd id="kept">-</dd></div>
-                <div><dt>Lesbare Zeilen</dt><dd id="parsed">-</dd></div>
-                <div><dt>Nicht verwendete Zeilen</dt><dd id="filtered">-</dd></div>
+                <div><dt>Verstandene Einträge</dt><dd id="parsed">-</dd></div>
+                <div><dt>Nicht verwendete Einträge</dt><dd id="filtered">-</dd></div>
                 <div><dt>Kaufrate im Webserver</dt><dd id="server-cr">-</dd></div>
                 <div><dt>Google-Ads-Besuche mit Kauf</dt><dd id="ads-success">-</dd></div>
               </dl>
@@ -1432,7 +1432,7 @@
       let lastResult = null;
       let lastGa4Import = { warning: "" };
       // Nicht-HTML-Ressourcen (Bilder, CSS, JS, Sitemaps, Feeds, JSON-Endpunkte …) werden
-      // von den "Seitenaufrufen" ausgeschlossen, damit die Zahl mit GA4-Seitenaufrufen
+      // von den "Seitenaufrufen" ausgeschlossen, damit die Zahl mit Google-Analytics-Seitenaufrufen
       // (page_view für HTML-Dokumente) vergleichbar bleibt. Eine einzige Quelle; wird via
       // config (RegExp ist strukturiert klonbar) auch in den Worker gereicht, damit Haupt-
       // und Worker-Pfad garantiert identisch zählen.
@@ -1542,7 +1542,7 @@
               break;
             }
             if (maybePath >= 0 && maybeMetric < 0 && header.some((cell) => /nutzer|users|active users|total users/.test(cell))) {
-              lastGa4Import.warning = "Die GA4-Datei enthält Nutzer/Users, aber keine Aufrufe/Page Views. Für den Vergleich brauchst du Seitenaufrufe, nicht Nutzer.";
+              lastGa4Import.warning = "Die Google-Analytics-Datei enthält Nutzer/Users, aber keine Aufrufe/Page Views. Für den Vergleich brauchst du Seitenaufrufe, nicht Nutzer.";
             }
           }
         }
@@ -1581,7 +1581,7 @@
           }
         }
         if (lines.length && values.size === 0 && !lastGa4Import.warning) {
-          lastGa4Import.warning = "Die GA4-Eingabe konnte nicht als Seitenaufrufe gelesen werden. Bitte Export mit Page path und Views/Page Views verwenden.";
+          lastGa4Import.warning = "Die Google-Analytics-Eingabe konnte nicht als Seitenaufrufe gelesen werden. Bitte Export mit Seitenpfad (Page path) und Aufrufen (Views/Page Views) verwenden.";
         }
         return values;
       }
@@ -2430,7 +2430,7 @@
           addConflict(
             "ga4_above_server_with_cache_risk",
             "medium",
-            "GA4 liegt über der Server-Datei, gleichzeitig kann ein Cache Aufrufe vor dieser Datei abfangen.",
+            "Google Analytics liegt über der Server-Datei, gleichzeitig kann ein Cache Aufrufe vor dieser Datei abfangen.",
             "Prüfen, ob Cloudflare oder ein anderer Cache vor der Website sitzt.",
             ["complete_server_pageviews", "tracking_loss_claim"]
           );
@@ -2439,7 +2439,7 @@
           addConflict(
             "ga4_compare_with_multiple_websites",
             "high",
-            "GA4 wird mit einer Server-Datei verglichen, die mehrere Websites oder Subdomains enthält.",
+            "Google Analytics wird mit einer Server-Datei verglichen, die mehrere Websites oder Subdomains enthält.",
             "Website-Filter setzen und erneut auswerten.",
             ["ga4_decision"]
           );
@@ -2448,8 +2448,8 @@
           addConflict(
             "ga4_pages_missing_in_server",
             "high",
-            `${format(ga4Validation.unmatchedRows)} GA4-Seiten haben keinen Treffer in der Server-Datei.`,
-            "Prüfen, ob GA4-Zeitraum, Website und Seitenauswahl wirklich zur Server-Datei passen.",
+            `${format(ga4Validation.unmatchedRows)} Google-Analytics-Seiten haben keinen Treffer in der Server-Datei.`,
+            "Prüfen, ob Google-Analytics-Zeitraum, Website und Seitenauswahl wirklich zur Server-Datei passen.",
             ["ga4_decision"]
           );
         }
@@ -2457,8 +2457,8 @@
           addConflict(
             "ga4_duplicate_pages",
             "medium",
-            "GA4 enthält dieselbe Seite mehrfach. ServerStory summiert diese Zeilen, aber der Export sollte geprüft werden.",
-            "Doppelte GA4-Zeilen entfernen oder den Export nach Seite zusammenfassen.",
+            "Google Analytics enthält dieselbe Seite mehrfach. ServerStory summiert diese Zeilen, aber der Export sollte geprüft werden.",
+            "Doppelte Google-Analytics-Zeilen entfernen oder den Export nach Seite zusammenfassen.",
             ["ga4_decision"]
           );
         }
@@ -2467,7 +2467,7 @@
             "ga4_purchases_exceed_server_success_page",
             "high",
             "Google Analytics meldet mehr Käufe, als die Server-Datei Aufrufe der Kauf-/Danke-Seite enthält.",
-            "Prüfen, ob GA4 eine andere Kaufdefinition, einen anderen Zeitraum oder eine andere Website nutzt.",
+            "Prüfen, ob Google Analytics eine andere Kaufdefinition, einen anderen Zeitraum oder eine andere Website nutzt.",
             ["purchase_comparison"]
           );
         }
@@ -2475,7 +2475,7 @@
           addConflict(
             "ga4_compare_with_unread_rows",
             pageviewReliability === "limited" ? "high" : "medium",
-            "Ein Teil der Server-Datei konnte nicht gelesen werden, trotzdem werden GA4-Zahlen verglichen.",
+            "Ein Teil der Server-Datei konnte nicht gelesen werden, trotzdem werden Google-Analytics-Zahlen verglichen.",
             "Exportformat prüfen und Vergleich danach erneut auswerten.",
             ["ga4_decision", "complete_server_pageviews"]
           );
@@ -2545,10 +2545,10 @@
             reliability: ga4Reliability,
             canAnswer: !!(overall && !lastGa4Import.warning && hostReliability !== "limited" && !ga4DecisionBlocked),
             reason: lastGa4Import.warning || (!overall
-              ? "Keine brauchbaren GA4-Seitenzahlen eingetragen."
+              ? "Keine brauchbaren Google-Analytics-Seitenzahlen eingetragen."
               : (hostReliability === "limited"
-                ? "Die Datei enthält mehrere Websites. Ohne Filter ist der GA4-Vergleich unsicher."
-                : (ga4DecisionBlocked ? conflicts.find((conflict) => conflict.blocks.includes("ga4_decision")).text : "GA4 wurde mit denselben Seitenadressen aus der Server-Datei verglichen.")))
+                ? "Die Datei enthält mehrere Websites. Ohne Filter ist der Google-Analytics-Vergleich unsicher."
+                : (ga4DecisionBlocked ? conflicts.find((conflict) => conflict.blocks.includes("ga4_decision")).text : "Google Analytics wurde mit denselben Seitenadressen aus der Server-Datei verglichen.")))
           },
           hostScope: {
             type: hosts.total ? "measured" : "not_available",
@@ -2612,27 +2612,27 @@
           ga4: {
             claimAllowed: !!(overall && !lastGa4Import.warning && hostReliability !== "limited" && pageviewReliability !== "limited" && exportCompleteness.reliability !== "limited" && !ga4DecisionBlocked),
             confidence: ga4Reliability,
-            statement: overall ? "GA4-Vergleich ist nur mit gleicher Website, gleichem Zeitraum und gleichen Seiten belastbar." : "GA4-Vergleich nicht vorhanden.",
+            statement: overall ? "Google-Analytics-Vergleich ist nur mit gleicher Website, gleichem Zeitraum und gleichen Seiten belastbar." : "Google-Analytics-Vergleich nicht vorhanden.",
             blockingReasons: [
-              ...(exportCompleteness.reliability === "limited" ? ["Der Server-Export ist nicht vollständig genug für einen belastbaren GA4-Vergleich."] : []),
-              ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; GA4-Vergleiche sind nur eingeschränkt belastbar."] : []),
+              ...(exportCompleteness.reliability === "limited" ? ["Der Server-Export ist nicht vollständig genug für einen belastbaren Google-Analytics-Vergleich."] : []),
+              ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; Google-Analytics-Vergleiche sind nur eingeschränkt belastbar."] : []),
               ...(lastGa4Import.warning ? [lastGa4Import.warning] : []),
-              ...(!overall ? ["Keine GA4-Seitenzahlen eingetragen."] : []),
+              ...(!overall ? ["Keine Google-Analytics-Seitenzahlen eingetragen."] : []),
               ...(hostReliability === "limited" ? ["Die Server-Datei enthält mehrere Websites oder Subdomains."] : []),
               ...(pageviewReliability === "limited" ? ["Die Server-Datei wurde nicht zuverlässig genug gelesen."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.text)
             ],
             recommendedChecks: [
               ...exportCompleteness.recommendedChecks,
-              ...(isLegacyArchive ? ["Bei Archivlogs keinen modernen GA4-Trackingverlust ableiten."] : []),
+              ...(isLegacyArchive ? ["Bei Archivlogs keinen modernen Google-Analytics-Trackingverlust ableiten."] : []),
               "Zeitraum in Google Analytics und Server-Datei abgleichen.",
               "Prüfen, ob wirklich Seitenaufrufe aus Google Analytics eingetragen wurden.",
               ...(hostReliability === "limited" ? ["Website-Filter setzen."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.check)
             ],
             forbiddenConclusions: !(overall && !lastGa4Import.warning && hostReliability !== "limited" && pageviewReliability !== "limited" && exportCompleteness.reliability !== "limited" && !ga4DecisionBlocked)
-              ? ["Keine Budget- oder Tracking-Entscheidung aus dem GA4-Vergleich ableiten."]
-              : ["GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."]
+              ? ["Keine Budget- oder Tracking-Entscheidung aus dem Google-Analytics-Vergleich ableiten."]
+              : ["Google-Analytics-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."]
           },
           hostScope: {
             claimAllowed: hostReliability !== "limited",
@@ -2662,7 +2662,7 @@
             ],
             forbiddenConclusions: !config.hasSuccessUrl
               ? ["Keine Aussage über Käufe treffen."]
-              : (conflicts.some((conflict) => conflict.blocks.includes("purchase_comparison")) ? ["Keinen Kaufvergleich entscheiden, bevor die GA4-Definition geprüft ist."] : [])
+              : (conflicts.some((conflict) => conflict.blocks.includes("purchase_comparison")) ? ["Keinen Kaufvergleich entscheiden, bevor die Google-Analytics-Definition geprüft ist."] : [])
           }
         };
         const claimEvidence = {
@@ -2677,7 +2677,7 @@
             "Keine dominante Proxy-/Loadbalancer-Adresse"
           ],
           ga4: [
-            "GA4-Seitenaufrufe, keine Nutzer- oder Sitzungsmetrik",
+            "Google-Analytics-Seitenaufrufe, keine Nutzer- oder Sitzungsmetrik",
             "Gleicher Zeitraum, gleiche Website, gleiche Seitenauswahl",
             "Server-Export ohne harte Vollständigkeits-Blocker"
           ],
@@ -2688,7 +2688,7 @@
           conversions: [
             "Kauf-/Danke-Seite oder Conversion-Muster",
             "Bestellnummer oder anderes Deduplizierungsmerkmal für hohe Sicherheit",
-            "Gleiche Kaufdefinition bei GA4-Vergleich"
+            "Gleiche Kaufdefinition bei Google-Analytics-Vergleich"
           ]
         };
         const dedupe = (items) => [...new Set((items || []).filter(Boolean))];
@@ -2708,14 +2708,14 @@
             ...(chronologyIssue ? ["Die Datei ist nicht sauber zeitlich sortiert."] : [])
           ]),
           ga4: dedupe([
-            ...(!overall ? ["Keine GA4-Seitenaufrufe für einen Vergleich vorhanden."] : []),
+            ...(!overall ? ["Keine Google-Analytics-Seitenaufrufe für einen Vergleich vorhanden."] : []),
             ...(lastGa4Import.warning ? [lastGa4Import.warning] : []),
-            ...(ga4InputProblem ? ["Der GA4-Export enthält Duplikate oder viele Seiten ohne Treffer in der Server-Datei."] : []),
+            ...(ga4InputProblem ? ["Der Google-Analytics-Export enthält Duplikate oder viele Seiten ohne Treffer in der Server-Datei."] : []),
             ...(hostReliability === "limited" ? ["Die Server-Datei enthält mehrere Websites oder Subdomains."] : []),
             ...(pageviewReliability === "limited" ? ["Die Server-Datei wurde nicht zuverlässig genug gelesen."] : []),
-            ...(exportCompleteness.reliability === "limited" ? ["Der Server-Export ist nicht vollständig genug für einen belastbaren GA4-Vergleich."] : []),
-            ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; moderner GA4-Vergleich ist nur eingeschränkt belastbar."] : []),
-            ...(originCacheRisk ? ["Cache/CDN kann Server-Aufrufe vor dieser Datei abfangen; der GA4-Vergleich ist nur eingeschränkt nutzbar."] : []),
+            ...(exportCompleteness.reliability === "limited" ? ["Der Server-Export ist nicht vollständig genug für einen belastbaren Google-Analytics-Vergleich."] : []),
+            ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; moderner Google-Analytics-Vergleich ist nur eingeschränkt belastbar."] : []),
+            ...(originCacheRisk ? ["Cache/CDN kann Server-Aufrufe vor dieser Datei abfangen; der Google-Analytics-Vergleich ist nur eingeschränkt nutzbar."] : []),
             ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.text)
           ]),
           hostScope: dedupe([
@@ -2842,24 +2842,24 @@
           const recognized = percent(data.diagnostics.recognitionRate * 100);
           if (data.evidence && data.evidence.pageViews && data.evidence.pageViews.type === "lower_bound") return `Nur Mindestwert: Deine Logdatei sieht wahrscheinlich nicht alle Aufrufe, weil ein Cache/CDN dazwischen sitzen kann.`;
           if (data.diagnostics.pageviewReliability === "high") return `Die Datei wurde sauber gelesen (${recognized}).`;
-          if (data.diagnostics.pageviewReliability === "medium") return `${recognized} der Datei wurde gelesen. Einzelne Zeilen passen nicht zum erwarteten Format.`;
-          return `Zu viele Zeilen passen nicht zum erwarteten Format (${recognized} gelesen).`;
+          if (data.diagnostics.pageviewReliability === "medium") return `${recognized} der Datei wurde gelesen. Einzelne Einträge passen nicht zum erwarteten Format.`;
+          return `Zu viele Einträge passen nicht zum erwarteten Format (${recognized} gelesen).`;
         }
         if (metric === "visits") {
           if (data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable") return "Nicht verlässlich bestimmbar: Die Datei zeigt vor allem Proxy-/CDN-Adressen, nicht echte Besucher.";
           if (data.diagnostics.visitorReliability === "high") return data.xffUsed ? "Echte Besucher-IPs aus dem Proxy-Feld wurden genutzt." : "Keine starke Proxy-Verzerrung sichtbar.";
           if (data.proxyKind) return "Proxy oder CDN erkannt. Besucher nur als grobe Spanne lesen.";
           if (data.xffMissing || data.xffPrivate) return "Das Proxy-Feld enthält keine brauchbaren Besucher-IPs.";
-          return "Die Reihenfolge der Logs oder die Besucher-Erkennung macht diese Zahl ungenauer.";
+          return "Die Reihenfolge der Einträge oder die Besucher-Erkennung macht diese Zahl ungenauer.";
         }
         if (metric === "purchases") {
           if (!data.hasSuccessUrl) return "Keine Kauf-/Danke-Seite angegeben.";
-          if (data.diagnostics.conversionReliability === "high") return data.ga4Conversions === null ? "Kaufseite erkannt; doppelte Reloads werden reduziert." : "Kaufseite erkannt und mit GA4-Käufen verglichen.";
+          if (data.diagnostics.conversionReliability === "high") return data.ga4Conversions === null ? "Kaufseite erkannt; doppelte Reloads werden reduziert." : "Kaufseite erkannt und mit Google-Analytics-Käufen verglichen.";
           return "Kaufseite erkannt, aber ohne Bestellnummer können Reloads die Zahl verzerren.";
         }
         if (metric === "ga4") {
           if (data.ga4Import && data.ga4Import.warning) return data.ga4Import.warning;
-          if (!hasGa4) return "Keine GA4-Seitenzahlen eingetragen.";
+          if (!hasGa4) return "Keine Google-Analytics-Seitenzahlen eingetragen.";
           if (data.evidence && data.evidence.ga4 && !data.evidence.ga4.canAnswer) return data.evidence.ga4.reason;
           if (data.diagnostics.ga4Reliability === "medium") return "Vergleich ist nutzbar, wenn Zeitraum und Seitenauswahl wirklich gleich sind.";
           return "Vergleich nur eingeschränkt nutzbar. Prüfe Zeitraum, Seiten und ob in Google Analytics wirklich Seitenaufrufe stehen.";
@@ -2893,8 +2893,8 @@
           : `${format(data.hosts.total)} Domains/Subdomains gefunden. Filter setzen, wenn du nur eine Website prüfen willst.`));
         rows.push(item(data.diagnostics.pageviewReliability !== "limited", `${percent(data.diagnostics.recognitionRate * 100)} der Datei wurde verstanden.`));
         rows.push(item(!hasGa4 || !(data.ga4Import && data.ga4Import.warning), hasGa4
-          ? ((data.ga4Import && data.ga4Import.warning) || "GA4-Zahlen wurden gelesen. Zeitraum und Seitenauswahl müssen gleich sein.")
-          : "Keine GA4-Seitenzahlen eingetragen."));
+          ? ((data.ga4Import && data.ga4Import.warning) || "Google-Analytics-Zahlen wurden gelesen. Zeitraum und Seitenauswahl müssen gleich sein.")
+          : "Keine Google-Analytics-Seitenzahlen eingetragen."));
         rows.push(item(data.diagnostics.visitorReliability !== "limited", data.diagnostics.visitorReliability !== "limited"
           ? "Keine starke Proxy-Verzerrung bei Besuchern sichtbar."
           : "Proxy oder CDN kann die Besucherzahl verzerren. Seitenaufrufe stärker gewichten."));
@@ -2980,7 +2980,7 @@
         // Hinweise
         showHint("proxy-hint",
           data.proxyKind === "private"
-            ? "Fast alle Zugriffe stammen von internen/privaten Adressen. Das passiert oft, wenn Cloudflare, ein Cache oder ein anderer Proxy vor deiner Website sitzt. Dann steht vorne nicht der echte Besucher, sondern nur die Zwischenstation. Seitenaufrufe bleiben brauchbar; die Besucherzahl ist so nicht belastbar. Aktiviere oben „Echte Besucheradresse hinter Proxy verwenden“ und werte erneut aus."
+            ? "Fast alle Zugriffe stammen von einer internen IP-Adresse. Das passiert oft, wenn Cloudflare, ein Cache oder ein anderer Proxy vor deiner Website sitzt. Dann steht vorne nicht der echte Besucher, sondern nur die Zwischenstation. Seitenaufrufe bleiben brauchbar; die Besucherzahl ist so nicht belastbar. Aktiviere oben „Echte Besucheradresse hinter Proxy verwenden“ und werte erneut aus."
           : data.proxyKind === "concentrated"
             ? "Mehr als die Hälfte der Zugriffe kommt von einer einzigen Adresse. Das kann ein Proxy oder Cache sein, aber auch ein sehr aktiver Testzugriff oder Scraper. Seitenaufrufe bleiben brauchbar; die Besucherzahl bitte nur mit Vorsicht lesen. Wenn ein Proxy davor sitzt, aktiviere oben „Echte Besucheradresse hinter Proxy verwenden“."
           : "");
@@ -2989,13 +2989,13 @@
           const names = { cloudflare: "Cloudflare", cloudfront: "CloudFront", fastly: "Fastly", akamai: "Akamai-nahe" };
           recognitionText = `${names[data.formatKind]}-Datei gelesen. Gut: Damit sieht ServerStory auch Aufrufe, die ein Cache sonst vom Webserver fernhalten kann.`;
         } else if (data.formatKind === "json") {
-          recognitionText = "Strukturierte Datei gelesen. Bei eigenen Exporten kurz prüfen, ob Seite, Antwortcode und Besucheradresse richtig erkannt wurden.";
+          recognitionText = "Strukturierte Datei gelesen. Bei eigenen Dateien kurz prüfen, ob Seite, Status und Besucheradresse richtig erkannt wurden.";
         } else if (data.formatKind === "iis") {
-          recognitionText = "IIS/W3C-Datei gelesen. Die Zeiten werden wie üblich als UTC gelesen.";
+          recognitionText = "Microsoft-IIS-Server-Datei gelesen. Die Zeiten werden als Weltzeit (UTC) gelesen.";
         } else if (data.formatKind === "unknown" && data.total) {
-          recognitionText = "Diese Datei passt nicht sicher zu den unterstützten Server-Exporten.";
+          recognitionText = "Diese Datei passt nicht sicher zu den Datei-Arten, die ServerStory kennt.";
         } else if (data.unrecognizedPct >= 10) {
-          recognitionText = `${percent(data.unrecognizedPct)} der Datei konnte nicht gelesen werden. Prüfe, ob der Export gemischt, gekürzt oder im falschen Format ist.`;
+          recognitionText = `${percent(data.unrecognizedPct)} der Datei konnte nicht gelesen werden. Prüfe, ob die Datei gemischt, gekürzt oder im falschen Format ist.`;
         }
         if (data.diagnostics.pageviewReliability === "high") {
           recognitionText += (recognitionText ? " " : "") + "Die Seitenaufrufe wirken gut nutzbar.";
@@ -3012,10 +3012,10 @@
           recognitionText += (recognitionText ? " " : "") + "Die Besucherzahl ist eingeschränkt belastbar; Seitenaufrufe sind hier die robustere Kennzahl.";
         }
         if (data.suspiciousClients > 0) {
-          recognitionText += (recognitionText ? " " : "") + `${format(data.suspiciousClients)} auffällige Muster gefunden: sehr viele Aufrufe, aber kaum normale Seitenbestandteile. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
+          recognitionText += (recognitionText ? " " : "") + `${format(data.suspiciousClients)} auffällige Muster gefunden: sehr viele Aufrufe, aber kaum Bilder oder technische Dateien. Das kann Bot-, Monitoring- oder Scraper-Traffic sein.`;
         }
         if (data.diagnostics.hostReliability === "limited") {
-          recognitionText += (recognitionText ? " " : "") + `Die Datei enthält mehrere Websites oder Subdomains (${format(data.hosts.total)} erkannt). Setze oben einen Filter, damit ServerStory und GA4 wirklich dieselbe Website vergleichen.`;
+          recognitionText += (recognitionText ? " " : "") + `Die Datei enthält mehrere Websites oder Subdomains (${format(data.hosts.total)} erkannt). Setze oben einen Filter, damit ServerStory und Google Analytics wirklich dieselbe Website vergleichen.`;
         }
         if (data.trackingCapped) {
           recognitionText += (recognitionText ? " " : "") + "Die Datei ist sehr groß. Hauptzahlen bleiben nutzbar, aber Besucher-Spanne und Bot-Hinweise werden gröber.";
@@ -3026,10 +3026,10 @@
         showHint("recognition-hint", recognitionText);
         let chronoText = data.minTime && data.maxTime ? `Erkannter Logzeitraum: ${formatDateTime(data.minTime)} bis ${formatDateTime(data.maxTime)}.` : "";
         if (data.diagnostics.chronologyIssue) {
-          chronoText += (chronoText ? " " : "") + "Die Logzeilen sind nicht durchgehend chronologisch. Besucher- und Conversion-Zählung können dadurch deutlich ungenauer sein; Seitenaufrufe bleiben robuster.";
+          chronoText += (chronoText ? " " : "") + "Die Einträge sind zeitlich nicht sauber sortiert. Besucher- und Conversion-Zählung können dadurch deutlich ungenauer sein; Seitenaufrufe bleiben robuster.";
         }
         if (data.maxGapMs >= 6 * 60 * 60 * 1000) {
-          chronoText += (chronoText ? " " : "") + `Größte erkannte Lücke zwischen aufeinanderfolgenden Logzeilen: ${Math.round(data.maxGapMs / 3600000)} Stunden. Prüfe, ob der Export vollständig ist.`;
+          chronoText += (chronoText ? " " : "") + `Größte erkannte Lücke zwischen zwei Einträgen: ${Math.round(data.maxGapMs / 3600000)} Stunden. Prüfe, ob die Datei vollständig ist.`;
         }
         showHint("chrono-hint", chronoText);
 
@@ -3053,14 +3053,14 @@
           ...data.methodCounts.map((item) => ({ name: `Methode ${item.name}`, count: item.count }))
         ]);
         const reasonRows = [
-          { name: "Bot/Crawler (Browserkennung)", count: data.reasons.bot },
-          { name: "Fehler- oder Sonderstatus", count: data.reasons.status },
-          { name: "Methode (kein GET/POST)", count: data.reasons.method },
-          { name: "Leere/zu kurze Browserkennung", count: data.reasons.emptyUa },
+          { name: "Bot oder Crawler", count: data.reasons.bot },
+          { name: "Fehlerseiten oder Weiterleitungen", count: data.reasons.status },
+          { name: "Andere Zugriffsart (kein Seitenaufruf)", count: data.reasons.method },
+          { name: "Fehlende Browser-Angabe", count: data.reasons.emptyUa },
           { name: "Außerhalb des Zeitraums", count: data.reasons.range },
           { name: "Andere Website/Subdomain", count: data.reasons.host },
           { name: "Strenger Filter (kein Browser)", count: data.reasons.strict },
-          { name: "Zeile nicht gelesen", count: data.unrecognized }
+          { name: "Eintrag nicht gelesen", count: data.unrecognized }
         ].filter((row) => row.count > 0);
         renderRows("filter-reasons", reasonRows);
 
@@ -3097,7 +3097,7 @@
           let sub = `In ${zeitraumText()} zählt dein Webserver ${visitText} und ${format(data.pageViews)} Seitenaufrufe.`;
           if (data.hasSuccessUrl) sub += ` Davon ${kauf(data.success)} auf der Danke-Seite.`;
           id("subline").textContent = sub;
-          id("action").textContent = "Nächster Schritt: Das sind die echten Server-Zahlen. Vergleiche sie mit Google Analytics — oder trag oben optional deine GA4-Zahlen ein, dann zeigt ServerStory die Lücke direkt.";
+          id("action").textContent = "Nächster Schritt: Das sind die echten Server-Zahlen. Vergleiche sie mit Google Analytics — oder trag oben optional deine Google-Analytics-Zahlen ein, dann zeigt ServerStory die Lücke direkt.";
           return;
         }
 
@@ -3111,23 +3111,23 @@
           const worstText = worst && worst.coverage < 85 ? ` Am wenigsten auf ${worst.name} (${percent(worst.coverage)}).` : "";
           if (cov < 85) {
             setSignal("warn", "!", "Achtung");
-            id("headline").textContent = "GA4 sieht deutlich weniger";
-            id("subline").textContent = `Für die ausgewählten Seiten findet GA4 nur ${percent(cov)} der Aufrufe, die in der Server-Datei stehen.${worstText}`;
+            id("headline").textContent = "Google Analytics sieht deutlich weniger";
+            id("subline").textContent = `Für die ausgewählten Seiten findet Google Analytics nur ${percent(cov)} der Aufrufe, die in der Server-Datei stehen.${worstText}`;
             id("action").textContent = "Nächster Schritt: Noch keine Budget-Entscheidung nur daraus ableiten. Prüfe zuerst: gleicher Zeitraum, richtige Website, Seitenaufrufe in Google Analytics, Cookie-Banner, Ad-Blocker und ob ein Cache davor sitzt.";
           } else if (cov < 95) {
             setSignal("medium", "~", "Kleine Lücke");
             id("headline").textContent = "Kleine Abweichung";
-            id("subline").textContent = `GA4 findet ${percent(cov)} der Aufrufe aus der Server-Datei. Eine kleine Lücke ist normal.${worstText}`;
+            id("subline").textContent = `Google Analytics findet ${percent(cov)} der Aufrufe aus der Server-Datei. Eine kleine Lücke ist normal.${worstText}`;
             id("action").textContent = "Nächster Schritt: Im Auge behalten, aber keine große Entscheidung nur wegen dieser kleinen Abweichung treffen.";
           } else if (cov <= 110) {
             setSignal("good", "✓", "Passt");
             id("headline").textContent = "Die Zahlen passen zusammen";
-            id("subline").textContent = `GA4 und die Server-Datei liegen nah beieinander (${percent(cov)}).`;
+            id("subline").textContent = `Google Analytics und die Server-Datei liegen nah beieinander (${percent(cov)}).`;
             id("action").textContent = "Nächster Schritt: Kurz Zeitraum und Seiten prüfen — danach wirken die Google-Analytics-Zahlen verlässlich.";
           } else {
-            setSignal("medium", "~", "GA4 zählt mehr");
-            id("headline").textContent = "GA4 liegt über der Server-Datei";
-            id("subline").textContent = `Für die verglichenen Seiten meldet GA4 mehr als die Server-Datei (${percent(cov)}). Häufige Ursache: Cache/CDN — ein Teil der Aufrufe landet dann nicht in dieser Server-Datei. Auch Mehrfachzählung oder Bots können GA4 aufblähen.`;
+            setSignal("medium", "~", "Google Analytics zählt mehr");
+            id("headline").textContent = "Google Analytics liegt über der Server-Datei";
+            id("subline").textContent = `Für die verglichenen Seiten meldet Google Analytics mehr als die Server-Datei (${percent(cov)}). Häufige Ursache: Cache/CDN — ein Teil der Aufrufe landet dann nicht in dieser Server-Datei. Auch Mehrfachzählung oder Bots können Google Analytics aufblähen.`;
             id("action").textContent = "Nächster Schritt: Prüfen, ob Cloudflare oder ein anderer Cache vor der Seite sitzt — dann fehlen Aufrufe in dieser Server-Datei. Sonst Bots oder Mehrfachzählung in Google Analytics prüfen.";
           }
           if (hasConv && data.convDiff > 0) {
@@ -3138,13 +3138,13 @@
           return;
         }
 
-        // Nur der Kauf-Check liegt vor (keine Seiten-GA4-Zahlen).
+        // Nur der Kauf-Check liegt vor (keine Seiten-Google-Analytics-Zahlen).
         const diff = data.convDiff;
         if (diff > 0) {
           const rate = data.success ? (diff / data.success) * 100 : 0;
           if (rate >= 15) {
             setSignal("warn", "!", "Achtung");
-            id("headline").textContent = "GA4-Kaufabdeckung ist niedriger";
+            id("headline").textContent = "Google-Analytics-Kaufabdeckung ist niedriger";
           } else {
             setSignal("medium", "~", "Kleine Lücke");
             id("headline").textContent = "Kleine Lücke bei den Käufen";
@@ -3152,7 +3152,7 @@
           id("subline").textContent = `Dein Webserver zählt ${kauf(diff)} mehr als Google Analytics.`;
           id("action").textContent = "Nächster Schritt: Kürze jetzt keine Werbung. Lass Tracking, Cookie-Banner, Ad-Blocker und die Danke-Seite prüfen.";
         } else if (diff < 0) {
-          setSignal("medium", "~", "GA4 zählt mehr");
+          setSignal("medium", "~", "Google Analytics zählt mehr");
           id("headline").textContent = "Google Analytics zählt mehr Käufe als der Webserver";
           id("subline").textContent = `Google Analytics meldet ${kauf(Math.abs(diff))} mehr als dein Webserver.`;
           id("action").textContent = "Nächster Schritt: Prüfe die Danke-Seite: Wird sie auch von Bots oder Monitoring aufgerufen? Zählt Google Analytics Käufe ohne eigene Danke-Seite? Fehlen Server-Dateien wegen Cache oder mehreren Exporten?";

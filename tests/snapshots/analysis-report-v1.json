@@ -55,7 +55,7 @@
       "type": "comparison",
       "reliability": "medium",
       "canAnswer": true,
-      "reason": "GA4 wurde mit denselben Seitenadressen aus der Server-Datei verglichen."
+      "reason": "Google Analytics wurde mit denselben Seitenadressen aus der Server-Datei verglichen."
     },
     "hostScope": {
       "type": "not_available",
@@ -115,21 +115,21 @@
     "ga4": {
       "claimAllowed": true,
       "confidence": "medium",
-      "statement": "GA4-Vergleich ist nur mit gleicher Website, gleichem Zeitraum und gleichen Seiten belastbar.",
+      "statement": "Google-Analytics-Vergleich ist nur mit gleicher Website, gleichem Zeitraum und gleichen Seiten belastbar.",
       "blockingReasons": [],
       "recommendedChecks": [
         "Zeitraum in Google Analytics und Server-Datei abgleichen.",
         "Prüfen, ob wirklich Seitenaufrufe aus Google Analytics eingetragen wurden."
       ],
       "forbiddenConclusions": [
-        "GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."
+        "Google-Analytics-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."
       ],
       "status": "limited",
       "allowed": false,
-      "reason": "GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen.",
+      "reason": "Google-Analytics-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen.",
       "evidenceFailures": [],
       "requiredEvidence": [
-        "GA4-Seitenaufrufe, keine Nutzer- oder Sitzungsmetrik",
+        "Google-Analytics-Seitenaufrufe, keine Nutzer- oder Sitzungsmetrik",
         "Gleicher Zeitraum, gleiche Website, gleiche Seitenauswahl",
         "Server-Export ohne harte Vollständigkeits-Blocker"
       ]
@@ -164,7 +164,7 @@
       "requiredEvidence": [
         "Kauf-/Danke-Seite oder Conversion-Muster",
         "Bestellnummer oder anderes Deduplizierungsmerkmal für hohe Sicherheit",
-        "Gleiche Kaufdefinition bei GA4-Vergleich"
+        "Gleiche Kaufdefinition bei Google-Analytics-Vergleich"
       ]
     }
   },
@@ -211,12 +211,12 @@
       "limited": true,
       "blocked": false,
       "confidence": "medium",
-      "statement": "GA4-Vergleich ist nur mit gleicher Website, gleichem Zeitraum und gleichen Seiten belastbar.",
-      "reason": "GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen.",
+      "statement": "Google-Analytics-Vergleich ist nur mit gleicher Website, gleichem Zeitraum und gleichen Seiten belastbar.",
+      "reason": "Google-Analytics-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen.",
       "evidenceFailures": [],
       "blockingReasons": [],
       "requiredEvidence": [
-        "GA4-Seitenaufrufe, keine Nutzer- oder Sitzungsmetrik",
+        "Google-Analytics-Seitenaufrufe, keine Nutzer- oder Sitzungsmetrik",
         "Gleicher Zeitraum, gleiche Website, gleiche Seitenauswahl",
         "Server-Export ohne harte Vollständigkeits-Blocker"
       ],
@@ -225,7 +225,7 @@
         "Prüfen, ob wirklich Seitenaufrufe aus Google Analytics eingetragen wurden."
       ],
       "forbiddenConclusions": [
-        "GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."
+        "Google-Analytics-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."
       ]
     },
     "hostScope": {
@@ -258,7 +258,7 @@
       "requiredEvidence": [
         "Kauf-/Danke-Seite oder Conversion-Muster",
         "Bestellnummer oder anderes Deduplizierungsmerkmal für hohe Sicherheit",
-        "Gleiche Kaufdefinition bei GA4-Vergleich"
+        "Gleiche Kaufdefinition bei Google-Analytics-Vergleich"
       ],
       "recommendedChecks": [],
       "forbiddenConclusions": []
@@ -302,7 +302,7 @@
       "Prüfen, ob wirklich Seitenaufrufe aus Google Analytics eingetragen wurden."
     ],
     "cannotSay": [
-      "GA4-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."
+      "Google-Analytics-Abweichung nicht ohne Zeitraum-, Website- und Cache-Prüfung als Tracking-Verlust verkaufen."
     ]
   },
   "conflicts": [],
@@ -380,7 +380,7 @@
   "accuracyNotes": {
     "pageViews": "Die Datei wurde sauber gelesen (100,0 %).",
     "visits": "Keine starke Proxy-Verzerrung sichtbar.",
-    "conversions": "Kaufseite erkannt und mit GA4-Käufen verglichen.",
+    "conversions": "Kaufseite erkannt und mit Google-Analytics-Käufen verglichen.",
     "ga4": "Vergleich ist nutzbar, wenn Zeitraum und Seitenauswahl wirklich gleich sind.",
     "hostScope": "Die Datei wirkt auf eine Website begrenzt.",
     "botAnomaly": "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."

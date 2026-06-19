@@ -37,7 +37,7 @@
           <h1>Was hat deine Website <span>wirklich gesehen?</span></h1>
           <p class="lead">ServerStory liest die Besuchsliste deines Webservers (der Computer, auf dem deine Website läuft) und zeigt dir, welche Seiten wie oft aufgerufen wurden und ungefähr, wie viele Besucher du hattest — auch die, die ein Tracking-Tool durch Cookie-Banner oder Ad-Blocker verpasst.</p>
           <ul class="lead-points">
-            <li>Seitenaufrufe pro Adresse — direkt vom Server gezählt</li>
+            <li>Seitenaufrufe — direkt vom Server gezählt</li>
             <li>Deine meistbesuchten Seiten sofort auf einen Blick</li>
             <li>Optional: die Lücke zu Google Analytics sichtbar machen</li>
           </ul>
@@ -49,7 +49,7 @@
 
           <div class="steps">
             <label>
-              Besuchsliste vom Webserver hochladen
+              Besuchsliste vom Webserver auswählen
               <input id="log-file" type="file" accept=".log,.txt,.gz">
               <span class="helper">Datei-Endung meist .log, .txt oder .gz. Große Dateien werden mit Fortschrittsanzeige verarbeitet, ohne den Browser einzufrieren.</span>
             </label>
@@ -109,12 +109,12 @@
                 <label>
                   Kauf-URL-Muster
                   <input id="success-pattern" placeholder="/bestellung/*">
-                  <span class="helper">Optional. Nutze `*` als Platzhalter, wenn mehrere Danke-URLs zählen sollen.</span>
+                  <span class="helper">Optional. Schreib ein Sternchen (*) als Lückenfüller, wenn mehrere Danke-Seiten zählen sollen.</span>
                 </label>
                 <label>
                   Bestellnummer-Parameter
                   <input id="order-param" placeholder="order_id">
-                  <span class="helper">Optional. Wenn die Danke-URL eine eindeutige Bestellnummer enthält, dedupliziert ServerStory Käufe genauer.</span>
+                  <span class="helper">Optional. Wenn die Danke-URL eine eindeutige Bestellnummer enthält, zählt ServerStory jeden Kauf nur einmal — auch wenn die Danke-Seite neu geladen wurde.</span>
                 </label>
                 <label>
                   Käufe laut Google Analytics
@@ -125,7 +125,7 @@
             </details>
 
             <details id="advanced-toggle" class="opt">
-              <summary>Optional: Erweiterte Filter</summary>
+              <summary>Optional: Feineinstellungen (eher für deine IT)</summary>
               <div class="ga4-fields">
                 <label class="check">
                   <input type="checkbox" id="use-xff">
@@ -140,7 +140,7 @@
                 <label>
                   Adress-Zusätze behalten
                   <input id="keep-query" placeholder="variant, product_id">
-                  <span class="helper">Optional. Standardmäßig zählt ServerStory `/preise?utm_source=...` als `/preise`. Trag hier nur Zusätze ein, die wirklich eigene Seitenvarianten bilden.</span>
+                  <span class="helper">Optional. Standardmäßig zählt ServerStory eine Seite mit Werbe-Anhängseln in der Adresse (z. B. ?utm_source=…) trotzdem als dieselbe Seite. Trag hier nur Anhängsel ein, die wirklich verschiedene Seiten kennzeichnen.</span>
                 </label>
                 <div class="two">
                   <label>
@@ -148,14 +148,14 @@
                     <input id="bot-hit-threshold" type="number" min="10" placeholder="100">
                   </label>
                   <label>
-                    Max. Asset-Anteil in %
+                    Max. Anteil technischer Dateien in %
                     <input id="bot-asset-share" type="number" min="0" max="100" placeholder="5">
                   </label>
                 </div>
                 <label>
                   Schutzgrenze für sehr große Dateien
                   <input id="tracking-cap" type="number" min="1000" placeholder="100000">
-                  <span class="helper">Schützt sehr große Dateien vor zu hohem Speicherverbrauch. Bei Überschreitung zeigt ServerStory einen Genauigkeitshinweis.</span>
+                  <span class="helper">Bremst sehr große Dateien, damit dein Browser nicht überlastet wird. Wird die Grenze erreicht, weist ServerStory darauf hin.</span>
                 </label>
               </div>
             </details>
@@ -191,14 +191,14 @@
                 <strong id="n-visits">-</strong>
                 <em id="q-visits" class="quality-badge">-</em>
                 <p id="q-visits-reason" class="helper"></p>
-                <p class="helper">Grobe Schätzung: Aufrufe per IP + Browser im 30-Min-Fenster zusammengefasst. Mehrere Personen hinter einer IP zählen als eine.</p>
+                <p class="helper">Grobe Schätzung: Aufrufe vom selben IP-Anschluss und Browser kurz nacheinander zählen wir als einen Besuch. Mehrere Personen hinter einer IP zählen als einer.</p>
               </div>
               <div class="number">
                 <span>Seitenaufrufe gesamt</span>
                 <strong id="n-views">-</strong>
                 <em id="q-views" class="quality-badge">-</em>
                 <p id="q-views-reason" class="helper"></p>
-                <p class="helper">Echte Seiten — ohne Bilder, CSS oder JS. Vergleichbar mit „Seitenaufrufen" in Google Analytics.</p>
+                <p class="helper">Echte Seiten — ohne Bilder und technische Dateien. Vergleichbar mit „Seitenaufrufen" in Google Analytics.</p>
               </div>
               <div class="number purchase-only">
                 <span>Käufe laut Webserver</span>
@@ -269,7 +269,7 @@
                 </div>
                 <div>
                   <strong id="pc-gap">-</strong>
-                  <p>Differenz (Webserver − GA4)</p>
+                  <p>Differenz (Webserver − Google Analytics)</p>
                 </div>
               </div>
               <p id="purchase-note" class="purchase-note"></p>
@@ -281,7 +281,7 @@
               <div class="table-wrap">
                 <table class="mini-table">
                   <thead>
-                    <tr><th>Seite</th><th>Webserver</th><th class="ga4-col">Google Analytics</th><th class="ga4-col">Differenz</th><th class="ga4-col">GA4 sieht</th></tr>
+                    <tr><th>Seite</th><th>Webserver</th><th class="ga4-col">Google Analytics</th><th class="ga4-col">Differenz</th><th class="ga4-col">Google Analytics sieht</th></tr>
                   </thead>
                   <tbody id="page-table">
                     <tr><td>-</td><td>-</td><td class="ga4-col">-</td><td class="ga4-col">-</td><td class="ga4-col">-</td></tr>
@@ -295,9 +295,9 @@
               <summary>Was aus der Datei gelesen wurde</summary>
               <div class="server-grid">
                 <div class="server-card">
-                  <span>Alle Zeilen in der Datei</span>
+                  <span>Alle Einträge in der Datei</span>
                   <strong id="server-total">-</strong>
-                  <p class="helper">So viele Zeilen standen in der Datei.</p>
+                  <p class="helper">So viele Einträge standen in der Datei.</p>
                 </div>
                 <div class="server-card">
                   <span>Verwendete Aufrufe</span>
@@ -318,8 +318,8 @@
               <dl>
                 <div><dt>Besuche im Webserver</dt><dd id="visits">-</dd></div>
                 <div><dt>Verwendete Aufrufe nach Filter</dt><dd id="kept">-</dd></div>
-                <div><dt>Lesbare Zeilen</dt><dd id="parsed">-</dd></div>
-                <div><dt>Nicht verwendete Zeilen</dt><dd id="filtered">-</dd></div>
+                <div><dt>Verstandene Einträge</dt><dd id="parsed">-</dd></div>
+                <div><dt>Nicht verwendete Einträge</dt><dd id="filtered">-</dd></div>
                 <div><dt>Kaufrate im Webserver</dt><dd id="server-cr">-</dd></div>
                 <div><dt>Google-Ads-Besuche mit Kauf</dt><dd id="ads-success">-</dd></div>
               </dl>
