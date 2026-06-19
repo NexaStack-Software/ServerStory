@@ -1013,6 +1013,20 @@ test("erkennt nicht unterstuetzte IIS- und JSON-Logs", () => {
   assert.strictEqual(analyze(fixture("json.log")).formatKind, "json");
 });
 
+test("kaputte IIS-User-Agents brechen die Analyse nicht ab", () => {
+  const text = [
+    "#Fields: date time c-ip cs-method cs-uri-stem cs-uri-query sc-status cs(User-Agent)",
+    "2026-06-05 10:00:00 198.51.100.1 GET /x - 200 Mozilla%ZZbad"
+  ].join("\n");
+  const result = analyze(text);
+  assert.strictEqual(result.total, 2);
+  assert.strictEqual(result.meta, 1);
+  assert.strictEqual(result.formatKind, "iis");
+  assert.strictEqual(result.parsed, 1);
+  assert.strictEqual(result.unrecognized, 0);
+  assert.strictEqual(result.pathCounts.get("/x"), 1);
+});
+
 test("liest gzip-komprimierte Logs", async () => {
   const gz = zlib.gzipSync(Buffer.from(fixture("combined.log")));
   const result = await ctx.processOnMainThread(
@@ -2145,8 +2159,6 @@ test("Analyse-Protokoll v1 bleibt snapshot-stabil", async () => {
 test("separate Source-Dateien fuer Build existieren", () => {
   assert.ok(fs.existsSync(path.join(root, "scripts", "build.js")));
   assert.ok(fs.existsSync(path.join(root, "scripts", "build-single-html.js")));
-  assert.ok(fs.existsSync(path.join(root, "src", "inline-script.js")));
-  assert.ok(fs.existsSync(path.join(root, "src", "inline-style.css")));
   assert.ok(fs.existsSync(path.join(root, "src", "app.js")));
   assert.ok(fs.existsSync(path.join(root, "src", "styles.css")));
   assert.ok(fs.existsSync(path.join(root, "src", "index.template.html")));

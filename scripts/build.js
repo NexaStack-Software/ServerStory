@@ -7,8 +7,6 @@ const srcDir = path.join(root, "src");
 const scriptPath = path.join(srcDir, "app.js");
 const stylePath = path.join(srcDir, "styles.css");
 const templatePath = path.join(srcDir, "index.template.html");
-const legacyScriptPath = path.join(srcDir, "inline-script.js");
-const legacyStylePath = path.join(srcDir, "inline-style.css");
 
 function extractBetween(text, start, end) {
   const a = text.indexOf(start);
@@ -32,8 +30,6 @@ if (process.argv.includes("--extract")) {
   const script = extractBetween(html, "<script>", "</script>");
   fs.writeFileSync(stylePath, style);
   fs.writeFileSync(scriptPath, script);
-  fs.writeFileSync(legacyStylePath, style);
-  fs.writeFileSync(legacyScriptPath, script);
   let template = replaceBetween(html, "<style>", "</style>", "\n{{STYLE}}\n    ");
   template = replaceBetween(template, "<script>", "</script>", "\n{{SCRIPT}}\n    ");
   fs.writeFileSync(templatePath, template);

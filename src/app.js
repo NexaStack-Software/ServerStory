@@ -516,6 +516,11 @@
           }
           return best;
         }
+        function safeDecodeURIComponent(value) {
+          const text = String(value || "").replace(/\+/g, " ");
+          try { return decodeURIComponent(text); }
+          catch (_) { return text; }
+        }
         function clientIp(firstField, trailing) {
           if (!useXff) return { ip: firstField, xff: "off" };
           const ips = xffIps(trailing);
@@ -554,7 +559,7 @@
             target: get("cs-uri-stem") + (get("cs-uri-query") && get("cs-uri-query") !== "-" ? "?" + get("cs-uri-query") : ""),
             host: get(["cs-host", "cs(Host)"]),
             status: Number(get("sc-status")),
-            ua: decodeURIComponent((get(["cs(User-Agent)", "cs(User_Agent)"]) || "").replace(/\+/g, " ")),
+            ua: safeDecodeURIComponent(get(["cs(User-Agent)", "cs(User_Agent)"])),
             trailing: get("x-forwarded-for") || ""
           };
         }
@@ -642,6 +647,7 @@
         }
 
         function processLine(line) {
+          try {
           if (line.charCodeAt(line.length - 1) === 13) line = line.slice(0, -1);
           if (!line || !line.trim()) return;
           stats.total++;
@@ -757,6 +763,9 @@
           }
 
           if ((++seen % 250000) === 0) prune();
+          } catch (_) {
+            stats.unrecognized++;
+          }
         }
 
         function finalize() {

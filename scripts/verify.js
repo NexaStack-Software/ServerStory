@@ -27,6 +27,7 @@ function assertFileExcludes(file, forbidden) {
 }
 
 run("npm", ["run", "build"]);
+run("git", ["diff", "--exit-code", "--", "index.html"]);
 run("node", ["--check", "src/app.js"]);
 run("node", ["--check", "scripts/build.js"]);
 run("node", ["--check", "scripts/verify.js"]);
