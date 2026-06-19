@@ -26,9 +26,22 @@ function assertFileExcludes(file, forbidden) {
   }
 }
 
+const indexBeforeBuild = fs.existsSync(path.join(root, "index.html"))
+  ? fs.readFileSync(path.join(root, "index.html"), "utf8")
+  : "";
 run("npm", ["run", "build"]);
-run("git", ["diff", "--exit-code", "--", "index.html"]);
+const indexAfterBuild = fs.readFileSync(path.join(root, "index.html"), "utf8");
+if (indexBeforeBuild !== indexAfterBuild) {
+  throw new Error("verify failed: npm run build changed index.html; run build and commit the updated artifact");
+}
 run("node", ["--check", "src/app.js"]);
+run("node", ["--check", "src/modules/01-core.js"]);
+run("node", ["--check", "src/modules/02-ga4.js"]);
+run("node", ["--check", "src/modules/03-preflight.js"]);
+run("node", ["--check", "src/modules/04-parser-aggregator.js"]);
+run("node", ["--check", "src/modules/05-worker.js"]);
+run("node", ["--check", "src/modules/06-claims.js"]);
+run("node", ["--check", "src/modules/07-render.js"]);
 run("node", ["--check", "scripts/build.js"]);
 run("node", ["--check", "scripts/verify.js"]);
 run("node", ["--check", "scripts/browser-e2e.js"]);

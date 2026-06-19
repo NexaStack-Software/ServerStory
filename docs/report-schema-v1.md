@@ -7,7 +7,7 @@ Stabile Kernfelder:
 
 - `schema`, `schemaVersion`: Version des Protokolls.
 - `generatedAt`: ISO-Zeitpunkt der Erstellung.
-- `format`: erkanntes Hauptformat, z. B. `combined`, `cloudflare`, `cloudfront`.
+- `format`: erkanntes Hauptformat, z. B. `combined`, `cloudflare`, `cloudfront`, `alb`.
 - `totals`: Zeilen, erkannte/benutzte/gefilterte Aufrufe, Pageviews, Visits, Conversion-Zahl.
 - `quality`: Belastbarkeit je Kennzahl und zentrale Diagnoseflags.
 - `evidence`: Claim-Safety-Schicht je Kennzahl; trennt Messung, Schaetzung,
@@ -17,7 +17,11 @@ Stabile Kernfelder:
 - `calibration`: Nutzer- oder Preset-Angaben zu Dateiquelle, Cache/CDN,
   Export-Vollstaendigkeit und Google-Analytics-Zahl.
 - `timeRange`: erkannter Logzeitraum und groesste Luecke.
-- `xForwardedFor`: XFF-Nutzung, fehlende oder nur private XFF-Werte.
+- `xForwardedFor`: XFF-Nutzung, feldgenau erkannte XFF-Werte, fehlende oder nur private XFF-Werte.
+- `hostFilter`: ob ein Website-Filter gesetzt wurde und ob Zeilen ohne Host-Angabe
+  seine Wirkung begrenzen.
+- `pathCountCapped`, `queryVariantCapped`, `queryVariantCount`: ob Detailtabellen
+  wegen sehr hoher Pfad-/Query-Kardinalitaet begrenzt wurden.
 - `proxyKind`: leer, `private` oder `concentrated`; zeigt Proxy-/CDN-Hinweise in der Besucherzaehlung.
 - `filterReasons`: absolute Filtergruende.
 - `accuracyNotes`: menschenlesbare Hinweise zur Belastbarkeit.
@@ -41,7 +45,7 @@ Diagnosefelder:
 - `decisionReadiness.*.missingEvidence`: welche Belege fuer eine haertere
   Aussage fehlen.
 - `calibration.preset`: `unknown`, `apache_nginx`, `cloudflare`, `cloudfront`,
-  `fastly`, `akamai` oder `iis`.
+  `fastly`, `akamai`, `iis`, `alb` oder `elb`.
 - `calibration.cache`, `logSource`, `exportComplete`, `ga4MetricKind`
 - `calibration.presetApplied`: ob ein Preset als Annahme verwendet wurde.
 - `parser.dataRows`, `metaRows`, `unrecognizedRows`, `unrecognizedPct`
@@ -49,7 +53,9 @@ Diagnosefelder:
 - `parser.hosts`
 - `parser.statusCounts`, `parser.methodCounts`
 - `parser.filterReasonPct`
-- `xForwardedFor.used`, `missing`, `privateOnly`
+- `xForwardedFor.used`, `exactUsed`, `missing`, `privateOnly`
+- `hostFilter.requested`, `rowsWithoutHost`, `unverifiable`
+- `pathCountCapped`, `queryVariantCapped`, `queryVariantCount`
 - `proxyKind`
 - `filterReasons.host`, `bot`, `status`, `range`, `method`, `emptyUa`, `strict`
 
@@ -65,6 +71,10 @@ Wichtige Unsicherheiten muessen im Report sichtbar bleiben:
   Seitenaufrufe als Mindestwert behandeln.
 - Mehrere Hosts ohne Hostfilter: `quality.hostReliability` ist `limited` und
   `accuracyNotes.hostScope` empfiehlt Eingrenzung.
+- Hostfilter ohne Host-Angaben: `hostFilter.unverifiable` wird gesetzt; der
+  Host-Scope-Claim darf dann nicht `allowed` sein.
+- Sehr viele eindeutige Pfade oder Query-Varianten: Hauptzahlen bleiben erhalten,
+  aber Detailtabellen koennen begrenzt werden und muessen das Cap ausweisen.
 - Unsortierte Logs: `quality.chronologyIssue` wird gesetzt und die Besucher-Bandbreite
   wird erweitert.
 - Nicht erkannte Zeilen: `parser.unrecognizedRows` und `quality.recognitionRate`

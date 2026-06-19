@@ -902,7 +902,7 @@ test("grosser Golden-Corpus mit ueber 1000 Besuchern liefert feste Sollwerte", (
   }
 });
 
-test("grosser Proxy-Corpus markiert Besucher ohne XFF als unsicher und zaehlt mit XFF exakt", () => {
+test("grosser Proxy-Corpus markiert Besucher ohne XFF als unsicher und zaehlt mit nicht feldgenauem XFF exakt, aber vorsichtig", () => {
   const { text, expected } = createLargeGoldenCorpus("combined", {
     proxyIp: "10.0.0.5",
     xff: true
@@ -924,7 +924,8 @@ test("grosser Proxy-Corpus markiert Besucher ohne XFF als unsicher und zaehlt mi
   assertBuiltResultInvariants(withXff);
   assert.strictEqual(withXff.visits, expected.visitors);
   assert.strictEqual(withXff.xffUsed, expected.kept);
-  assert.strictEqual(withXff.diagnostics.visitorReliability, "high");
+  assert.strictEqual(withXff.xffExactUsed, 0);
+  assert.strictEqual(withXff.diagnostics.visitorReliability, "limited");
   assert.strictEqual(withXff.pageViews, expected.pageViews);
   assert.strictEqual(withXff.success, expected.success);
 });
@@ -1321,6 +1322,62 @@ test("zaehlt Conversion-Muster und dedupliziert per Order-ID", () => {
   assert.strictEqual(result.success, 2);
 });
 
+test("liest Bestellnummer-Parameter case-insensitiv", () => {
+  const text = [
+    combined("203.0.113.10", "05/Jun/2026:10:00:00 +0000", "/checkout/danke?Order_ID=A1"),
+    combined("203.0.113.10", "05/Jun/2026:10:02:00 +0000", "/checkout/danke?order_id=A1"),
+    combined("203.0.113.11", "05/Jun/2026:10:04:00 +0000", "/checkout/danke?ORDER_ID=B2")
+  ].join("\n");
+  const result = analyze(text, {
+    successPattern: "/checkout/*",
+    orderParam: "order_id",
+    hasSuccessUrl: true
+  });
+  assert.strictEqual(result.successRaw, 3);
+  assert.strictEqual(result.success, 2);
+});
+
+test("macht unwirksamen Hostfilter bei hostlosen Combined Logs sichtbar", async () => {
+  const text = [
+    combined("203.0.113.10", "05/Jun/2026:10:00:00 +0000", "/preise"),
+    combined("203.0.113.11", "05/Jun/2026:10:01:00 +0000", "/kontakt")
+  ].join("\n");
+  const report = await copyReportFor(buildResultFor(text, { hostFilter: ["www.example.de"] }));
+  assert.strictEqual(report.totals.pageViews, 2);
+  assert.strictEqual(report.hostFilter.requested, true);
+  assert.strictEqual(report.hostFilter.rowsWithoutHost, 2);
+  assert.strictEqual(report.hostFilter.unverifiable, true);
+  assert.strictEqual(report.quality.hostReliability, "limited");
+  assert.strictEqual(report.claimMatrix.hostScope.status, "blocked");
+  assert.match(report.evidenceFailures.hostScope.join(" "), /Host-Angaben|Website-Filter/i);
+});
+
+test("deckelt Pfad- und Query-Detailmaps ohne Hauptzahlen zu verlieren", () => {
+  const lines = [];
+  for (let i = 0; i < 1005; i++) {
+    lines.push(combined(docIp(i), combinedStampAt(i), `/landing?variant=${i}`));
+  }
+  const result = analyze(lines.join("\n"), {
+    keptQueryParams: ["variant"],
+    maxTrackedPaths: 1000
+  });
+  assert.strictEqual(result.pageViews, 1005);
+  assert.strictEqual(result.pathCounts.size, 1000);
+  assert.strictEqual(result.queryVariantCount, 1000);
+  assert.strictEqual(result.pathCountCapped, true);
+  assert.strictEqual(result.queryVariantCapped, true);
+});
+
+test("liest AWS-ALB-Access-Logs als Origin-nahe Provider-Datei", () => {
+  const result = buildResultFor(fixturePath("provider-docs/aws-alb-access.txt"));
+  assertBuiltResultInvariants(result);
+  assert.strictEqual(result.formatKind, "alb");
+  assert.strictEqual(result.hosts.top[0].name, "www.example.de");
+  assert.strictEqual(result.pageViews, 1);
+  assert.strictEqual(result.pathCounts.get("/preise"), 1);
+  assert.strictEqual(result.pathCounts.get("/assets/app.css"), 1);
+});
+
 test("behandelt Regex-Sonderzeichen in Conversion-Mustern als normale Zeichen", () => {
   const text = [
     '203.0.113.10 - - [05/Jun/2026:10:00:00 +0200] "GET /checkout.v2/success HTTP/1.1" 200 100 "-" "Mozilla/5.0 Chrome/124.0 Safari/537.36"',
@@ -1460,7 +1517,7 @@ test("liefert Preflight-Beispiele fuer Format, Host und XFF vor der Analyse", ()
     status: 200
   });
   assert.strictEqual(preflight.quality.pageviews, "high");
-  assert.strictEqual(preflight.quality.visitors, "high");
+  assert.strictEqual(preflight.quality.visitors, "limited");
   assert.strictEqual(preflight.warnings.some((warning) => /mehrere Websites/i.test(warning)), true);
   assert.match(preflight.claimBlockers.join(" "), /Mehrere Websites/i);
   assert.match(preflight.recommendedChecks.join(" "), /Website-Filter/i);
@@ -1781,7 +1838,8 @@ test("liest nginx-Proxy-Combined mit absoluter URL und XFF-Feld", () => {
   const withXff = buildResultFor(fixturePath("provider-docs/nginx-proxy-combined.txt"), { useXff: true });
   assert.strictEqual(withXff.xffUsed, 3);
   assert.strictEqual(withXff.visits, 2);
-  assert.strictEqual(withXff.diagnostics.visitorReliability, "high");
+  assert.strictEqual(withXff.xffExactUsed, 0);
+  assert.strictEqual(withXff.diagnostics.visitorReliability, "limited");
 
   const preflight = ctx.preflightLogSample(fixture("provider-docs/nginx-proxy-combined.txt"), { sampleLines: 20, useXff: true });
   assert.strictEqual(preflight.fileClass, "access_log");
@@ -2717,7 +2775,7 @@ test("Copy-Report macht Proxy-XFF-Risiko mit Besucher-Bandbreite sichtbar", asyn
   assert.match(report.claims.visits.forbiddenConclusions.join(" "), /Conversion-Rate/i);
   assert.strictEqual(report.evidence.pageViews.type, "lower_bound");
   assert.match(report.claims.pageViews.forbiddenConclusions.join(" "), /alle Aufrufe/i);
-  assert.deepStrictEqual(report.xForwardedFor, { used: 0, missing: 0, privateOnly: 0 });
+  assert.deepStrictEqual(report.xForwardedFor, { used: 0, exactUsed: 0, missing: 0, privateOnly: 0 });
   assert.strictEqual(report.totals.visits, 1);
   assert.ok(report.totals.visitorRange.high > report.totals.visits);
   assert.match(report.accuracyNotes.visits, /Nicht verlässlich bestimmbar/i);

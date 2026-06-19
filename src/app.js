@@ -117,6 +117,7 @@
         cells.push(current.trim());
         return cells;
       }
+
       function ga4UrlViews() {
         const values = new Map();
         lastGa4Import = { warning: "", rows: 0, duplicateCount: 0, duplicatePaths: [] };
@@ -217,6 +218,7 @@
           };
         });
       }
+
       function zeitraumText() {
         const from = id("date-from").value;
         const to = id("date-to").value;
@@ -288,7 +290,8 @@
           strictBot: false,
           keptQueryParams: [],
           hostFilter: [],
-          maxTrackedClients: 100000
+          maxTrackedClients: 100000,
+          maxTrackedPaths: 50000
         });
         for (const line of lines) {
           agg.processLine(line);
@@ -386,7 +389,7 @@
           recommendedChecks,
           quality: {
             pageviews: recognitionRate >= 0.95 ? "high" : recognitionRate >= 0.8 ? "medium" : "limited",
-            visitors: options.useXff ? (result.xffUsed && !result.xffMissing ? "high" : "limited") : (proxySignal ? "limited" : "medium")
+            visitors: options.useXff ? (result.xffUsed && !result.xffMissing && result.xffExactUsed === result.xffUsed ? "high" : "limited") : (proxySignal ? "limited" : "medium")
           },
           warnings
         };
@@ -419,6 +422,7 @@
         const suspiciousHitThreshold = Math.max(10, Number(config.suspiciousHitThreshold) || 100);
         const suspiciousAssetShare = Math.max(0, Math.min(1, Number(config.suspiciousAssetShare) || 0.05));
         const maxTrackedClients = Math.max(1000, Number(config.maxTrackedClients) || 100000);
+        const maxTrackedPaths = Math.max(1000, Number(config.maxTrackedPaths) || 50000);
         const scanTargetRe = /(?:^|\/)(?:wp-login\.php|xmlrpc\.php|wp-admin(?:\/|$)|wp-content\/themes\/[^?\s]+\.php|theme-editor\.php|admin(?:\/|$)|administrator(?:\/|$)|manager\/html|phpmyadmin|pma(?:\/|$)|cfide\/administrator|\.env(?:$|\?)|\.git(?:\/|$)|testproxy\.php|azenv\.php|setup\.php|shell\.php|cmd\.php|upload\.php|eval-stdin\.php|vendor\/phpunit|cgi-bin)(?:$|[\/?\s])|(?:^|\/)(?:panel|backup|config|database)\.(?:zip|tar|tgz|gz|sql)(?:$|[?\s])|(?:^|\/)(?:HNAP1|boaform|GponForm)(?:$|[\/?\s])|(?:^|\/)(?:\.\.|%2e%2e)|https?:\/\/[^/\s]+\/(?:testproxy|azenv)\.php(?:$|[?\s])|(?:^|[;&|`$<>])(?:wget|curl|chmod|\/bin\/bash|powershell|cmd\.exe)(?:\s|$)/i;
 
         function normPath(value) {
@@ -470,10 +474,32 @@
           if (!orderParam) return "";
           try {
             const u = new URL(target, "http://x.invalid");
-            return u.searchParams.get(orderParam) || "";
+            for (const [key, value] of u.searchParams) {
+              if (key.toLowerCase() === orderParam) return value || "";
+            }
+            return "";
           } catch {
             return "";
           }
+        }
+        function splitLogFields(line) {
+          const fields = [];
+          let current = "", quoted = false;
+          for (let i = 0; i < String(line || "").length; i++) {
+            const ch = line[i];
+            if (ch === '"') { quoted = !quoted; continue; }
+            if (/\s/.test(ch) && !quoted) {
+              if (current !== "") { fields.push(current); current = ""; }
+              continue;
+            }
+            current += ch;
+          }
+          if (current !== "") fields.push(current);
+          return fields;
+        }
+        function requestParts(request) {
+          const m = String(request || "").match(/^([A-Z]+)\s+(.+?)(?:\s+HTTP\/[0-9.]+)?$/);
+          return m ? { method: m[1], target: m[2] } : { method: "GET", target: request || "/" };
         }
         function looksLikeScanTarget(method, target, ua, trailing) {
           const haystack = `${method || ""} ${target || ""} ${ua || ""} ${trailing || ""}`;
@@ -582,18 +608,19 @@
           const date = get("date"), time = get("time");
           const pt = parseIsoTime(date && time ? `${date}T${time}Z` : "");
           if (!pt) return null;
-          return {
-            kind: w3cKind,
-            ip0: get("c-ip") || get("x-forwarded-for") || "-",
-            pt,
-            method: get("cs-method") || "GET",
-            target: get("cs-uri-stem") + (get("cs-uri-query") && get("cs-uri-query") !== "-" ? "?" + get("cs-uri-query") : ""),
-            host: get(["cs-host", "cs(Host)"]),
-            status: Number(get("sc-status")),
-            ua: safeDecodeURIComponent(get(["cs(User-Agent)", "cs(User_Agent)"])),
-            trailing: get("x-forwarded-for") || ""
-          };
-        }
+            return {
+              kind: w3cKind,
+              ip0: get("c-ip") || get("x-forwarded-for") || "-",
+              pt,
+              method: get("cs-method") || "GET",
+              target: get("cs-uri-stem") + (get("cs-uri-query") && get("cs-uri-query") !== "-" ? "?" + get("cs-uri-query") : ""),
+              host: get(["cs-host", "cs(Host)"]),
+              status: Number(get("sc-status")),
+              ua: safeDecodeURIComponent(get(["cs(User-Agent)", "cs(User_Agent)"])),
+              trailing: get("x-forwarded-for") || "",
+              xffExact: iisFields.includes("x-forwarded-for")
+            };
+          }
         function pick(obj, names) {
           for (const name of names) if (obj[name] !== undefined && obj[name] !== null && obj[name] !== "") return obj[name];
           return "";
@@ -611,20 +638,49 @@
               : obj.fastly_info_state || obj.fastly_is_edge || obj.fastly_server ? "fastly"
               : obj.cp || obj.reqHost || obj.statusCode || obj.edgeIP || obj.cacheStatus ? "akamai"
               : "json";
+            const xff = pick(obj, ["ClientRequestHeaderXForwardedFor", "x_forwarded_for", "http_x_forwarded_for", "forwarded_for", "xff", "reqHeaderXForwardedFor", "requestHeaderXForwardedFor", "clientRequestHeaderXForwardedFor"]);
             return {
               kind,
-              ip0: pick(obj, ["ClientIP", "ClientRequestIP", "remote_addr", "remoteAddress", "client_ip", "clientIp", "ip", "clientIP", "cliIP", "requestIP"]) || "-",
+              ip0: pick(obj, ["ClientIP", "ClientRequestIP", "remote_addr", "remoteAddress", "client_ip", "clientIp", "ip", "clientIP", "cliIP", "requestIP", "client.address", "clientAddress"]) || "-",
               pt,
-              method: pick(obj, ["ClientRequestMethod", "method", "request_method", "cs_method", "reqMethod", "requestMethod", "req.method"]) || "GET",
+              method: pick(obj, ["ClientRequestMethod", "method", "request_method", "cs_method", "reqMethod", "requestMethod", "req.method", "httpRequestMethod"]) || "GET",
               target: request,
-              host,
-              status: Number(pick(obj, ["EdgeResponseStatus", "status", "status_code", "response_status", "sc_status", "statusCode", "rspStatus", "responseStatus"])),
-              ua: pick(obj, ["ClientRequestUserAgent", "user_agent", "http_user_agent", "ua", "cs_user_agent", "userAgent", "reqUserAgent", "requestUserAgent"]),
-              trailing: pick(obj, ["ClientRequestHeaderXForwardedFor", "x_forwarded_for", "http_x_forwarded_for", "forwarded_for", "xff", "reqHeaderXForwardedFor"])
+              host: host || pick(obj, ["requestHostHeader", "host_header", "Host"]),
+              status: Number(pick(obj, ["EdgeResponseStatus", "status", "status_code", "response_status", "sc_status", "statusCode", "rspStatus", "responseStatus", "httpStatus", "response_status_code"])),
+              ua: pick(obj, ["ClientRequestUserAgent", "user_agent", "http_user_agent", "ua", "cs_user_agent", "userAgent", "reqUserAgent", "requestUserAgent", "requestHeaderUserAgent"]),
+              trailing: xff,
+              xffExact: !!xff
             };
           } catch (_) {
             return null;
           }
+        }
+        function parseLoadBalancerLine(line) {
+          const parts = splitLogFields(line);
+          if (parts.length < 12) return null;
+          let pt, client = "", request = "", ua = "", status = NaN, kind = "";
+          if (/^(?:http|https|h2|ws|wss)$/i.test(parts[0])) {
+            pt = parseIsoTime(parts[1]);
+            client = parts[3] || "";
+            status = Number(parts[8]);
+            request = parts[12] || "";
+            ua = parts[13] || "";
+            kind = "alb";
+          } else {
+            pt = parseIsoTime(parts[0]);
+            if (!pt) return null;
+            client = parts[2] || "";
+            status = Number(parts[7]);
+            request = parts[11] || "";
+            ua = parts[12] || "";
+            kind = "elb";
+          }
+          if (!pt || !request || Number.isNaN(status)) return null;
+          const req = requestParts(request);
+          const ip = normalizeIpToken(client.replace(/:\d+$/, ""));
+          let host = "";
+          try { host = new URL(req.target, "http://x.invalid").hostname; } catch (_) {}
+          return { kind, ip0: ip || client || "-", pt, method: req.method, target: req.target, host, status, ua, trailing: "", xffExact: false };
         }
         function cleanHost(value) {
           let host = String(value || "").trim().toLowerCase();
@@ -659,6 +715,8 @@
           if (vhost) return vhost;
           const combined = parseCombinedLine(line);
           if (combined) return combined;
+          const lb = parseLoadBalancerLine(line);
+          if (lb) return lb;
           const json = parseJsonLine(line);
           if (json) return json;
           const iis = parseIisLine(line);
@@ -673,10 +731,10 @@
           total: 0, parsed: 0, unrecognized: 0, kept: 0, pageViews: 0, filtered: 0,
           rBot: 0, rStatus: 0, rRange: 0, rMethod: 0, rEmptyUa: 0, rStrict: 0,
           visits: 0, successRaw: 0, success: 0, timeRegressions: 0,
-          xffUsed: 0, xffMissing: 0, xffPrivate: 0, suspiciousClients: 0, rHost: 0,
-          meta: 0, legacyNoUserAgent: 0, scanRequests: 0
+          xffUsed: 0, xffMissing: 0, xffPrivate: 0, xffExactUsed: 0, suspiciousClients: 0, rHost: 0,
+          meta: 0, legacyNoUserAgent: 0, scanRequests: 0, hostFilterNoHost: 0
         };
-        const format = { checked: 0, combined: 0, json: 0, iis: 0, cloudflare: 0, cloudfront: 0, fastly: 0, akamai: 0, legacy_http_archive: 0 };
+        const format = { checked: 0, combined: 0, json: 0, iis: 0, cloudflare: 0, cloudfront: 0, fastly: 0, akamai: 0, alb: 0, elb: 0, legacy_http_archive: 0 };
         let prevTime = -Infinity, maxTime = -Infinity, minTime = Infinity, maxGapMs = 0, seen = 0;
         // Proxy-/CDN-Erkennung (nur relevant, wenn X-Forwarded-For NICHT genutzt wird): Sitzt die
         // Seite hinter einem Reverse-Proxy/Loadbalancer/CDN, steht in Spalte 1 immer dieselbe
@@ -685,6 +743,8 @@
         // behaltenen Zeilen, um davor zu warnen. Map wird gedeckelt, damit sie nicht unbegrenzt wächst.
         const clientIpHits = new Map();
         let privateClientHits = 0, clientIpCapped = false, trackingCapped = false;
+        let pathCountCapped = false, queryVariantCapped = false;
+        const queryVariantPaths = new Set();
 
         function prune() {
           if (maxTime === -Infinity) return;
@@ -713,6 +773,8 @@
               else if (w3cKind === "cloudfront") format.cloudfront++;
               else format.iis++;
             }
+            else if (/^(?:http|https|h2|ws|wss)\s+\d{4}-\d{2}-\d{2}T/.test(trimmed)) format.alb++;
+            else if (/^\d{4}-\d{2}-\d{2}T[^\s]+\s+\S+\s+\S+:\d+\s+/.test(trimmed)) format.elb++;
             else if (/^\S+(?:\s+\S+\s+\S+)?\s+\[[^\]]+\]\s+"[A-Z]+\s+[^"]+(?:\s+HTTP\/[0-9.]+)?"\s+\d{3}\s+\S+/.test(line)) format.legacy_http_archive++;
           }
           const rec = parseLogLine(line);
@@ -725,6 +787,8 @@
           else if (rec.kind === "cloudfront") format.cloudfront++;
           else if (rec.kind === "fastly") format.fastly++;
           else if (rec.kind === "akamai") format.akamai++;
+          else if (rec.kind === "alb") format.alb++;
+          else if (rec.kind === "elb") format.elb++;
           else if (rec.kind === "json") format.json++;
           else if (rec.kind === "iis") format.iis++;
           else if (rec.kind === "combined") format.combined++;
@@ -738,6 +802,7 @@
           const normalized = normTarget(target);
           if (looksLikeScanTarget(method, target, ua, trailing)) stats.scanRequests++;
           const host = cleanHost(rec.host || normalized.host || "");
+          if (allowedHosts.size && !host) stats.hostFilterNoHost++;
           if (allowedHosts.size && host && !allowedHosts.has(host)) { stats.filtered++; stats.rHost++; return; }
           if (host) hostCounts.set(host, (hostCounts.get(host) || 0) + 1);
 
@@ -770,14 +835,22 @@
           // (Für Besuche/Conversions zählen sie weiter mit — ein Mensch war ja da.)
           const isPageHit = method === "GET" && status >= 200 && status < 300;
           if (isPageHit) {
-            pathCounts.set(path, (pathCounts.get(path) || 0) + 1);
+            if (pathCounts.has(path) || pathCounts.size < maxTrackedPaths) pathCounts.set(path, (pathCounts.get(path) || 0) + 1);
+            else pathCountCapped = true;
+            if (path.includes("?")) {
+              if (queryVariantPaths.size < maxTrackedPaths || queryVariantPaths.has(path)) queryVariantPaths.add(path);
+              else queryVariantCapped = true;
+            }
             if (!assetRe.test(path)) stats.pageViews++;
           }
           statusCounts.set(String(status), (statusCounts.get(String(status)) || 0) + 1);
           methodCounts.set(method, (methodCounts.get(method) || 0) + 1);
 
           const resolvedClient = clientIp(ip0, trailing);
-          if (resolvedClient.xff === "used") stats.xffUsed++;
+          if (resolvedClient.xff === "used") {
+            stats.xffUsed++;
+            if (rec.xffExact) stats.xffExactUsed++;
+          }
           else if (resolvedClient.xff === "missing") stats.xffMissing++;
           else if (resolvedClient.xff === "private") stats.xffPrivate++;
           const key = resolvedClient.ip + "|" + ua;
@@ -829,6 +902,8 @@
             ["cloudfront", format.cloudfront],
             ["fastly", format.fastly],
             ["akamai", format.akamai],
+            ["alb", format.alb],
+            ["elb", format.elb],
             ["legacy_http_archive", format.legacy_http_archive],
             ["combined", format.combined],
             ["json", format.json],
@@ -843,11 +918,12 @@
             visits: stats.visits, successRaw: stats.successRaw, success: stats.success,
             adVisitors: adVisitors.size, adSuccess: adSuccess.size,
             formatKind, formatChecked: format.checked, formatCombined: format.combined,
-            xffUsed: stats.xffUsed, xffMissing: stats.xffMissing, xffPrivate: stats.xffPrivate,
+            xffUsed: stats.xffUsed, xffMissing: stats.xffMissing, xffPrivate: stats.xffPrivate, xffExactUsed: stats.xffExactUsed,
             legacyNoUserAgent: stats.legacyNoUserAgent,
             suspiciousClients: stats.suspiciousClients,
             scanRequests: stats.scanRequests,
-            trackingCapped,
+            trackingCapped, pathCountCapped, queryVariantCapped, queryVariantCount: queryVariantPaths.size,
+            hostFilterNoHost: stats.hostFilterNoHost,
             timeRegressions: stats.timeRegressions,
             minTime: minTime === Infinity ? null : minTime,
             maxTime: maxTime === -Infinity ? null : maxTime,
@@ -992,6 +1068,7 @@
           suspiciousHitThreshold: number("bot-hit-threshold") || 100,
           suspiciousAssetShare: (number("bot-asset-share") === null ? 5 : number("bot-asset-share")) / 100,
           maxTrackedClients: number("tracking-cap") || 100000,
+          maxTrackedPaths: 50000,
           calibration: {
             preset: selectValue("log-preset", "unknown"),
             cache: selectValue("site-cache", "unknown"),
@@ -1012,7 +1089,9 @@
           fastly: { cache: "yes", logSource: "edge" },
           akamai: { cache: "yes", logSource: "edge" },
           apache_nginx: { logSource: "origin" },
-          iis: { logSource: "origin" }
+          iis: { logSource: "origin" },
+          alb: { logSource: "origin" },
+          elb: { logSource: "origin" }
         }[preset] || {};
         const rawCalibration = {
           cache: "unknown",
@@ -1073,15 +1152,18 @@
         const analyzableRows = Math.max(0, agg.total - (agg.meta || 0));
         const recognitionRate = analyzableRows ? agg.parsed / analyzableRows : 0;
         const chronologyIssue = agg.timeRegressions >= 5 && agg.parsed && agg.timeRegressions / agg.parsed >= 0.01;
-        const hostReliability = hosts.total > 1 && !(config.hostFilter && config.hostFilter.filter(Boolean).length) ? "limited" : "high";
+        const hostFilterRequested = !!(config.hostFilter && config.hostFilter.filter(Boolean).length);
+        const hostFilterNoHost = agg.hostFilterNoHost || 0;
+        const hostFilterUnverifiable = hostFilterRequested && hostFilterNoHost > 0;
+        const hostReliability = (hosts.total > 1 && !hostFilterRequested) || hostFilterUnverifiable ? "limited" : "high";
         const isLegacyArchive = agg.formatKind === "legacy_http_archive";
         const visitorReliability = isLegacyArchive
           ? "medium"
           : config.useXff
-          ? (agg.xffUsed > 0 && agg.xffMissing === 0 ? "high" : "limited")
+          ? (agg.xffUsed > 0 && agg.xffMissing === 0 && agg.xffExactUsed === agg.xffUsed ? "high" : "limited")
           : (proxyKind ? "limited" : (chronologyIssue ? "medium" : "high"));
         const edgeKinds = new Set(["cloudflare", "cloudfront", "fastly", "akamai"]);
-        const structuredKinds = new Set([...edgeKinds, "iis", "legacy_http_archive"]);
+        const structuredKinds = new Set([...edgeKinds, "iis", "alb", "elb", "legacy_http_archive"]);
         const userSaysCache = calibration.cache === "yes";
         const userSaysEdgeLog = calibration.logSource === "edge";
         const userSaysOriginLog = calibration.logSource === "origin";
@@ -1192,7 +1274,10 @@
           ...(durationHours > 0 && durationHours < 1 ? [{ level: "medium", text: "Der Export deckt weniger als eine Stunde ab.", check: "Prüfen, ob der gewünschte Zeitraum vollständig exportiert wurde." }] : []),
           ...(agg.maxGapMs >= 6 * 60 * 60 * 1000 ? [{ level: "medium", text: `Große Lücke von ${Math.round(agg.maxGapMs / 3600000)} Stunden gefunden.`, check: "Prüfen, ob im Export Stunden oder Teil-Dateien fehlen." }] : []),
           ...(userSaysIncompleteExport ? [{ level: "limited", text: "Du hast angegeben, dass der Export vermutlich nicht vollständig ist.", check: "Vollständigen Zeitraum oder alle Teil-Dateien exportieren." }] : []),
-          ...(hostReliability === "limited" ? [{ level: "medium", text: "Mehrere Websites oder Subdomains in derselben Datei.", check: "Website-Filter setzen oder passende Datei exportieren." }] : []),
+          ...(hostFilterUnverifiable ? [{ level: "medium", text: "Der Website-Filter konnte für einen Teil der Zeilen nicht geprüft werden, weil dort keine Website-Adresse steht.", check: "Logformat mit Host-Spalte oder passender vHost-Datei exportieren." }] : []),
+          ...(hosts.total > 1 && !hostFilterRequested ? [{ level: "medium", text: "Mehrere Websites oder Subdomains in derselben Datei.", check: "Website-Filter setzen oder passende Datei exportieren." }] : []),
+          ...(agg.pathCountCapped ? [{ level: "medium", text: "Sehr viele unterschiedliche Seitenpfade gefunden; die Detailtabelle wurde begrenzt.", check: "Kleineren Zeitraum oder weniger Query-Varianten auswerten." }] : []),
+          ...(agg.queryVariantCapped ? [{ level: "medium", text: "Sehr viele Query-Varianten gefunden; Varianten-Details wurden begrenzt.", check: "Nur wirklich relevante Adress-Zusätze behalten." }] : []),
           ...(originCacheRisk ? [{ level: "medium", text: userSaysCache ? "Du hast angegeben, dass ein Cache oder Schutzdienst vor der Website sitzt. Diese Server-Datei kann dadurch Aufrufe verpassen." : "Cache oder Proxy kann Aufrufe vor dieser Server-Datei abfangen.", check: "Prüfen, ob eine Cloudflare-/CDN-Datei verfügbar ist." }] : []),
           ...(isLegacyArchive ? [{ level: "medium", text: "Altes Archivformat ohne Browserkennung erkannt.", check: "Besucher-, Bot- und Conversion-Aussagen nur als grobe Plausibilitätswerte nutzen." }] : []),
           ...(heavyScanTrafficRisk ? [{ level: "limited", text: scanTrafficText, check: "Log mit Security-/Scan-Traffic getrennt von Besucher-Traffic auswerten." }] : (scanTrafficRisk ? [{ level: "medium", text: scanTrafficText, check: "Prüfen, ob die Datei Angriffsscans oder Admin-Traffic enthält." }] : [])),
@@ -1252,7 +1337,9 @@
             type: hosts.total ? "measured" : "not_available",
             reliability: hostReliability,
             canAnswer: hostReliability !== "limited",
-            reason: hostReliability === "limited" ? "Mehrere Websites/Subdomains erkannt; ohne Filter koennen fremde Seiten enthalten sein." : "Die Datei wirkt auf eine Website begrenzt."
+            reason: hostFilterUnverifiable
+              ? "Der Website-Filter konnte nicht fuer alle Zeilen geprueft werden, weil Host-Angaben fehlen."
+              : (hostReliability === "limited" ? "Mehrere Websites/Subdomains erkannt; ohne Filter koennen fremde Seiten enthalten sein." : "Die Datei wirkt auf eine Website begrenzt.")
           },
           botAnomaly: {
             type: "estimated",
@@ -1302,7 +1389,7 @@
               ...(proxyKind && !config.useXff ? ["Proxy oder Cache verdeckt echte Besucheradressen."] : []),
               ...(scanTrafficRisk ? [scanTrafficText] : []),
               ...(chronologyIssue ? ["Die Datei ist nicht sauber zeitlich sortiert."] : []),
-              ...(config.useXff && visitorReliability === "limited" ? ["Das Proxy-Feld enthält keine durchgehend brauchbaren Besucheradressen."] : [])
+              ...(config.useXff && visitorReliability === "limited" ? [agg.xffUsed > 0 && agg.xffExactUsed !== agg.xffUsed ? "Das Proxy-Feld wurde nicht feldgenau erkannt; Besucheradressen sind damit nur eingeschränkt vertrauenswürdig." : "Das Proxy-Feld enthält keine durchgehend brauchbaren Besucheradressen."] : [])
             ],
             recommendedChecks: [
               ...exportCompleteness.recommendedChecks,
@@ -1326,7 +1413,8 @@
               ...(lastGa4Import.warning ? [lastGa4Import.warning] : []),
               ...(!overall ? ["Keine Google-Analytics-Seitenzahlen eingetragen."] : []),
               ...(scanTrafficRisk ? ["Die Server-Datei enthält auffälligen Security-/Scan-Traffic."] : []),
-              ...(hostReliability === "limited" ? ["Die Server-Datei enthält mehrere Websites oder Subdomains."] : []),
+              ...(hostFilterUnverifiable ? ["Der Website-Filter konnte wegen fehlender Host-Angaben nicht sicher angewendet werden."] : []),
+              ...(hosts.total > 1 && !hostFilterRequested ? ["Die Server-Datei enthält mehrere Websites oder Subdomains."] : []),
               ...(pageviewReliability === "limited" ? ["Die Server-Datei wurde nicht zuverlässig genug gelesen."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.text)
             ],
@@ -1347,9 +1435,15 @@
           hostScope: {
             claimAllowed: hostReliability !== "limited",
             confidence: hostReliability,
-            statement: hostReliability === "limited" ? "Die Datei enthält mehrere Websites oder Subdomains." : "Die Datei wirkt auf eine Website begrenzt.",
-            blockingReasons: hostReliability === "limited" ? ["Mehrere Websites/Subdomains ohne Filter erkannt."] : [],
-            recommendedChecks: hostReliability === "limited" ? ["Website-Filter setzen und erneut auswerten."] : [],
+            statement: hostFilterUnverifiable
+              ? "Der Website-Filter konnte nicht für alle Zeilen geprüft werden."
+              : (hostReliability === "limited" ? "Die Datei enthält mehrere Websites oder Subdomains." : "Die Datei wirkt auf eine Website begrenzt."),
+            blockingReasons: hostFilterUnverifiable
+              ? ["Host-Angaben fehlen in einem Teil der Datei; der Website-Filter ist dort nicht prüfbar."]
+              : (hostReliability === "limited" ? ["Mehrere Websites/Subdomains ohne Filter erkannt."] : []),
+            recommendedChecks: hostFilterUnverifiable
+              ? ["Logformat mit Host-Spalte oder passende vHost-Datei exportieren."]
+              : (hostReliability === "limited" ? ["Website-Filter setzen und erneut auswerten."] : []),
             forbiddenConclusions: hostReliability === "limited" ? ["Nicht behaupten, dass die Analyse nur eine Website zeigt."] : []
           },
           conversions: {
@@ -1416,7 +1510,7 @@
             ...(proxyKind && !config.useXff ? ["Proxy oder Cache verdeckt echte Besucheradressen."] : []),
             ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; Besucher-Sessions sind nur grob ableitbar."] : []),
             ...(scanTrafficRisk ? [scanTrafficText] : []),
-            ...(config.useXff && visitorReliability === "limited" ? ["Das Proxy-Feld enthält keine durchgehend brauchbaren Besucheradressen."] : []),
+            ...(config.useXff && visitorReliability === "limited" ? [agg.xffUsed > 0 && agg.xffExactUsed !== agg.xffUsed ? "Das Proxy-Feld wurde nicht feldgenau erkannt; Besucheradressen sind damit nur eingeschränkt vertrauenswürdig." : "Das Proxy-Feld enthält keine durchgehend brauchbaren Besucheradressen."] : []),
             ...(chronologyIssue ? ["Die Datei ist nicht sauber zeitlich sortiert."] : [])
           ]),
           ga4: dedupe([
@@ -1433,7 +1527,8 @@
             ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.text)
           ]),
           hostScope: dedupe([
-            ...(hostReliability === "limited" ? ["Mehrere Websites/Subdomains ohne Filter erkannt."] : [])
+            ...(hostFilterUnverifiable ? ["Der Website-Filter konnte wegen fehlender Host-Angaben nicht sicher angewendet werden."] : []),
+            ...(hosts.total > 1 && !hostFilterRequested ? ["Mehrere Websites/Subdomains ohne Filter erkannt."] : [])
           ]),
           conversions: dedupe([
             ...(!config.hasSuccessUrl ? ["Keine Kauf-/Danke-Seite angegeben."] : []),
@@ -1504,6 +1599,8 @@
               maxGapHours: agg.maxGapMs ? Math.round(agg.maxGapMs / 3600000) : 0
             },
             hostCount: hosts.total,
+            hostFilterRequested,
+            hostFilterNoHost,
             proxyKind: proxyKind || "none",
             scanRequests: agg.scanRequests || 0,
             calibration,
@@ -1522,12 +1619,18 @@
           visits: agg.visits, success: agg.success, successRaw: agg.successRaw,
           adVisitors: agg.adVisitors, adSuccess: agg.adSuccess, timeRegressions: agg.timeRegressions,
           formatKind: agg.formatKind, formatChecked: agg.formatChecked, formatCombined: agg.formatCombined,
-          xffUsed: agg.xffUsed, xffMissing: agg.xffMissing, xffPrivate: agg.xffPrivate,
+          xffUsed: agg.xffUsed, xffMissing: agg.xffMissing, xffPrivate: agg.xffPrivate, xffExactUsed: agg.xffExactUsed || 0,
           legacyNoUserAgent: agg.legacyNoUserAgent || 0,
           suspiciousClients: agg.suspiciousClients,
           scanRequests: agg.scanRequests || 0,
           scanShare,
           trackingCapped: agg.trackingCapped,
+          pathCountCapped: !!agg.pathCountCapped,
+          queryVariantCapped: !!agg.queryVariantCapped,
+          queryVariantCount: agg.queryVariantCount || 0,
+          hostFilterRequested,
+          hostFilterNoHost,
+          hostFilterUnverifiable,
           minTime: agg.minTime, maxTime: agg.maxTime, maxGapMs: agg.maxGapMs,
           visitorRange: { low: visitorLow, high: visitorHigh },
           hosts,
@@ -1542,7 +1645,7 @@
           calibration,
           exportCompleteness,
           ga4Import: lastGa4Import,
-          diagnostics: { recognitionRate, pageviewReliability, visitorReliability, ga4Reliability, conversionReliability, cacheRisk, chronologyIssue, botReliability, hostReliability, exportCompletenessReliability, trackingReliability: agg.trackingCapped ? "medium" : "high", scanTrafficRisk },
+          diagnostics: { recognitionRate, pageviewReliability, visitorReliability, ga4Reliability, conversionReliability, cacheRisk, chronologyIssue, botReliability, hostReliability, exportCompletenessReliability, trackingReliability: (agg.trackingCapped || agg.pathCountCapped || agg.queryVariantCapped) ? "medium" : "high", scanTrafficRisk },
           hasSuccessUrl: config.hasSuccessUrl, ga4Conversions, convDiff, serverCr,
           proxyKind, hasChosen: chosen.length > 0, tableRows, overall, pathCounts: agg.pathCounts,
           statusCounts: topEntries(agg.statusCounts, 12), methodCounts: topEntries(agg.methodCounts, 6),
@@ -1585,8 +1688,9 @@
         }
         if (metric === "visits") {
           if (data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable") return "Nicht verlässlich bestimmbar: Die Datei zeigt vor allem Proxy-/CDN-Adressen, nicht echte Besucher.";
-          if (data.diagnostics.visitorReliability === "high") return data.xffUsed ? "Gut nutzbar: Echte Besucher-IPs aus dem Proxy-Feld wurden genutzt." : "Gut nutzbar: Keine starke Proxy-Verzerrung sichtbar.";
+          if (data.diagnostics.visitorReliability === "high") return data.xffUsed ? "Gut nutzbar: Echte Besucher-IPs aus einem feldgenau erkannten Proxy-Feld wurden genutzt." : "Gut nutzbar: Keine starke Proxy-Verzerrung sichtbar.";
           if (data.proxyKind) return "Nur Spanne: Proxy oder CDN erkannt. Besucher nicht als exakte Zahl lesen.";
+          if (data.xffUsed && data.xffExactUsed !== data.xffUsed) return "Das Proxy-Feld wurde nicht feldgenau erkannt. Besucheradressen nur vorsichtig verwenden.";
           if (data.xffMissing || data.xffPrivate) return "Das Proxy-Feld enthält keine brauchbaren Besucher-IPs.";
           return "Nur Richtwert: Die Reihenfolge der Einträge oder die Besucher-Erkennung macht diese Zahl ungenauer.";
         }
@@ -1604,6 +1708,7 @@
           return "Nicht entscheidungsfähig: Prüfe Zeitraum, Seiten und ob in Google Analytics wirklich Seitenaufrufe stehen.";
         }
         if (metric === "host") {
+          if (data.hostFilterUnverifiable) return `${format(data.hostFilterNoHost)} Zeilen hatten keine Website-Adresse. Der Website-Filter konnte dort nicht geprüft werden.`;
           if (data.diagnostics.hostReliability === "limited") return `${format(data.hosts.total)} Domains/Subdomains gefunden. Ohne Filter können fremde Seiten mit drin sein.`;
           return "Gut nutzbar: Die Datei wirkt auf eine Website begrenzt.";
         }
@@ -1618,6 +1723,7 @@
           return data.reasons.bot ? `${format(data.reasons.bot)} klare Bot-Zeilen entfernt. Danach keine starke Auffälligkeit.` : "Keine starke Bot-/Monitoring-Auffälligkeit sichtbar.";
         }
         if (metric === "tracking") {
+          if (data.pathCountCapped || data.queryVariantCapped) return "Sehr viele unterschiedliche Seiten oder Varianten gefunden. Hauptzahlen bleiben nutzbar, Detailtabellen wurden begrenzt.";
           if (data.diagnostics.trackingReliability === "medium") return "Interne Schutzgrenze erreicht. Hauptzahlen bleiben nutzbar, Detailsignale werden gröber.";
           return "Keine interne Schutzgrenze erreicht.";
         }
@@ -1631,7 +1737,7 @@
           : "Der Zeitraum ist aus der Datei nicht sicher lesbar."));
         rows.push(item(data.diagnostics.hostReliability !== "limited", data.diagnostics.hostReliability !== "limited"
           ? "Die Datei wirkt auf eine Website begrenzt."
-          : `${format(data.hosts.total)} Domains/Subdomains gefunden. Filter setzen, wenn du nur eine Website prüfen willst.`));
+          : (data.hostFilterUnverifiable ? "Der Website-Filter konnte nicht für alle Zeilen geprüft werden." : `${format(data.hosts.total)} Domains/Subdomains gefunden. Filter setzen, wenn du nur eine Website prüfen willst.`)));
         rows.push(item(data.diagnostics.pageviewReliability !== "limited", `${percent(data.diagnostics.recognitionRate * 100)} der Datei wurde verstanden.`));
         rows.push(item(!hasGa4 || !(data.ga4Import && data.ga4Import.warning), hasGa4
           ? ((data.ga4Import && data.ga4Import.warning) || "Google-Analytics-Zahlen wurden gelesen. Zeitraum und Seitenauswahl müssen gleich sein.")
@@ -1681,8 +1787,8 @@
         else if (hasGa4) limits.push("Google-Analytics-Vergleich erst nach Gegencheck für Zeitraum, Website und Seiten nutzen.");
 
         if (data.diagnostics.hostReliability === "limited") {
-          limits.push("Die Datei enthält mehrere Websites oder Subdomains.");
-          next.push("Website-Filter setzen und erneut auswerten.");
+          limits.push(data.hostFilterUnverifiable ? "Der Website-Filter konnte nicht für alle Zeilen geprüft werden." : "Die Datei enthält mehrere Websites oder Subdomains.");
+          next.push(data.hostFilterUnverifiable ? "Logformat mit Website-Adresse exportieren oder passende vHost-Datei nutzen." : "Website-Filter setzen und erneut auswerten.");
         }
         if (data.proxyKind && !data.xffUsed) {
           limits.push("Besucheradressen wirken durch Cache oder Zwischenstation verdeckt.");
@@ -1829,6 +1935,8 @@
           recognitionText = "Strukturierte Datei gelesen. Bei eigenen Dateien kurz prüfen, ob Seite, Status und Besucheradresse richtig erkannt wurden.";
         } else if (data.formatKind === "iis") {
           recognitionText = "Microsoft-IIS-Server-Datei gelesen. Die Zeiten werden als Weltzeit (UTC) gelesen.";
+        } else if (data.formatKind === "alb" || data.formatKind === "elb") {
+          recognitionText = "AWS-Load-Balancer-Datei gelesen. Das ist meist eine Datei vor dem Webserver; Cache- und Host-Kontext trotzdem prüfen.";
         } else if (data.formatKind === "unknown" && data.total) {
           recognitionText = "Diese Datei passt nicht sicher zu den Datei-Arten, die ServerStory kennt.";
         } else if (data.unrecognizedPct >= 10) {
@@ -1855,9 +1963,11 @@
           recognitionText += (recognitionText ? " " : "") + `${format(data.scanRequests)} Aufrufe wirken wie Admin-, Exploit- oder Proxy-Scans. Zahlen aus solchen Dateien bitte nur vorsichtig lesen.`;
         }
         if (data.diagnostics.hostReliability === "limited") {
-          recognitionText += (recognitionText ? " " : "") + `Die Datei enthält mehrere Websites oder Subdomains (${format(data.hosts.total)} erkannt). Setze oben einen Filter, damit ServerStory und Google Analytics wirklich dieselbe Website vergleichen.`;
+          recognitionText += (recognitionText ? " " : "") + (data.hostFilterUnverifiable
+            ? `Der Website-Filter konnte bei ${format(data.hostFilterNoHost)} Zeilen nicht geprüft werden, weil keine Website-Adresse in der Zeile steht.`
+            : `Die Datei enthält mehrere Websites oder Subdomains (${format(data.hosts.total)} erkannt). Setze oben einen Filter, damit ServerStory und Google Analytics wirklich dieselbe Website vergleichen.`);
         }
-        if (data.trackingCapped) {
+        if (data.trackingCapped || data.pathCountCapped || data.queryVariantCapped) {
           recognitionText += (recognitionText ? " " : "") + "Die Datei ist sehr groß. Hauptzahlen bleiben nutzbar, aber Besucher-Spanne und Bot-Hinweise werden gröber.";
         }
         if (data.ga4Import && data.ga4Import.warning) {
@@ -2164,6 +2274,7 @@
           exportCompleteness: lastResult.exportCompleteness,
           xForwardedFor: {
             used: lastResult.xffUsed,
+            exactUsed: lastResult.xffExactUsed,
             missing: lastResult.xffMissing,
             privateOnly: lastResult.xffPrivate
           },
@@ -2171,6 +2282,14 @@
           scanRequests: lastResult.scanRequests,
           scanShare: lastResult.scanShare,
           trackingCapped: lastResult.trackingCapped,
+          pathCountCapped: lastResult.pathCountCapped,
+          queryVariantCapped: lastResult.queryVariantCapped,
+          queryVariantCount: lastResult.queryVariantCount,
+          hostFilter: {
+            requested: lastResult.hostFilterRequested,
+            rowsWithoutHost: lastResult.hostFilterNoHost,
+            unverifiable: lastResult.hostFilterUnverifiable
+          },
           legacyNoUserAgent: lastResult.legacyNoUserAgent,
           proxyKind: lastResult.proxyKind,
           filterReasons: lastResult.reasons,
@@ -2185,6 +2304,7 @@
               detected: lastResult.formatKind
             } : { checked: 0, combined: 0, detected: lastResult.formatKind },
             hosts: lastResult.hosts,
+            hostFilterNoHost: lastResult.hostFilterNoHost,
             statusCounts: lastResult.statusCounts,
             methodCounts: lastResult.methodCounts,
             filterReasonPct: Object.fromEntries(Object.entries(lastResult.reasons).map(([key, value]) => [key, lastResult.parsed ? (value / lastResult.parsed) * 100 : 0]))
@@ -2195,7 +2315,7 @@
             conversions: qualityReason(lastResult, "purchases", !!(lastResult.overall && lastResult.overall.coverage !== null)),
             ga4: qualityReason(lastResult, "ga4", !!(lastResult.overall && lastResult.overall.coverage !== null)),
             setup: lastResult.calibration,
-            hostScope: lastResult.diagnostics.hostReliability === "limited" ? `Mehrere Websites/Subdomains erkannt (${format(lastResult.hosts.total)}). Filter empfohlen, sonst kann der Vergleich fremde Seiten enthalten.` : "Die Datei wirkt auf eine Website begrenzt.",
+            hostScope: lastResult.hostFilterUnverifiable ? `Website-Filter nicht voll pruefbar: ${format(lastResult.hostFilterNoHost)} Zeilen ohne Host-Angabe.` : (lastResult.diagnostics.hostReliability === "limited" ? `Mehrere Websites/Subdomains erkannt (${format(lastResult.hosts.total)}). Filter empfohlen, sonst kann der Vergleich fremde Seiten enthalten.` : "Die Datei wirkt auf eine Website begrenzt."),
             botAnomaly: lastResult.suspiciousClients ? `${format(lastResult.suspiciousClients)} auffaellige Muster mit Bot-/Monitoring-Verdacht.` : "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."
           },
           topPages: lastResult.tableRows
@@ -2207,6 +2327,3 @@
         id("demo-badge").classList.remove("visible");
       });
       if (location.protocol === "file:") id("offline-note").classList.add("hidden");
-    
-    
-    

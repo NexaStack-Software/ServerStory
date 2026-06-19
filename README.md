@@ -106,11 +106,14 @@ Vor dem Commit trotzdem manuell prüfen.
 
 Die Source of Truth liegt in `src/`:
 
-- `src/app.js`: Parser, Aggregator, Diagnose-, Report- und Render-Logik
+- `src/modules/`: Quellmodule fuer Parser, Aggregator, Diagnose-, Report-,
+  Worker- und Render-Logik
+- `src/app.js`: aus `src/modules/` gebuendeltes Browser-Script fuer Tests und Build
 - `src/styles.css`: Styling
 - `src/index.template.html`: HTML-Template mit Platzhaltern
 
-Der Build erzeugt daraus die portable Einzeldatei `index.html`:
+Der Build buendelt zuerst `src/modules/` nach `src/app.js` und erzeugt daraus die
+portable Einzeldatei `index.html`:
 
 ```bash
 npm run build

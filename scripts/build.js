@@ -4,9 +4,19 @@ const path = require("path");
 const root = path.resolve(__dirname, "..");
 const indexPath = path.join(root, "index.html");
 const srcDir = path.join(root, "src");
+const modulesDir = path.join(srcDir, "modules");
 const scriptPath = path.join(srcDir, "app.js");
 const stylePath = path.join(srcDir, "styles.css");
 const templatePath = path.join(srcDir, "index.template.html");
+const moduleFiles = [
+  "01-core.js",
+  "02-ga4.js",
+  "03-preflight.js",
+  "04-parser-aggregator.js",
+  "05-worker.js",
+  "06-claims.js",
+  "07-render.js"
+];
 
 function extractBetween(text, start, end) {
   const a = text.indexOf(start);
@@ -39,6 +49,15 @@ if (process.argv.includes("--extract")) {
 
 if (!fs.existsSync(templatePath) || !fs.existsSync(stylePath) || !fs.existsSync(scriptPath)) {
   throw new Error("Missing src files. Run: node scripts/build.js --extract");
+}
+
+if (fs.existsSync(modulesDir)) {
+  const missing = moduleFiles.filter((file) => !fs.existsSync(path.join(modulesDir, file)));
+  if (missing.length) throw new Error(`Missing src/modules files: ${missing.join(", ")}`);
+  const bundledScript = moduleFiles
+    .map((file) => fs.readFileSync(path.join(modulesDir, file), "utf8").replace(/\s+$/g, ""))
+    .join("\n\n");
+  fs.writeFileSync(scriptPath, bundledScript + "\n");
 }
 
 const template = fs.readFileSync(templatePath, "utf8");

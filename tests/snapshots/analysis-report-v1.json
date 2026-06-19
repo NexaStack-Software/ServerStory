@@ -332,6 +332,8 @@
         "maxGapHours": 1
       },
       "hostCount": 0,
+      "hostFilterRequested": false,
+      "hostFilterNoHost": 0,
       "proxyKind": "none",
       "scanRequests": 0,
       "calibration": {
@@ -397,6 +399,7 @@
   },
   "xForwardedFor": {
     "used": 0,
+    "exactUsed": 0,
     "missing": 0,
     "privateOnly": 0
   },
@@ -404,6 +407,14 @@
   "scanRequests": 0,
   "scanShare": 0,
   "trackingCapped": false,
+  "pathCountCapped": false,
+  "queryVariantCapped": false,
+  "queryVariantCount": 0,
+  "hostFilter": {
+    "requested": false,
+    "rowsWithoutHost": 0,
+    "unverifiable": false
+  },
   "legacyNoUserAgent": 0,
   "proxyKind": "",
   "filterReasons": {
@@ -429,6 +440,7 @@
       "total": 0,
       "top": []
     },
+    "hostFilterNoHost": 0,
     "statusCounts": [
       {
         "name": "200",
