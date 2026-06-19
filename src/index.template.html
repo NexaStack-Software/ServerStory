@@ -425,24 +425,22 @@
           </details>
 
           <details>
-            <summary>Ist also Google Analytics richtig und der Server falsch?</summary>
-            <p>Nein - denn auch Google Analytics sieht nicht alle Besucher zuverlässig.</p>
-            <p>Damit es mit dem Cookie einen Besucher richtig identifizieren kann, muss der Nutzer erlauben, dass Google diesen Cookie in seinen Browser legt. Genau das verhindern viele Besucher - hauptsächlich auf zwei Wegen:</p>
-            <ul>
-              <li><strong>Cookie-Banner abgelehnt:</strong> Wer "Ablehnen" klickt, wird von Google nicht gezählt. Dein Server hat ihn trotzdem gesehen.</li>
-              <li><strong>Ad-Blocker / Tracking-Schutz:</strong> Blockiert das Google-Programm, bevor es startet. In Deutschland betrifft das einen zweistelligen Prozentsatz der Besucher.</li>
-            </ul>
-            <p>Davon abgesehen nutzen Menschen heute unterschiedliche Geräte: Computer, Tablet, Telefon, Smartwatch und andere. Wenn Google ein Cookie in den Computer-Browser des Nutzers legt, der später aber per Telefon oder in einem anderen Browser auf die Seite zugreift, ist das für Google oft ein neuer Besucher.</p>
-            <p>Du siehst also: Viele Dinge tauchen in deinem Server-Log auf, aber nicht in Google Analytics. Genau diese Lücke macht ServerStory sichtbar.</p>
-          </details>
-
-          <details>
-            <summary>Und warum sieht mein Server manchmal weniger als Google?</summary>
-            <p>Auch das kann passieren - vor allem, wenn zwischen Besucher und Webserver noch ein Zwischenspeicher sitzt.</p>
+            <summary>Wann sieht Google Analytics mehr als dein Server?</summary>
+            <p>Das kann passieren, wenn der Aufruf nicht bis zu deinem Webserver kommt - oder wenn Google Analytics dieselbe Person mehrfach als Besucher erkennt.</p>
             <ul>
               <li><strong>Cache oder CDN:</strong> Manche Websites speichern fertige Seiten zwischen, damit sie schneller laden. Dann bekommt der Besucher die Seite aus diesem Zwischenspeicher - und nicht direkt von deinem Webserver. In so einem Fall kann der Besuch in deiner Server-Datei fehlen, obwohl Google Analytics ihn zählt.</li>
               <li><strong>Eine Person, mehrfach gezählt:</strong> Wenn jemand Cookies löscht, den Browser wechselt oder ein zweites Gerät nutzt, kann Google Analytics dieselbe Person mehrfach als neuen Besucher zählen. Die Google-Besucherzahl kann dadurch höher wirken, als sie wirklich ist.</li>
             </ul>
+          </details>
+
+          <details>
+            <summary>Wann sieht dein Server mehr als Google Analytics?</summary>
+            <p>Das passiert, wenn dein Webserver die Seite ausliefert, Google Analytics im Browser aber nicht zählen darf oder gar nicht erst startet.</p>
+            <ul>
+              <li><strong>Cookie-Banner abgelehnt:</strong> Wer "Ablehnen" klickt, wird von Google nicht gezählt. Dein Server hat ihn trotzdem gesehen.</li>
+              <li><strong>Ad-Blocker / Tracking-Schutz:</strong> Blockiert das Google-Programm, bevor es startet. In Deutschland betrifft das einen zweistelligen Prozentsatz der Besucher.</li>
+            </ul>
+            <p>Diese Aufrufe tauchen in deinem Server-Log auf, aber nicht in Google Analytics. Genau diese Lücke macht ServerStory sichtbar.</p>
           </details>
 
           <details>
