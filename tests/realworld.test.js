@@ -49,6 +49,9 @@ const expected = {
 
 const maxMsPerMillionRows = Number(process.env.SERVERSTORY_REALWORLD_MAX_MS_PER_MILLION_ROWS || 20000);
 const maxRssMb = Number(process.env.SERVERSTORY_REALWORLD_MAX_RSS_MB || 1200);
+const assetRe = /\.(css|js|png|gif|jpg|jpeg|webp|svg|ico)(\?|$)/i;
+const legacyLineRe = /^(\S+)(?:[ \t]+\S+[ \t]+\S+)?[ \t]+\[([^\]]+)\][ \t]+"([A-Z]+)[ \t]+([^"]*?)(?:[ \t]+HTTP\/[0-9.]+)?"[ \t]+(\d{3})[ \t]+\S+/;
+const keptStatuses = new Set([200, 201, 202, 204, 301, 302, 303, 307, 308]);
 
 function files() {
   if (!fs.existsSync(cacheDir)) return [];
@@ -58,12 +61,68 @@ function files() {
     .sort();
 }
 
+function normalizeLegacyPath(target) {
+  let value = String(target || "/").trim() || "/";
+  let pathName;
+  try {
+    const parsed = new URL(value, "http://example.invalid");
+    pathName = parsed.pathname || "/";
+  } catch (_) {
+    pathName = (value.startsWith("/") ? value : "/" + value).split("?")[0].split("#")[0] || "/";
+  }
+  try { pathName = decodeURI(pathName); } catch (_) {}
+  pathName = pathName.replace(/\/{2,}/g, "/");
+  pathName = pathName.replace(/\/(?:index|default)\.(?:html?|php|aspx?)$/i, "/");
+  return pathName === "/" ? "/" : pathName.replace(/\/$/, "");
+}
+
+function independentLegacyCountLine(line, counter) {
+  if (!line || !line.trim()) return;
+  counter.rows++;
+  const match = legacyLineRe.exec(line);
+  if (!match) {
+    counter.unrecognized++;
+    return;
+  }
+  counter.parsed++;
+  const method = String(match[3] || "").toUpperCase();
+  const pathName = normalizeLegacyPath(match[4]);
+  const status = Number(match[5]);
+  if (!keptStatuses.has(status)) return;
+  if (method !== "GET" && method !== "POST") return;
+  counter.kept++;
+  counter.methods.set(method, (counter.methods.get(method) || 0) + 1);
+  counter.statuses.set(String(status), (counter.statuses.get(String(status)) || 0) + 1);
+  if (method === "GET" && status >= 200 && status < 300) {
+    counter.pathHits.set(pathName, (counter.pathHits.get(pathName) || 0) + 1);
+    if (!assetRe.test(pathName)) counter.pageViews++;
+  }
+}
+
+function makeIndependentCounter() {
+  return {
+    rows: 0,
+    parsed: 0,
+    unrecognized: 0,
+    kept: 0,
+    pageViews: 0,
+    statuses: new Map(),
+    methods: new Map(),
+    pathHits: new Map()
+  };
+}
+
+function topMapEntries(map, limit = 25) {
+  return [...map.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]))).slice(0, limit);
+}
+
 async function analyzeFile(file) {
   const agg = ctx.makeAggregator({
-    assetRe: /\.(css|js|png|gif|jpg|jpeg|webp|svg|ico)(\?|$)/i,
+    assetRe,
     gzip: false,
     maxTrackedClients: Number(process.env.SERVERSTORY_REALWORLD_TRACKED_CLIENTS || 200000)
   });
+  const independent = makeIndependentCounter();
   let input;
   if (/\.Z$/i.test(file)) {
     const proc = spawn("gzip", ["-dc", file], { stdio: ["ignore", "pipe", "inherit"] });
@@ -77,20 +136,49 @@ async function analyzeFile(file) {
   const startedAt = process.hrtime.bigint();
   for await (const line of rl) {
     agg.processLine(line);
+    independentLegacyCountLine(line, independent);
     lines++;
     if (maxLines && lines >= maxLines) break;
   }
   rl.close();
   const result = agg.finalize();
   const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
-  return { result, elapsedMs, truncated: !!maxLines };
+  return { result, independent, elapsedMs, truncated: !!maxLines };
 }
 
 function buildResult(agg) {
   return ctx.buildResult(agg, {
-    assetRe: /\.(css|js|png|gif|jpg|jpeg|webp|svg|ico)(\?|$)/i,
+    assetRe,
     gzip: false
   });
+}
+
+function countFromTopEntries(entries, name) {
+  if (entries && typeof entries.get === "function") return entries.get(name) || 0;
+  const found = entries.find((entry) => entry.name === name);
+  return found ? found.count : 0;
+}
+
+function assertDifferentialCounter(file, result, independent) {
+  const rel = path.relative(root, file);
+  if (independent.rows !== result.total) throw new Error(`${rel}: differential rows mismatch ${independent.rows} vs ${result.total}`);
+  if (independent.parsed !== result.parsed) throw new Error(`${rel}: differential parsed mismatch ${independent.parsed} vs ${result.parsed}`);
+  if (independent.unrecognized !== result.unrecognized) throw new Error(`${rel}: differential unrecognized mismatch ${independent.unrecognized} vs ${result.unrecognized}`);
+  if (independent.kept !== result.kept) throw new Error(`${rel}: differential kept mismatch ${independent.kept} vs ${result.kept}`);
+  if (independent.pageViews !== result.pageViews) throw new Error(`${rel}: differential pageviews mismatch ${independent.pageViews} vs ${result.pageViews}`);
+
+  for (const [status, count] of topMapEntries(independent.statuses, 12)) {
+    const actual = countFromTopEntries(result.statusCounts, status);
+    if (actual !== count) throw new Error(`${rel}: differential status ${status} mismatch ${actual} vs ${count}`);
+  }
+  for (const [method, count] of topMapEntries(independent.methods, 6)) {
+    const actual = countFromTopEntries(result.methodCounts, method);
+    if (actual !== count) throw new Error(`${rel}: differential method ${method} mismatch ${actual} vs ${count}`);
+  }
+  for (const [pathName, count] of topMapEntries(independent.pathHits, 20)) {
+    const actual = result.pathCounts.get(pathName) || 0;
+    if (actual !== count) throw new Error(`${rel}: differential path ${pathName} mismatch ${actual} vs ${count}`);
+  }
 }
 
 function assertKnownAnswer(file, result, elapsedMs, truncated) {
@@ -120,6 +208,9 @@ function assertReliabilityContract(file, result) {
   if (built.diagnostics.pageviewReliability !== "high") throw new Error(`${rel}: pageviews should remain highly readable`);
   if (built.diagnostics.visitorReliability !== "medium") throw new Error(`${rel}: legacy visits must be medium reliability`);
   if (built.diagnostics.botReliability !== "limited") throw new Error(`${rel}: legacy bot reliability must be limited`);
+  if (built.decisionReadiness.visits.canUseForDecision) throw new Error(`${rel}: legacy visits must not be decision-ready`);
+  if (built.decisionReadiness.visits.decisionRisk === "low") throw new Error(`${rel}: legacy visits risk must not be low`);
+  if (built.decisionReadiness.botAnomaly && built.decisionReadiness.botAnomaly.decisionRisk === "low") throw new Error(`${rel}: legacy bot risk must not be low`);
   if (built.claimMatrix.visits.status !== "limited") throw new Error(`${rel}: visits claim must be limited`);
   if (!/Archivformat ohne Browserkennung/.test(built.evidenceFailures.visits.join(" "))) {
     throw new Error(`${rel}: missing legacy visitor evidence failure`);
@@ -136,8 +227,9 @@ function assertReliabilityContract(file, result) {
     return;
   }
   for (const file of cached) {
-    const { result, elapsedMs, truncated } = await analyzeFile(file);
+    const { result, independent, elapsedMs, truncated } = await analyzeFile(file);
     const rel = path.relative(root, file);
+    assertDifferentialCounter(file, result, independent);
     assertReliabilityContract(file, result);
     assertKnownAnswer(file, result, elapsedMs, truncated);
     const rssMb = process.memoryUsage().rss / (1024 * 1024);
