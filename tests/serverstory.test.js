@@ -1992,12 +1992,13 @@ test("Render setzt Ampeln und sichtbare Gruende pro Kennzahl", () => {
   });
   const ui = createRenderContext();
   ui.ctx.render(data);
+  assert.strictEqual(ui.get("q-visits").textContent, "Gut identifizierbar");
   assert.strictEqual(ui.get("q-views").textContent, "Gut nutzbar");
   assert.match(ui.get("q-views-reason").textContent, /Datei wurde sauber gelesen.*100/i);
   assert.match(ui.get("q-visits-reason").textContent, /Keine starke Proxy-Verzerrung/i);
   assert.match(ui.get("q-purchases-reason").textContent, /mit Google-Analytics-Käufen verglichen/i);
   assert.match(ui.get("q-ga4-reason").textContent, /Zeitraum und Seitenauswahl/i);
-  assert.match(ui.get("precision-checklist").innerHTML, /eine Website begrenzt/i);
+  assert.match(ui.get("precision-checklist").innerHTML, /einer einzigen Website/i);
   assert.match(ui.get("precision-checklist").innerHTML, /Datei wurde verstanden/i);
   assert.strictEqual(ui.get("q-export").textContent, "Gut nutzbar");
   assert.match(ui.get("q-export-reason").textContent, /plausibel/i);
@@ -3015,7 +3016,7 @@ test("Demo nutzt realistische Groessenordnung und keine harte GA4-zu-wenig-Headl
   assert.match(script, /Dein Server zählt deutlich mehr Seitenaufrufe als Google Analytics/);
 });
 
-test("GA4-Vergleich nennt die Differenz auf Server-Basis", () => {
+test("GA4-Vergleich nennt Server-Mehrwert mit korrekter Prozentbasis", () => {
   const demoSample = vm.runInContext("sample", ctx);
   const data = buildResultFor(demoSample, {
     successUrl: "/bestellung/danke",
@@ -3029,11 +3030,11 @@ test("GA4-Vergleich nennt die Differenz auf Server-Basis", () => {
   const headline = ui.get("headline").textContent;
   const subline = ui.get("subline").textContent;
   assert.match(headline, /Dein Server zählt deutlich mehr Seitenaufrufe/);
-  assert.match(subline, /Google Analytics 26,3 % weniger Seitenaufrufe/);
+  assert.match(subline, /Server-Datei verzeichnet insgesamt 35,8 % mehr Seitenaufrufe als Google Analytics/);
   assert.match(subline, /\/produkt\/2/);
-  assert.match(subline, /fehlen Google Analytics 56,8 %/);
-  assert.doesNotMatch(subline, /35,8 %/);
-  assert.doesNotMatch(subline, /131/);
+  assert.match(subline, /Dort verzeichnet dein Server 131,5 % mehr Seitenaufrufe als Google Analytics/);
+  assert.doesNotMatch(subline, /26,3 % mehr/);
+  assert.doesNotMatch(subline, /56,8 % mehr/);
 });
 
 run();

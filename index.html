@@ -1161,15 +1161,15 @@
     <main>
       <section class="hero">
         <div class="hero-main">
-          <div class="kicker">3-Minuten-Check</div>
-          <h1>Was hat deine Website <span>wirklich gesehen?</span></h1>
-          <p class="lead">ServerStory liest die Besuchsliste deines Webservers (der Computer, auf dem deine Website läuft) und zeigt dir, welche Seiten wie oft aufgerufen wurden und ungefähr, wie viele Besucher du hattest — auch die, die ein Tracking-Tool durch Cookie-Banner oder Ad-Blocker verpasst.</p>
+          <div class="kicker">Finde es in drei Minuten selbst heraus</div>
+          <h1>Wieviele Besuche hatte deine Website <span>wirklich?</span></h1>
+          <p class="lead">ServerStory liest die Besuchsliste deines Webservers (der Computer, auf dem deine Website läuft) und zeigt dir, welche Seiten wie oft aufgerufen wurden und ungefähr, wie viele Besucher du hattest — auch die, die ein Tracking-Tool wegen Cookie-Banner oder Ad-Blocker verpasst. Du siehst:</p>
           <ul class="lead-points">
             <li>Seitenaufrufe — direkt vom Server gezählt</li>
-            <li>Deine meistbesuchten Seiten sofort auf einen Blick</li>
-            <li>Optional: die Lücke zu Google Analytics sichtbar machen</li>
+            <li>Welche deiner Seiten am meisten besucht wurde</li>
+            <li>Die Differenz zwischen den Seitenaufrufen auf deinem Server und denen laut Google Analytics</li>
           </ul>
-          <p class="lead">So bekommst du eine zusätzliche Perspektive auf deinen Traffic und kannst genauer beurteilen, wie viele Sitzungen und Conversions du tatsächlich hattest.</p>
+          <p class="lead">Warum du das brauchst? Weil du so eine zusätzliche Perspektive auf deinen Traffic bekommst und damit noch genauer beurteilen kannst, wie viele Sitzungen und Conversions du tatsächlich hattest.</p>
         </div>
 
         <aside class="hero-action">
@@ -1375,14 +1375,14 @@
                 <strong id="n-visits">-</strong>
                 <em id="q-visits" class="quality-badge">-</em>
                 <p id="q-visits-reason" class="helper"></p>
-                <p class="helper">Grobe Schätzung: Aufrufe vom selben IP-Anschluss und Browser kurz nacheinander zählen wir als einen Besuch. Mehrere Personen hinter einer IP zählen als einer.</p>
+                <p class="helper">Grobe Schätzung: Aufrufe vom selben IP-Anschluss und Browser kurz nacheinander zählen wir als einen Besuch. Mehrere Personen hinter einer IP zählen als eine.</p>
               </div>
               <div class="number">
                 <span>Seitenaufrufe gesamt</span>
                 <strong id="n-views">-</strong>
                 <em id="q-views" class="quality-badge">-</em>
                 <p id="q-views-reason" class="helper"></p>
-                <p class="helper">Echte Seiten — ohne Bilder und technische Dateien. Vergleichbar mit „Seitenaufrufen" in Google Analytics.</p>
+                <p class="helper">Berücksichtigt werden nur echte Seiten — ohne Bilder und technische Dateien. Vergleichbar mit „Seitenaufrufen" in Google Analytics.</p>
               </div>
               <div class="number purchase-only">
                 <span>Käufe laut Webserver</span>
@@ -1396,7 +1396,7 @@
                 <strong id="n-coverage">-</strong>
                 <em id="q-ga4" class="quality-badge">-</em>
                 <p id="q-ga4-reason" class="helper"></p>
-                <p class="helper">Von 100 Aufrufen, die dein Webserver zählt, meldet Google Analytics nur so viele.</p>
+                <p class="helper">Das bedeutet: Von 100 Seitenaufrufen, die dein Webserver zählt, meldet Google Analytics nur so viele.</p>
               </div>
             </div>
 
@@ -3297,7 +3297,7 @@
         const labels = { high: "Gut nutzbar", medium: "Mit Vorsicht", limited: "Nicht verlässlich", none: "Nicht geprüft" };
         const el = id(elId);
         el.className = `quality-badge ${state || "none"}`;
-        el.textContent = labels[state] || labels.none;
+        el.textContent = elId === "q-visits" && state === "high" ? "Gut identifizierbar" : (labels[state] || labels.none);
       }
       function setQualityReason(elId, text) {
         const el = id(elId + "-reason");
@@ -3311,13 +3311,13 @@
         if (metric === "views") {
           const recognized = percent(data.diagnostics.recognitionRate * 100);
           if (data.evidence && data.evidence.pageViews && data.evidence.pageViews.type === "lower_bound") return `Nur Mindestwert: Deine Logdatei sieht wahrscheinlich nicht alle Aufrufe, weil ein Cache/CDN dazwischen sitzen kann.`;
-          if (data.diagnostics.pageviewReliability === "high") return `Gut nutzbar: Die Datei wurde sauber gelesen (${recognized}).`;
+          if (data.diagnostics.pageviewReliability === "high") return `Wir konnten diese Zahl zuverlässig bestimmen: Die Datei wurde sauber gelesen (${recognized}).`;
           if (data.diagnostics.pageviewReliability === "medium") return `Nur Richtwert: ${recognized} der Datei wurde gelesen. Einzelne Einträge passen nicht zum erwarteten Format.`;
           return `Nicht entscheidungsfähig: Zu viele Einträge passen nicht zum erwarteten Format (${recognized} gelesen).`;
         }
         if (metric === "visits") {
           if (data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable") return "Nicht verlässlich bestimmbar: Die Datei zeigt vor allem Proxy-/CDN-Adressen, nicht echte Besucher.";
-          if (data.diagnostics.visitorReliability === "high") return data.xffUsed ? "Gut nutzbar: Echte Besucher-IPs aus einem feldgenau erkannten Proxy-Feld wurden genutzt." : "Gut nutzbar: Keine starke Proxy-Verzerrung sichtbar.";
+          if (data.diagnostics.visitorReliability === "high") return data.xffUsed ? "Wir konnten diese Zahl zuverlässig bestimmen: Echte Besucher-IPs aus einem feldgenau erkannten Proxy-Feld wurden genutzt." : "Wir konnten diese Zahl zuverlässig bestimmen: Keine starke Proxy-Verzerrung sichtbar.";
           if (data.proxyKind) return "Nur Spanne: Proxy oder CDN erkannt. Besucher nicht als exakte Zahl lesen.";
           if (data.xffUsed && data.xffExactUsed !== data.xffUsed) return "Das Proxy-Feld wurde nicht feldgenau erkannt. Besucheradressen nur vorsichtig verwenden.";
           if (data.xffMissing || data.xffPrivate) return "Das Proxy-Feld enthält keine brauchbaren Besucher-IPs.";
@@ -3325,7 +3325,7 @@
         }
         if (metric === "purchases") {
           if (!data.hasSuccessUrl) return "Keine Kauf-/Danke-Seite angegeben.";
-          if (data.diagnostics.conversionReliability === "high") return data.ga4Conversions === null ? "Gut nutzbar: Kaufseite erkannt; doppelte Reloads werden reduziert." : "Gut nutzbar: Kaufseite erkannt und mit Google-Analytics-Käufen verglichen.";
+          if (data.diagnostics.conversionReliability === "high") return data.ga4Conversions === null ? "Wir konnten diese Zahl zuverlässig bestimmen: Die Kaufseite wurde erkannt; doppelte Reloads werden reduziert." : "Wir konnten diese Zahl zuverlässig bestimmen: Die Kaufseite wurde erkannt und mit Google-Analytics-Käufen verglichen.";
           return "Nur Richtwert: Kaufseite erkannt, aber ohne Bestellnummer können Reloads die Zahl verzerren.";
         }
         if (metric === "ga4") {
@@ -3333,7 +3333,7 @@
           if (!hasGa4) return "Keine Google-Analytics-Seitenzahlen eingetragen.";
           if (data.calibration && data.calibration.ga4MetricKind === "users_or_sessions") return "Für diesen Vergleich wurden Nutzer oder Sitzungen markiert. Bitte Seitenaufrufe aus Google Analytics verwenden.";
           if (data.evidence && data.evidence.ga4 && !data.evidence.ga4.canAnswer) return data.evidence.ga4.reason;
-          if (data.diagnostics.ga4Reliability === "medium") return "Nur nach Gegencheck nutzbar: Zeitraum und Seitenauswahl müssen wirklich gleich sein; die Website muss ebenfalls passen.";
+          if (data.diagnostics.ga4Reliability === "medium") return "Achtung - diese Zahl ist nur nach einem Gegencheck zuverlässig: Achte darauf, dass Zeitraum und Seitenauswahl wirklich dieselben sind; die Website muss ebenfalls passen.";
           return "Nicht entscheidungsfähig: Prüfe Zeitraum, Seiten und ob in Google Analytics wirklich Seitenaufrufe stehen.";
         }
         if (metric === "host") {
@@ -3370,11 +3370,11 @@
           ? `Zeitraum in der Datei: ${formatDateTime(data.minTime)} bis ${formatDateTime(data.maxTime)}.`
           : "Der Zeitraum ist aus der Datei nicht sicher lesbar."));
         rows.push(item(data.diagnostics.hostReliability !== "limited", data.diagnostics.hostReliability !== "limited"
-          ? "Die Datei wirkt auf eine Website begrenzt."
+          ? "Die Datei enthält die Besuche einer einzigen Website, nicht von mehreren."
           : (data.hostFilterUnverifiable ? "Der Website-Filter konnte nicht für alle Zeilen geprüft werden." : `${format(data.hosts.total)} Domains/Subdomains gefunden. Filter setzen, wenn du nur eine Website prüfen willst.`)));
         rows.push(item(data.diagnostics.pageviewReliability !== "limited", `${percent(data.diagnostics.recognitionRate * 100)} der Datei wurde verstanden.`));
         rows.push(item(!hasGa4 || !(data.ga4Import && data.ga4Import.warning), hasGa4
-          ? ((data.ga4Import && data.ga4Import.warning) || "Google-Analytics-Zahlen wurden gelesen. Zeitraum und Seitenauswahl müssen gleich sein.")
+          ? ((data.ga4Import && data.ga4Import.warning) || "Google-Analytics-Zahlen wurden gelesen. Achte bitte darauf, dass Zeitraum und Seitenauswahl gleich sein müssen.")
           : "Keine Google-Analytics-Seitenzahlen eingetragen."));
         rows.push(item(data.diagnostics.visitorReliability !== "limited", data.diagnostics.visitorReliability !== "limited"
           ? "Keine starke Proxy-Verzerrung bei Besuchern sichtbar."
@@ -3577,7 +3577,7 @@
           recognitionText = `${percent(data.unrecognizedPct)} der Datei konnte nicht gelesen werden. Prüfe, ob die Datei gemischt, gekürzt oder im falschen Format ist.`;
         }
         if (data.diagnostics.pageviewReliability === "high") {
-          recognitionText += (recognitionText ? " " : "") + "Die Seitenaufrufe wirken gut nutzbar.";
+          recognitionText += (recognitionText ? " " : "") + "Deine Server-Datei ist sauber: ServerStory kann deine Website-Aufrufe zuverlässig nachvollziehen.";
         } else if (data.diagnostics.pageviewReliability === "medium") {
           recognitionText += (recognitionText ? " " : "") + "Die Seitenaufrufe sind brauchbar, aber nicht perfekt.";
         } else if (data.total) {
@@ -3698,10 +3698,11 @@
           if (cov < 85) {
             setSignal("warn", "!", "Achtung");
             id("headline").textContent = "Dein Server zählt deutlich mehr Seitenaufrufe als Google Analytics";
+            const serverGap = cov > 0 ? percent((10000 / cov) - 100) : "deutlich";
             const worstGapText = worst && worst.coverage < 85
-              ? ` Am größten ist die Lücke bei ${worst.name}: Dort fehlen Google Analytics ${percent(100 - worst.coverage)} der Aufrufe.`
+              ? ` Den größten Unterschied hat deine Unterseite ${worst.name}: Dort verzeichnet dein Server ${worst.coverage > 0 ? percent((10000 / worst.coverage) - 100) : "deutlich"} mehr Seitenaufrufe als Google Analytics.`
               : "";
-            id("subline").textContent = `Für deine ausgewählten Seiten sieht Google Analytics ${percent(100 - cov)} weniger Seitenaufrufe als deine Server-Datei.${worstGapText}`;
+            id("subline").textContent = `In deiner Server-Datei stehen für deine ausgewählten Seiten deutlich mehr Seitenaufrufe als in deinem Google Analytics-Dashboard. Deine Server-Datei verzeichnet insgesamt ${serverGap} mehr Seitenaufrufe als Google Analytics.${worstGapText}`;
             id("action").textContent = "Nächster Schritt: Noch keine Budget-Entscheidung nur daraus ableiten. Prüfe zuerst: gleicher Zeitraum, richtige Website, Seitenaufrufe in Google Analytics, Cookie-Banner, Ad-Blocker und ob ein Cache davor sitzt.";
           } else if (cov < 95) {
             setSignal("medium", "~", "Kleine Lücke");

@@ -469,10 +469,10 @@
     }
   },
   "accuracyNotes": {
-    "pageViews": "Gut nutzbar: Die Datei wurde sauber gelesen (100,0 %).",
-    "visits": "Gut nutzbar: Keine starke Proxy-Verzerrung sichtbar.",
-    "conversions": "Gut nutzbar: Kaufseite erkannt und mit Google-Analytics-Käufen verglichen.",
-    "ga4": "Nur nach Gegencheck nutzbar: Zeitraum und Seitenauswahl müssen wirklich gleich sein; die Website muss ebenfalls passen.",
+    "pageViews": "Wir konnten diese Zahl zuverlässig bestimmen: Die Datei wurde sauber gelesen (100,0 %).",
+    "visits": "Wir konnten diese Zahl zuverlässig bestimmen: Keine starke Proxy-Verzerrung sichtbar.",
+    "conversions": "Wir konnten diese Zahl zuverlässig bestimmen: Die Kaufseite wurde erkannt und mit Google-Analytics-Käufen verglichen.",
+    "ga4": "Achtung - diese Zahl ist nur nach einem Gegencheck zuverlässig: Achte darauf, dass Zeitraum und Seitenauswahl wirklich dieselben sind; die Website muss ebenfalls passen.",
     "setup": {
       "preset": "unknown",
       "cache": "unknown",
