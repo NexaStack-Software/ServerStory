@@ -1,6 +1,7 @@
 # Echte Server-Logs (enthalten personenbezogene Daten) - nur lokal, niemals committen
 serverstory-logs/
 tests/realworld-cache/
+tests/access-cache/
 dist/
 *.log
 *.zip

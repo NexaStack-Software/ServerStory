@@ -96,10 +96,17 @@ Optionale echte Lasttests:
 
 ```bash
 npm run download:realworld -- epa,nasa
+npm run download:access -- secrepo,elastic,lukaszog
 npm run test:realworld
+npm run test:access-realworld
 ```
 
-Die Dateien bleiben lokal unter `tests/realworld-cache/`.
+Die Dateien bleiben lokal unter `tests/realworld-cache/` bzw. `tests/access-cache/`.
+`realworld` prueft alte Forschungsarchive auf Last, Streaming und Legacy-Erkennung.
+`access-realworld` prueft echte Combined-Access-Logs mit Referrer/User-Agent gegen
+einen unabhaengigen Zaehler. So wird nicht nur getestet, ob die App irgendetwas
+berechnet, sondern ob sie echte Webserver-Logs konservativ und reproduzierbar
+bewertet.
 
 ## Parser-Robustheit
 

@@ -134,17 +134,20 @@ npm run test:e2e      # Browserflow mit Upload, Preflight, Report, Demo, XFF, Ho
 npm run test:sanitize # Log-Sanitizer prüfen
 npm run audit:repo    # Repo-Hygiene gegen echte Logs/Archive/PII
 npm run test:realworld # optional, wenn Real-World-Logs lokal im Cache liegen
+npm run test:access-realworld # optional, wenn echte Combined-Access-Logs lokal liegen
 ```
 
 Optionale Real-World-Fixtures:
 
 ```bash
 npm run download:realworld -- epa,nasa
+npm run download:access -- secrepo,elastic,lukaszog
 npm run test:realworld
+npm run test:access-realworld
 ```
 
-Die heruntergeladenen Dateien liegen unter `tests/realworld-cache/` und werden nicht
-committet.
+Die heruntergeladenen Dateien liegen unter `tests/realworld-cache/` bzw.
+`tests/access-cache/` und werden nicht committet.
 
 Interne Designentscheidungen, No-False-Confidence-Regeln und weitere Roadmap-Notizen
 stehen in [docs/design-rationale.md](docs/design-rationale.md).
