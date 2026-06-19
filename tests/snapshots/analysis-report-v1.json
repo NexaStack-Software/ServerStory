@@ -291,6 +291,12 @@
       },
       "hostCount": 0,
       "proxyKind": "none",
+      "calibration": {
+        "cache": "unknown",
+        "logSource": "unknown",
+        "exportComplete": "unknown",
+        "ga4MetricKind": "unknown"
+      },
       "exportCompleteness": "high"
     },
     "allowedClaims": [
@@ -326,6 +332,12 @@
     "unmatchedPaths": [],
     "duplicateCount": 0,
     "duplicatePaths": []
+  },
+  "calibration": {
+    "cache": "unknown",
+    "logSource": "unknown",
+    "exportComplete": "unknown",
+    "ga4MetricKind": "unknown"
   },
   "exportCompleteness": {
     "reliability": "high",
@@ -395,6 +407,12 @@
     "visits": "Keine starke Proxy-Verzerrung sichtbar.",
     "conversions": "Kaufseite erkannt und mit Google-Analytics-Käufen verglichen.",
     "ga4": "Vergleich ist nutzbar, wenn Zeitraum und Seitenauswahl wirklich gleich sind.",
+    "setup": {
+      "cache": "unknown",
+      "logSource": "unknown",
+      "exportComplete": "unknown",
+      "ga4MetricKind": "unknown"
+    },
     "hostScope": "Die Datei wirkt auf eine Website begrenzt.",
     "botAnomaly": "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."
   },

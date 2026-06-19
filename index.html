@@ -1195,6 +1195,49 @@
               </div>
             </details>
 
+            <details id="calibration-toggle" class="opt">
+              <summary>Optional: Setup kurz einordnen</summary>
+              <div class="ga4-fields">
+                <p class="helper">Wenn du es nicht sicher weißt, lass „Weiß ich nicht“ stehen. ServerStory wird dann vorsichtiger formulieren.</p>
+                <label>
+                  Sitzt Cloudflare, ein Cache oder ein Schutzdienst vor der Website?
+                  <select id="site-cache">
+                    <option value="unknown">Weiß ich nicht</option>
+                    <option value="none">Nein</option>
+                    <option value="yes">Ja</option>
+                  </select>
+                  <span class="helper">Ein Cache kann Seiten ausliefern, ohne dass jeder Aufruf in der normalen Server-Datei auftaucht.</span>
+                </label>
+                <label>
+                  Welche Datei wertest du aus?
+                  <select id="log-source">
+                    <option value="unknown">Weiß ich nicht</option>
+                    <option value="origin">Normale Server-Datei vom Hosting</option>
+                    <option value="edge">Cloudflare-/CDN-Datei</option>
+                  </select>
+                  <span class="helper">Eine Cloudflare-/CDN-Datei sieht auch Aufrufe, die eine normale Server-Datei wegen Cache verpassen kann.</span>
+                </label>
+                <label>
+                  Ist der Zeitraum vollständig exportiert?
+                  <select id="export-complete">
+                    <option value="unknown">Weiß ich nicht</option>
+                    <option value="yes">Ja</option>
+                    <option value="no">Nein / vielleicht fehlen Dateien</option>
+                  </select>
+                  <span class="helper">Wenn Stunden oder Teil-Dateien fehlen, dürfen die Zahlen nur als Ausschnitt gelesen werden.</span>
+                </label>
+                <label>
+                  Was hast du aus Google Analytics eingetragen?
+                  <select id="ga4-metric-kind">
+                    <option value="unknown">Weiß ich nicht</option>
+                    <option value="pageviews">Seitenaufrufe / Views</option>
+                    <option value="users_or_sessions">Nutzer oder Sitzungen</option>
+                  </select>
+                  <span class="helper">Für den Seitenvergleich braucht ServerStory Seitenaufrufe, nicht Nutzer oder Sitzungen.</span>
+                </label>
+              </div>
+            </details>
+
             <details id="advanced-toggle" class="opt">
               <summary>Optional: Feineinstellungen (eher für deine IT)</summary>
               <div class="ga4-fields">
@@ -2421,6 +2464,7 @@
 
       function readConfig() {
         const raw = id("success-url").value.trim();
+        const selectValue = (name, fallback) => id(name).value || fallback;
         return {
           successUrl: raw ? normalizePath(raw) : "",
           successPattern: id("success-pattern").value.trim(),
@@ -2435,12 +2479,25 @@
           suspiciousHitThreshold: number("bot-hit-threshold") || 100,
           suspiciousAssetShare: (number("bot-asset-share") === null ? 5 : number("bot-asset-share")) / 100,
           maxTrackedClients: number("tracking-cap") || 100000,
+          calibration: {
+            cache: selectValue("site-cache", "unknown"),
+            logSource: selectValue("log-source", "unknown"),
+            exportComplete: selectValue("export-complete", "unknown"),
+            ga4MetricKind: selectValue("ga4-metric-kind", "unknown")
+          },
           gzip: false,
           assetRe: ASSET_RE
         };
       }
 
       function buildResult(agg, config) {
+        const calibration = {
+          cache: "unknown",
+          logSource: "unknown",
+          exportComplete: "unknown",
+          ga4MetricKind: "unknown",
+          ...(config.calibration || {})
+        };
         const chosen = compareUrls();
         const tableRows = buildRows(agg.pathCounts, chosen);
         const hosts = { total: agg.hostCounts ? agg.hostCounts.size : 0, top: agg.hostCounts ? topEntries(agg.hostCounts, 5) : [] };
@@ -2485,7 +2542,6 @@
         const analyzableRows = Math.max(0, agg.total - (agg.meta || 0));
         const recognitionRate = analyzableRows ? agg.parsed / analyzableRows : 0;
         const chronologyIssue = agg.timeRegressions >= 5 && agg.parsed && agg.timeRegressions / agg.parsed >= 0.01;
-        const cacheRisk = proxyKind ? "elevated" : "normal";
         const hostReliability = hosts.total > 1 && !(config.hostFilter && config.hostFilter.filter(Boolean).length) ? "limited" : "high";
         const isLegacyArchive = agg.formatKind === "legacy_http_archive";
         const visitorReliability = isLegacyArchive
@@ -2495,9 +2551,14 @@
           : (proxyKind ? "limited" : (chronologyIssue ? "medium" : "high"));
         const edgeKinds = new Set(["cloudflare", "cloudfront", "fastly", "akamai"]);
         const structuredKinds = new Set([...edgeKinds, "iis", "legacy_http_archive"]);
+        const userSaysCache = calibration.cache === "yes";
+        const userSaysEdgeLog = calibration.logSource === "edge";
+        const userSaysOriginLog = calibration.logSource === "origin";
+        const userSaysIncompleteExport = calibration.exportComplete === "no";
+        const ga4MetricMismatch = calibration.ga4MetricKind === "users_or_sessions";
         const pageviewReliability = recognitionRate >= 0.95 && (agg.formatKind === "combined" || structuredKinds.has(agg.formatKind)) ? "high" : recognitionRate >= 0.8 ? "medium" : "limited";
         const ga4InputProblem = ga4Validation.duplicateCount > 0 || (ga4Validation.unmatchedRows > 0 && ga4Validation.unmatchedShare >= 0.5);
-        const ga4Reliability = lastGa4Import.warning || ga4InputProblem ? "limited" : (ga4Rows.length && pageviewReliability !== "limited" ? (isLegacyArchive ? "limited" : "medium") : "limited");
+        const ga4Reliability = lastGa4Import.warning || ga4InputProblem || ga4MetricMismatch ? "limited" : (ga4Rows.length && pageviewReliability !== "limited" ? (isLegacyArchive ? "limited" : "medium") : "limited");
         const conversionReliability = config.hasSuccessUrl
           ? (isLegacyArchive ? "medium" : (config.orderParam ? "high" : (agg.successRaw > agg.success * 1.25 ? "medium" : "high")))
           : "none";
@@ -2511,8 +2572,10 @@
           visitorHigh = Math.max(visitorLow, Math.round(agg.visits * 1.2));
         }
         const botReliability = isLegacyArchive ? "limited" : (agg.suspiciousClients > 0 ? "medium" : "high");
-        const isEdgeLog = edgeKinds.has(agg.formatKind);
-        const originCacheRisk = !!(proxyKind && !isEdgeLog);
+        const isEdgeLog = edgeKinds.has(agg.formatKind) || userSaysEdgeLog;
+        const manualOriginCacheRisk = userSaysCache && !userSaysEdgeLog && (userSaysOriginLog || !edgeKinds.has(agg.formatKind));
+        const originCacheRisk = !!((proxyKind && !isEdgeLog) || manualOriginCacheRisk);
+        const cacheRisk = originCacheRisk || userSaysCache ? "elevated" : "normal";
         const conflicts = [];
         const addConflict = (id, severity, text, check, blocks = []) => conflicts.push({ id, severity, text, check, blocks });
         if (overall && overall.coverage !== null && overall.coverage > 110 && originCacheRisk) {
@@ -2551,6 +2614,15 @@
             ["ga4_decision"]
           );
         }
+        if (overall && ga4MetricMismatch) {
+          addConflict(
+            "ga4_metric_not_pageviews",
+            "high",
+            "Die eingetragene Google-Analytics-Zahl ist als Nutzer oder Sitzungen markiert. Für den Seitenvergleich braucht ServerStory Seitenaufrufe.",
+            "Google Analytics neu exportieren: Seitenaufrufe/Views nach Seite verwenden.",
+            ["ga4_decision", "tracking_loss_claim"]
+          );
+        }
         if (ga4Conversions !== null && config.hasSuccessUrl && ga4Conversions > agg.successRaw) {
           addConflict(
             "ga4_purchases_exceed_server_success_page",
@@ -2584,8 +2656,9 @@
           ...(!agg.minTime || !agg.maxTime ? [{ level: "limited", text: "Zeitraum konnte aus der Datei nicht sicher gelesen werden.", check: "Export mit Zeitstempeln verwenden." }] : []),
           ...(durationHours > 0 && durationHours < 1 ? [{ level: "medium", text: "Der Export deckt weniger als eine Stunde ab.", check: "Prüfen, ob der gewünschte Zeitraum vollständig exportiert wurde." }] : []),
           ...(agg.maxGapMs >= 6 * 60 * 60 * 1000 ? [{ level: "medium", text: `Große Lücke von ${Math.round(agg.maxGapMs / 3600000)} Stunden gefunden.`, check: "Prüfen, ob im Export Stunden oder Teil-Dateien fehlen." }] : []),
+          ...(userSaysIncompleteExport ? [{ level: "limited", text: "Du hast angegeben, dass der Export vermutlich nicht vollständig ist.", check: "Vollständigen Zeitraum oder alle Teil-Dateien exportieren." }] : []),
           ...(hostReliability === "limited" ? [{ level: "medium", text: "Mehrere Websites oder Subdomains in derselben Datei.", check: "Website-Filter setzen oder passende Datei exportieren." }] : []),
-          ...(originCacheRisk ? [{ level: "medium", text: "Cache oder Proxy kann Aufrufe vor dieser Server-Datei abfangen.", check: "Prüfen, ob ein CDN-/Cache-Export verfügbar ist." }] : []),
+          ...(originCacheRisk ? [{ level: "medium", text: userSaysCache ? "Du hast angegeben, dass ein Cache oder Schutzdienst vor der Website sitzt. Diese Server-Datei kann dadurch Aufrufe verpassen." : "Cache oder Proxy kann Aufrufe vor dieser Server-Datei abfangen.", check: "Prüfen, ob eine Cloudflare-/CDN-Datei verfügbar ist." }] : []),
           ...(isLegacyArchive ? [{ level: "medium", text: "Altes Archivformat ohne Browserkennung erkannt.", check: "Besucher-, Bot- und Conversion-Aussagen nur als grobe Plausibilitätswerte nutzen." }] : []),
           ...(recognitionRate < 0.8 ? [{ level: "limited", text: `Nur ${percent(recognitionRate * 100)} der Datei konnte gelesen werden.`, check: "Exportformat prüfen." }] : (recognitionRate < 0.95 ? [{ level: "medium", text: `${percent(recognitionRate * 100)} der Datei wurde gelesen.`, check: "Exportformat prüfen." }] : [])),
           ...(filterShare >= 0.75 ? [{ level: "limited", text: "Sehr viele Zeilen wurden aussortiert.", check: "Prüfen, ob die Datei wirklich Besucheraufrufe enthält." }] : (filterShare >= 0.5 ? [{ level: "medium", text: "Viele Zeilen wurden aussortiert.", check: "Filtergründe prüfen." }] : []))
@@ -2705,6 +2778,7 @@
             blockingReasons: [
               ...(exportCompleteness.reliability === "limited" ? ["Der Server-Export ist nicht vollständig genug für einen belastbaren Google-Analytics-Vergleich."] : []),
               ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; Google-Analytics-Vergleiche sind nur eingeschränkt belastbar."] : []),
+              ...(ga4MetricMismatch ? ["Die eingetragene Google-Analytics-Zahl ist nicht als Seitenaufruf-Zahl bestätigt."] : []),
               ...(lastGa4Import.warning ? [lastGa4Import.warning] : []),
               ...(!overall ? ["Keine Google-Analytics-Seitenzahlen eingetragen."] : []),
               ...(hostReliability === "limited" ? ["Die Server-Datei enthält mehrere Websites oder Subdomains."] : []),
@@ -2716,6 +2790,7 @@
               ...(isLegacyArchive ? ["Bei Archivlogs keinen modernen Google-Analytics-Trackingverlust ableiten."] : []),
               "Zeitraum in Google Analytics und Server-Datei abgleichen.",
               "Prüfen, ob wirklich Seitenaufrufe aus Google Analytics eingetragen wurden.",
+              ...(ga4MetricMismatch ? ["Google Analytics neu exportieren: Seitenaufrufe/Views nach Seite verwenden."] : []),
               ...(hostReliability === "limited" ? ["Website-Filter setzen."] : []),
               ...conflicts.filter((conflict) => conflict.blocks.includes("ga4_decision") || conflict.blocks.includes("tracking_loss_claim")).map((conflict) => conflict.check)
             ],
@@ -2800,6 +2875,7 @@
             ...(!overall ? ["Keine Google-Analytics-Seitenaufrufe für einen Vergleich vorhanden."] : []),
             ...(lastGa4Import.warning ? [lastGa4Import.warning] : []),
             ...(ga4InputProblem ? ["Der Google-Analytics-Export enthält Duplikate oder viele Seiten ohne Treffer in der Server-Datei."] : []),
+            ...(ga4MetricMismatch ? ["Die eingetragene Google-Analytics-Zahl ist als Nutzer oder Sitzungen markiert, nicht als Seitenaufrufe."] : []),
             ...(hostReliability === "limited" ? ["Die Server-Datei enthält mehrere Websites oder Subdomains."] : []),
             ...(pageviewReliability === "limited" ? ["Die Server-Datei wurde nicht zuverlässig genug gelesen."] : []),
             ...(exportCompleteness.reliability === "limited" ? ["Der Server-Export ist nicht vollständig genug für einen belastbaren Google-Analytics-Vergleich."] : []),
@@ -2862,6 +2938,7 @@
             },
             hostCount: hosts.total,
             proxyKind: proxyKind || "none",
+            calibration,
             exportCompleteness: exportCompleteness.reliability
           },
           allowedClaims: Object.entries(claimMatrix).filter(([, claim]) => claim.status === "allowed").map(([key]) => key),
@@ -2891,6 +2968,7 @@
           auditProtocol,
           conflicts,
           ga4Validation,
+          calibration,
           exportCompleteness,
           ga4Import: lastGa4Import,
           diagnostics: { recognitionRate, pageviewReliability, visitorReliability, ga4Reliability, conversionReliability, cacheRisk, chronologyIssue, botReliability, hostReliability, exportCompletenessReliability, trackingReliability: agg.trackingCapped ? "medium" : "high" },
@@ -2949,6 +3027,7 @@
         if (metric === "ga4") {
           if (data.ga4Import && data.ga4Import.warning) return data.ga4Import.warning;
           if (!hasGa4) return "Keine Google-Analytics-Seitenzahlen eingetragen.";
+          if (data.calibration && data.calibration.ga4MetricKind === "users_or_sessions") return "Für diesen Vergleich wurden Nutzer oder Sitzungen markiert. Bitte Seitenaufrufe aus Google Analytics verwenden.";
           if (data.evidence && data.evidence.ga4 && !data.evidence.ga4.canAnswer) return data.evidence.ga4.reason;
           if (data.diagnostics.ga4Reliability === "medium") return "Vergleich ist nutzbar, wenn Zeitraum und Seitenauswahl wirklich gleich sind.";
           return "Vergleich nur eingeschränkt nutzbar. Prüfe Zeitraum, Seiten und ob in Google Analytics wirklich Seitenaufrufe stehen.";
@@ -2958,6 +3037,7 @@
           return "Die Datei wirkt auf eine Website begrenzt.";
         }
         if (metric === "export") {
+          if (data.calibration && data.calibration.exportComplete === "no") return "Du hast angegeben, dass der Export vermutlich nicht vollständig ist. Zahlen nur als Ausschnitt lesen.";
           if (!data.exportCompleteness || data.exportCompleteness.reliability === "high") return "Zeitraum, Lesbarkeit und Filterquote wirken plausibel.";
           return data.exportCompleteness.reasons.slice(0, 2).join(" ");
         }
@@ -3036,6 +3116,14 @@
           limits.push("Besucheradressen wirken durch Cache oder Zwischenstation verdeckt.");
           next.push("Falls Cloudflare, Proxy oder Cache davor sitzt: echte Besucheradresse aktivieren und erneut auswerten.");
         }
+        if (data.calibration && data.calibration.cache === "yes" && data.calibration.logSource !== "edge") {
+          limits.push("Ein Cache oder Schutzdienst kann Aufrufe aus dieser Server-Datei heraushalten.");
+          next.push("Wenn möglich eine Cloudflare-/CDN-Datei für denselben Zeitraum auswerten.");
+        }
+        if (data.calibration && data.calibration.exportComplete === "no") {
+          limits.push("Der Export ist vermutlich unvollständig.");
+          next.push("Vollständigen Zeitraum oder alle Teil-Dateien exportieren und erneut auswerten.");
+        }
         if (data.diagnostics.pageviewReliability !== "high") {
           next.push("Prüfen, ob die Datei wirklich eine vollständige Server-Besuchsliste ist.");
         }
@@ -3045,6 +3133,9 @@
         }
         if (hasGa4 && data.ga4Import && data.ga4Import.warning) {
           next.push("Google-Analytics-Export neu holen: Seitenaufrufe verwenden, nicht Nutzer oder Sitzungen.");
+        } else if (hasGa4 && data.calibration && data.calibration.ga4MetricKind === "users_or_sessions") {
+          limits.push("Die eingetragene Google-Zahl ist für diesen Vergleich die falsche Zahl.");
+          next.push("Google Analytics neu exportieren: Seitenaufrufe nach Seite verwenden.");
         } else if (hasGa4) {
           next.push("In Google Analytics denselben Zeitraum und dieselbe Website prüfen.");
         } else {
@@ -3493,6 +3584,7 @@
           auditProtocol: lastResult.auditProtocol,
           conflicts: lastResult.conflicts,
           ga4Validation: lastResult.ga4Validation,
+          calibration: lastResult.calibration,
           exportCompleteness: lastResult.exportCompleteness,
           xForwardedFor: {
             used: lastResult.xffUsed,
@@ -3524,6 +3616,7 @@
             visits: qualityReason(lastResult, "visits", !!(lastResult.overall && lastResult.overall.coverage !== null)),
             conversions: qualityReason(lastResult, "purchases", !!(lastResult.overall && lastResult.overall.coverage !== null)),
             ga4: qualityReason(lastResult, "ga4", !!(lastResult.overall && lastResult.overall.coverage !== null)),
+            setup: lastResult.calibration,
             hostScope: lastResult.diagnostics.hostReliability === "limited" ? `Mehrere Websites/Subdomains erkannt (${format(lastResult.hosts.total)}). Filter empfohlen, sonst kann der Vergleich fremde Seiten enthalten.` : "Die Datei wirkt auf eine Website begrenzt.",
             botAnomaly: lastResult.suspiciousClients ? `${format(lastResult.suspiciousClients)} auffaellige Muster mit Bot-/Monitoring-Verdacht.` : "Keine starke Bot-/Monitoring-Auffaelligkeit sichtbar."
           },

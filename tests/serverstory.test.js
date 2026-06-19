@@ -277,7 +277,7 @@ function assertAnalysisReportSchema(report) {
   for (const key of [
     "schema", "schemaVersion", "generatedAt", "format", "totals", "quality", "timeRange",
     "evidence", "evidenceFailures", "claims", "claimMatrix", "guidedDiagnosis", "auditProtocol",
-    "conflicts", "ga4Validation", "exportCompleteness", "parser", "accuracyNotes", "topPages"
+    "conflicts", "ga4Validation", "calibration", "exportCompleteness", "parser", "accuracyNotes", "topPages"
   ]) {
     assert.ok(Object.prototype.hasOwnProperty.call(report, key), `report.${key}`);
   }
@@ -352,6 +352,10 @@ function assertAnalysisReportSchema(report) {
   for (const key of ["rows", "unmatchedRows", "duplicateCount"]) assert.strictEqual(Number.isFinite(report.ga4Validation[key]), true, key);
   assert.ok(Array.isArray(report.ga4Validation.unmatchedPaths));
   assert.ok(Array.isArray(report.ga4Validation.duplicatePaths));
+  assert.ok(report.calibration);
+  for (const key of ["cache", "logSource", "exportComplete", "ga4MetricKind"]) {
+    assert.strictEqual(typeof report.calibration[key], "string", `calibration.${key}`);
+  }
   for (const key of ["dataRows", "metaRows", "unrecognizedRows"]) assert.strictEqual(Number.isFinite(report.parser[key]), true, key);
   assert.ok(Array.isArray(report.parser.statusCounts));
   assert.ok(Array.isArray(report.parser.methodCounts));
@@ -2220,6 +2224,60 @@ test("Copy-Report verschweigt Chronologie- und Recognition-Risiken nicht", async
   assert.strictEqual(brokenReport.quality.pageviewReliability, "limited");
   assert.strictEqual(brokenReport.claims.pageViews.claimAllowed, false);
   assert.match(brokenReport.claims.pageViews.forbiddenConclusions.join(" "), /Keine harte Aussage/i);
+});
+
+test("Setup-Kalibrierung verhindert falsche Sicherheit bei Cache, Export und Google-Zahl", async () => {
+  const large = createLargeGoldenCorpus("combined");
+  const originBehindCache = await copyReportFor(buildResultFor(large.text, {
+    calibration: {
+      cache: "yes",
+      logSource: "origin",
+      exportComplete: "unknown",
+      ga4MetricKind: "unknown"
+    }
+  }, {
+    "ga4-url-views": { value: "/landing,2500\n/checkout/danke,300" }
+  }));
+  assert.strictEqual(originBehindCache.calibration.cache, "yes");
+  assert.strictEqual(originBehindCache.calibration.logSource, "origin");
+  assert.strictEqual(originBehindCache.quality.cacheRisk, "elevated");
+  assert.strictEqual(originBehindCache.evidence.pageViews.type, "lower_bound");
+  assert.match(originBehindCache.evidenceFailures.pageViews.join(" "), /Cache|Schutzdienst|Aufrufe/i);
+  assert.match(originBehindCache.claimMatrix.pageViews.reason, /Cache|Schutzdienst|Aufrufe/i);
+  assert.match(originBehindCache.claims.pageViews.forbiddenConclusions.join(" "), /alle Aufrufe/i);
+  assert.match(originBehindCache.guidedDiagnosis.limits.join(" "), /Cache|Schutzdienst/i);
+
+  const incomplete = await copyReportFor(buildResultFor(large.text, {
+    calibration: {
+      cache: "unknown",
+      logSource: "unknown",
+      exportComplete: "no",
+      ga4MetricKind: "unknown"
+    }
+  }));
+  assert.strictEqual(incomplete.calibration.exportComplete, "no");
+  assert.strictEqual(incomplete.exportCompleteness.reliability, "limited");
+  assert.match(incomplete.exportCompleteness.reasons.join(" "), /nicht vollständig/i);
+  assert.strictEqual(incomplete.claimMatrix.pageViews.allowed, false);
+  assert.match(incomplete.claimMatrix.pageViews.reason, /nicht vollständig/i);
+  assert.match(incomplete.auditProtocol.requiredChecks.join(" "), /Vollständigen Zeitraum|Teil-Dateien/i);
+
+  const wrongGoogleNumber = await copyReportFor(buildResultFor(baselineCombined, {
+    calibration: {
+      cache: "unknown",
+      logSource: "unknown",
+      exportComplete: "unknown",
+      ga4MetricKind: "users_or_sessions"
+    }
+  }, {
+    "ga4-url-views": { value: "/preise,2\n/checkout/danke,2" }
+  }));
+  assert.strictEqual(wrongGoogleNumber.calibration.ga4MetricKind, "users_or_sessions");
+  assert.strictEqual(wrongGoogleNumber.quality.ga4Reliability, "limited");
+  assert.strictEqual(wrongGoogleNumber.claimMatrix.ga4.status, "blocked");
+  assert.match(wrongGoogleNumber.evidenceFailures.ga4.join(" "), /Nutzer|Sitzungen|Seitenaufrufe/i);
+  assert.match(wrongGoogleNumber.accuracyNotes.ga4, /Nutzer|Sitzungen|Seitenaufrufe/i);
+  assert.match(wrongGoogleNumber.auditProtocol.requiredChecks.join(" "), /Seitenaufrufe\/Views/i);
 });
 
 test("Analyse-Protokoll v1 bleibt snapshot-stabil", async () => {

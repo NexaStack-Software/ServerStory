@@ -124,6 +124,49 @@
               </div>
             </details>
 
+            <details id="calibration-toggle" class="opt">
+              <summary>Optional: Setup kurz einordnen</summary>
+              <div class="ga4-fields">
+                <p class="helper">Wenn du es nicht sicher weißt, lass „Weiß ich nicht“ stehen. ServerStory wird dann vorsichtiger formulieren.</p>
+                <label>
+                  Sitzt Cloudflare, ein Cache oder ein Schutzdienst vor der Website?
+                  <select id="site-cache">
+                    <option value="unknown">Weiß ich nicht</option>
+                    <option value="none">Nein</option>
+                    <option value="yes">Ja</option>
+                  </select>
+                  <span class="helper">Ein Cache kann Seiten ausliefern, ohne dass jeder Aufruf in der normalen Server-Datei auftaucht.</span>
+                </label>
+                <label>
+                  Welche Datei wertest du aus?
+                  <select id="log-source">
+                    <option value="unknown">Weiß ich nicht</option>
+                    <option value="origin">Normale Server-Datei vom Hosting</option>
+                    <option value="edge">Cloudflare-/CDN-Datei</option>
+                  </select>
+                  <span class="helper">Eine Cloudflare-/CDN-Datei sieht auch Aufrufe, die eine normale Server-Datei wegen Cache verpassen kann.</span>
+                </label>
+                <label>
+                  Ist der Zeitraum vollständig exportiert?
+                  <select id="export-complete">
+                    <option value="unknown">Weiß ich nicht</option>
+                    <option value="yes">Ja</option>
+                    <option value="no">Nein / vielleicht fehlen Dateien</option>
+                  </select>
+                  <span class="helper">Wenn Stunden oder Teil-Dateien fehlen, dürfen die Zahlen nur als Ausschnitt gelesen werden.</span>
+                </label>
+                <label>
+                  Was hast du aus Google Analytics eingetragen?
+                  <select id="ga4-metric-kind">
+                    <option value="unknown">Weiß ich nicht</option>
+                    <option value="pageviews">Seitenaufrufe / Views</option>
+                    <option value="users_or_sessions">Nutzer oder Sitzungen</option>
+                  </select>
+                  <span class="helper">Für den Seitenvergleich braucht ServerStory Seitenaufrufe, nicht Nutzer oder Sitzungen.</span>
+                </label>
+              </div>
+            </details>
+
             <details id="advanced-toggle" class="opt">
               <summary>Optional: Feineinstellungen (eher für deine IT)</summary>
               <div class="ga4-fields">
