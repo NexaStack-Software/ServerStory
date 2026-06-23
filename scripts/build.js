@@ -9,6 +9,7 @@ const scriptPath = path.join(srcDir, "app.js");
 const stylePath = path.join(srcDir, "styles.css");
 const templatePath = path.join(srcDir, "index.template.html");
 const moduleFiles = [
+  "00-i18n.js",
   "01-core.js",
   "02-ga4.js",
   "04-parser-aggregator.js",

@@ -170,6 +170,17 @@ Damit die globale Kopplung nicht still wächst, enthalten die Moduldateien
 Eine spätere Umstellung auf echte ES-Module bleibt möglich, muss aber den Offline-Start,
 den Inline-Worker und die VM-basierten Tests gemeinsam lösen.
 
+## Internationalisierung
+
+Die App ist als eine Codebasis mit Sprachumschalter aufgebaut. `src/modules/00-i18n.js`
+enthält die Übersetzungstabelle, `t()` für dynamische Texte und `data-i18n`-Attribute
+für statische UI-Elemente. Die Standardsprache richtet sich nach der Browsersprache;
+eine manuelle Auswahl (`DE`/`EN`) wird in `localStorage` gespeichert.
+
+Maschinenlesbare Report-Felder, Statuswerte und Claim-IDs bleiben sprachneutral stabil.
+Sichtbare UI-Texte werden lokalisiert; fachliche Reporttexte können später schrittweise
+zusätzlich sprachabhängig ausgegeben werden, ohne das Schema zu brechen.
+
 ## Report-Schema
 
 Das Analyse-Protokoll ist versioniert als `serverstory.analysis.v1`. Tests validieren

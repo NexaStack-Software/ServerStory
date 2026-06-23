@@ -1,4 +1,5 @@
 
+      // @requires currentLang, t
       // @provides sample, sampleMode, analyzed, lastResult, lastGa4Import, ASSET_RE, id, number, format, percent, signed, kauf, escapeHtml, normalizePath, compareUrls, parseMetricNumber, splitMetricLine
 
 
@@ -43,11 +44,12 @@
       }
       function format(value) {
         if (value === null || value === undefined || Number.isNaN(value)) return "-";
-        return new Intl.NumberFormat("de-DE").format(value);
+        return new Intl.NumberFormat(currentLang === "en" ? "en-US" : "de-DE").format(value);
       }
       function percent(value) {
         if (value === null || value === undefined || Number.isNaN(value)) return "-";
-        return `${Number(value).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+        const locale = currentLang === "en" ? "en-US" : "de-DE";
+        return `${Number(value).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
       }
       function signed(value) {
         if (value === null || value === undefined || Number.isNaN(value)) return "-";
@@ -57,7 +59,7 @@
       }
       function kauf(n) {
         if (n === null || n === undefined || Number.isNaN(n)) return "-";
-        return n === 1 ? "1 Kauf" : `${format(n)} Käufe`;
+        return n === 1 ? t("purchase.singular") : t("purchase.plural", { count: format(n) });
       }
       function escapeHtml(value) {
         return String(value)

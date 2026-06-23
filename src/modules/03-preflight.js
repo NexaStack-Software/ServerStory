@@ -1,11 +1,11 @@
-      // @requires id, percent, ASSET_RE, makeAggregator, topEntries
+      // @requires id, percent, ASSET_RE, makeAggregator, topEntries, t
       // @provides zeitraumText, formatDateTime, preflightLogSample
 
       function zeitraumText() {
         const from = id("date-from").value;
         const to = id("date-to").value;
-        if (!from && !to) return "deiner Datei";
-        return `${from || "Anfang"} bis ${to || "Ende"}`;
+        if (!from && !to) return t("range.file");
+        return t("range.fromTo", { from: from || t("range.start"), to: to || t("range.end") });
       }
       function formatDateTime(ms) {
         if (!ms) return "-";

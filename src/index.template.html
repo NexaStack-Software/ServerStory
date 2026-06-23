@@ -26,154 +26,160 @@
     <header class="topbar">
       <div class="topbar-inner">
         <div class="logo"><img src="serverstory-logo.png" alt="ServerStory"></div>
-        <div class="topnote">Läuft nur in deinem Browser — deine Datei wird nirgendwohin hochgeladen</div>
+        <div class="topbar-actions">
+          <div class="topnote" data-i18n="topnote">Läuft nur in deinem Browser — deine Datei wird nirgendwohin hochgeladen</div>
+          <div class="language-switcher" aria-label="Sprache" data-i18n-aria="language.label">
+            <button type="button" data-lang-button="de">DE</button>
+            <button type="button" data-lang-button="en">EN</button>
+          </div>
+        </div>
       </div>
     </header>
 
     <main>
       <section class="hero">
         <div class="hero-main">
-          <div class="kicker">Finde es in drei Minuten selbst heraus</div>
-          <h1>Wieviele Besuche hatte deine Website <span>wirklich?</span></h1>
-          <p class="lead">ServerStory liest die Besuchsliste deines Webservers (der Computer, auf dem deine Website läuft) und zeigt dir, welche Seiten wie oft aufgerufen wurden und ungefähr, wie viele Besucher du hattest — auch die, die ein Tracking-Tool wegen Cookie-Banner oder Ad-Blocker verpasst. Du siehst:</p>
+          <div class="kicker" data-i18n="hero.kicker">Finde es in drei Minuten selbst heraus</div>
+          <h1 data-i18n="hero.title" data-i18n-mode="html">Wieviele Besuche hatte deine Website <span>wirklich?</span></h1>
+          <p class="lead" data-i18n="hero.lead1">ServerStory liest die Besuchsliste deines Webservers (der Computer, auf dem deine Website läuft) und zeigt dir, welche Seiten wie oft aufgerufen wurden und ungefähr, wie viele Besucher du hattest — auch die, die ein Tracking-Tool wegen Cookie-Banner oder Ad-Blocker verpasst. Du siehst:</p>
           <ul class="lead-points">
-            <li>Seitenaufrufe — direkt vom Server gezählt</li>
-            <li>Welche deiner Seiten am meisten besucht wurde</li>
-            <li>Die Differenz zwischen den Seitenaufrufen auf deinem Server und denen laut Google Analytics</li>
+            <li data-i18n="hero.point1">Seitenaufrufe — direkt vom Server gezählt</li>
+            <li data-i18n="hero.point2">Welche deiner Seiten am meisten besucht wurde</li>
+            <li data-i18n="hero.point3">Die Differenz zwischen den Seitenaufrufen auf deinem Server und denen laut Google Analytics</li>
           </ul>
-          <p class="lead">Warum du das brauchst? Weil du so eine zusätzliche Perspektive auf deinen Traffic bekommst und damit noch genauer beurteilen kannst, wie viele Sitzungen und Conversions du tatsächlich hattest.</p>
+          <p class="lead" data-i18n="hero.lead2">Warum du das brauchst? Weil du so eine zusätzliche Perspektive auf deinen Traffic bekommst und damit noch genauer beurteilen kannst, wie viele Sitzungen und Conversions du tatsächlich hattest.</p>
         </div>
 
         <aside class="hero-action">
-          <h2 class="section-title">Datei prüfen</h2>
+          <h2 class="section-title" data-i18n="upload.title">Datei prüfen</h2>
 
           <div class="steps">
             <label>
-              Besuchsliste vom Webserver auswählen
+              <span data-i18n="upload.fileLabel">Besuchsliste vom Webserver auswählen</span>
               <input id="log-file" type="file" accept=".log,.txt,.gz">
-              <span class="helper">Datei-Endung meist .log, .txt oder .gz. Große Dateien werden mit Fortschrittsanzeige verarbeitet, ohne den Browser einzufrieren.</span>
+              <span class="helper" data-i18n="upload.fileHelp">Datei-Endung meist .log, .txt oder .gz. Große Dateien werden mit Fortschrittsanzeige verarbeitet, ohne den Browser einzufrieren.</span>
             </label>
-            <button id="run" type="button">Jetzt auswerten</button>
-            <button id="preflight" class="secondary" type="button">Datei kurz prüfen</button>
+            <button id="run" type="button" data-i18n="button.run">Jetzt auswerten</button>
+            <button id="preflight" class="secondary" type="button" data-i18n="button.preflight">Datei kurz prüfen</button>
             <div id="progress" class="progress hidden" role="progressbar" aria-live="polite">
               <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
-              <span id="progress-label" class="progress-label">Wird ausgewertet …</span>
+              <span id="progress-label" class="progress-label" data-i18n="progress.idle">Wird ausgewertet …</span>
             </div>
 
             <div class="divider"></div>
 
-            <button id="copy-it" class="secondary" type="button">Text für deine IT/Agentur kopieren</button>
-            <button id="copy-hoster" class="secondary" type="button">Text für deinen Hoster kopieren</button>
-            <button id="sample" class="secondary" type="button">Demo mit Beispieldaten starten</button>
+            <button id="copy-it" class="secondary" type="button" data-i18n="button.copyIt">Text für deine IT/Agentur kopieren</button>
+            <button id="copy-hoster" class="secondary" type="button" data-i18n="button.copyHoster">Text für deinen Hoster kopieren</button>
+            <button id="sample" class="secondary" type="button" data-i18n="button.sample">Demo mit Beispieldaten starten</button>
 
             <details class="opt">
-              <summary>Optional: Zeitraum &amp; Seiten eingrenzen</summary>
+              <summary data-i18n="opt.scope">Optional: Zeitraum &amp; Seiten eingrenzen</summary>
               <div class="ga4-fields">
                 <div class="two">
                   <label>
-                    Von
+                    <span data-i18n="label.from">Von</span>
                     <input id="date-from" type="date">
                   </label>
                   <label>
-                    Bis
+                    <span data-i18n="label.to">Bis</span>
                     <input id="date-to" type="date">
                   </label>
                 </div>
                 <label>
-                  Bestimmte Seiten ansehen
+                  <span data-i18n="label.compareUrls">Bestimmte Seiten ansehen</span>
                   <textarea id="compare-urls" rows="3" placeholder="/preise&#10;/warenkorb&#10;/bestellung/danke"></textarea>
-                  <span class="helper">Eine Web-Adresse pro Zeile. Leer lassen — dann zeigt ServerStory automatisch deine meistbesuchten Seiten.</span>
+                  <span class="helper" data-i18n="help.compareUrls">Eine Web-Adresse pro Zeile. Leer lassen — dann zeigt ServerStory automatisch deine meistbesuchten Seiten.</span>
                 </label>
                 <label>
-                  Website eingrenzen
+                  <span data-i18n="label.hostFilter">Website eingrenzen</span>
                   <input id="host-filter" placeholder="www.example.de, shop.example.de">
-                  <span class="helper">Optional. Sinnvoll, wenn die Datei mehrere Websites oder Subdomains enthält.</span>
+                  <span class="helper" data-i18n="help.hostFilter">Optional. Sinnvoll, wenn die Datei mehrere Websites oder Subdomains enthält.</span>
                 </label>
               </div>
             </details>
 
             <details id="ga4-toggle" class="opt">
-              <summary>Optional: Mit Google Analytics vergleichen</summary>
+              <summary data-i18n="opt.ga4">Optional: Mit Google Analytics vergleichen</summary>
               <div class="ga4-fields">
-                <p class="helper">Nur ausfüllen, wenn du die Server-Zahlen direkt deinen Google-Analytics-Zahlen gegenüberstellen willst. Sonst einfach zuklappen lassen.</p>
+                <p class="helper" data-i18n="help.ga4Intro">Nur ausfüllen, wenn du die Server-Zahlen direkt deinen Google-Analytics-Zahlen gegenüberstellen willst. Sonst einfach zuklappen lassen.</p>
                 <label>
-                  Google-Analytics-Zahlen pro Seite
+                  <span data-i18n="label.ga4Rows">Google-Analytics-Zahlen pro Seite</span>
                   <textarea id="ga4-url-views" rows="3" placeholder="/preise,840&#10;/warenkorb,290&#10;/bestellung/danke,120"></textarea>
-                  <span class="helper">Eine Seite pro Zeile, danach die Google-Analytics-Zahl. Beispiel: /preise,840. Semikolon, Tabs und deutsche Tausenderpunkte sind okay.</span>
+                  <span class="helper" data-i18n="help.ga4Rows">Eine Seite pro Zeile, danach die Google-Analytics-Zahl. Beispiel: /preise,840. Semikolon, Tabs und deutsche Tausenderpunkte sind okay.</span>
                 </label>
                 <label>
-                  Danke-Seite nach dem Kauf
+                  <span data-i18n="label.successUrl">Danke-Seite nach dem Kauf</span>
                   <input id="success-url" placeholder="/bestellung/danke">
-                  <span class="helper">Die Seite, die nur nach einer echten Bestellung erscheint. Nötig, wenn du Käufe prüfen willst.</span>
+                  <span class="helper" data-i18n="help.successUrl">Die Seite, die nur nach einer echten Bestellung erscheint. Nötig, wenn du Käufe prüfen willst.</span>
                 </label>
                 <label>
-                  Kauf-URL-Muster
+                  <span data-i18n="label.successPattern">Kauf-URL-Muster</span>
                   <input id="success-pattern" placeholder="/bestellung/*">
-                  <span class="helper">Optional. Schreib ein Sternchen (*) als Lückenfüller, wenn mehrere Danke-Seiten zählen sollen.</span>
+                  <span class="helper" data-i18n="help.successPattern">Optional. Schreib ein Sternchen (*) als Lückenfüller, wenn mehrere Danke-Seiten zählen sollen.</span>
                 </label>
                 <label>
-                  Bestellnummer-Parameter
+                  <span data-i18n="label.orderParam">Bestellnummer-Parameter</span>
                   <input id="order-param" placeholder="order_id">
-                  <span class="helper">Optional. Wenn die Danke-URL eine eindeutige Bestellnummer enthält, zählt ServerStory jeden Kauf nur einmal — auch wenn die Danke-Seite neu geladen wurde.</span>
+                  <span class="helper" data-i18n="help.orderParam">Optional. Wenn die Danke-URL eine eindeutige Bestellnummer enthält, zählt ServerStory jeden Kauf nur einmal — auch wenn die Danke-Seite neu geladen wurde.</span>
                 </label>
                 <label>
-                  Käufe laut Google Analytics
+                  <span data-i18n="label.ga4Conversions">Käufe laut Google Analytics</span>
                   <input id="ga4-conversions" type="number" min="0" placeholder="120">
-                  <span class="helper">Wie viele Käufe meldet Google Analytics im selben Zeitraum?</span>
+                  <span class="helper" data-i18n="help.ga4Conversions">Wie viele Käufe meldet Google Analytics im selben Zeitraum?</span>
                 </label>
               </div>
             </details>
 
             <details id="calibration-toggle" class="opt">
-              <summary>Optional: Setup kurz einordnen</summary>
+              <summary data-i18n="opt.calibration">Optional: Setup kurz einordnen</summary>
               <div class="ga4-fields">
-                <p class="helper">Wenn du es nicht sicher weißt, lass „Weiß ich nicht“ stehen. ServerStory wird dann vorsichtiger formulieren.</p>
+                <p class="helper" data-i18n="help.calibrationIntro">Wenn du es nicht sicher weißt, lass „Weiß ich nicht“ stehen. ServerStory wird dann vorsichtiger formulieren.</p>
                 <label>
-                  Woher kommt die Datei ungefähr?
+                  <span data-i18n="label.logPreset">Woher kommt die Datei ungefähr?</span>
                   <select id="log-preset">
-                    <option value="unknown">Weiß ich nicht</option>
-                    <option value="apache_nginx">Normales Apache-/Nginx-Hosting</option>
-                    <option value="cloudflare">Cloudflare-Datei</option>
-                    <option value="cloudfront">Amazon-CloudFront-Datei</option>
-                    <option value="fastly">Fastly-Datei</option>
-                    <option value="akamai">Akamai-Datei</option>
-                    <option value="iis">Microsoft-IIS-/Windows-Hosting</option>
+                    <option value="unknown" data-i18n="option.unknown">Weiß ich nicht</option>
+                    <option value="apache_nginx" data-i18n="option.apacheNginx">Normales Apache-/Nginx-Hosting</option>
+                    <option value="cloudflare" data-i18n="option.cloudflare">Cloudflare-Datei</option>
+                    <option value="cloudfront" data-i18n="option.cloudfront">Amazon-CloudFront-Datei</option>
+                    <option value="fastly" data-i18n="option.fastly">Fastly-Datei</option>
+                    <option value="akamai" data-i18n="option.akamai">Akamai-Datei</option>
+                    <option value="iis" data-i18n="option.iis">Microsoft-IIS-/Windows-Hosting</option>
                   </select>
                   <span class="helper">Diese Auswahl hilft ServerStory einzuschätzen, ob die Datei eher direkt vom Server oder von einem Cache-/Schutzdienst kommt.</span>
                 </label>
                 <label>
-                  Sitzt Cloudflare, ein Cache oder ein Schutzdienst vor der Website?
+                  <span data-i18n="label.siteCache">Sitzt Cloudflare, ein Cache oder ein Schutzdienst vor der Website?</span>
                   <select id="site-cache">
-                    <option value="unknown">Weiß ich nicht</option>
-                    <option value="none">Nein</option>
-                    <option value="yes">Ja</option>
+                    <option value="unknown" data-i18n="option.unknown">Weiß ich nicht</option>
+                    <option value="none" data-i18n="option.no">Nein</option>
+                    <option value="yes" data-i18n="option.yes">Ja</option>
                   </select>
                   <span class="helper">Ein Cache kann Seiten ausliefern, ohne dass jeder Aufruf in der normalen Server-Datei auftaucht.</span>
                 </label>
                 <label>
-                  Welche Datei wertest du aus?
+                  <span data-i18n="label.logSource">Welche Datei wertest du aus?</span>
                   <select id="log-source">
-                    <option value="unknown">Weiß ich nicht</option>
-                    <option value="origin">Normale Server-Datei vom Hosting</option>
-                    <option value="edge">Cloudflare-/CDN-Datei</option>
+                    <option value="unknown" data-i18n="option.unknown">Weiß ich nicht</option>
+                    <option value="origin" data-i18n="option.origin">Normale Server-Datei vom Hosting</option>
+                    <option value="edge" data-i18n="option.edge">Cloudflare-/CDN-Datei</option>
                   </select>
                   <span class="helper">Eine Cloudflare-/CDN-Datei sieht auch Aufrufe, die eine normale Server-Datei wegen Cache verpassen kann.</span>
                 </label>
                 <label>
-                  Ist der Zeitraum vollständig exportiert?
+                  <span data-i18n="label.exportComplete">Ist der Zeitraum vollständig exportiert?</span>
                   <select id="export-complete">
-                    <option value="unknown">Weiß ich nicht</option>
-                    <option value="yes">Ja</option>
-                    <option value="no">Nein / vielleicht fehlen Dateien</option>
+                    <option value="unknown" data-i18n="option.unknown">Weiß ich nicht</option>
+                    <option value="yes" data-i18n="option.yes">Ja</option>
+                    <option value="no" data-i18n="option.exportNo">Nein / vielleicht fehlen Dateien</option>
                   </select>
                   <span class="helper">Wenn Stunden oder Teil-Dateien fehlen, dürfen die Zahlen nur als Ausschnitt gelesen werden.</span>
                 </label>
                 <label>
-                  Was hast du aus Google Analytics eingetragen?
+                  <span data-i18n="label.ga4MetricKind">Was hast du aus Google Analytics eingetragen?</span>
                   <select id="ga4-metric-kind">
-                    <option value="unknown">Weiß ich nicht</option>
-                    <option value="pageviews">Seitenaufrufe / Views</option>
-                    <option value="users_or_sessions">Nutzer oder Sitzungen</option>
+                    <option value="unknown" data-i18n="option.unknown">Weiß ich nicht</option>
+                    <option value="pageviews" data-i18n="option.pageviews">Seitenaufrufe / Views</option>
+                    <option value="users_or_sessions" data-i18n="option.usersSessions">Nutzer oder Sitzungen</option>
                   </select>
                   <span class="helper">Für den Seitenvergleich braucht ServerStory Seitenaufrufe, nicht Nutzer oder Sitzungen.</span>
                 </label>
@@ -181,60 +187,60 @@
             </details>
 
             <details id="advanced-toggle" class="opt">
-              <summary>Optional: Feineinstellungen (eher für deine IT)</summary>
+              <summary data-i18n="opt.advanced">Optional: Feineinstellungen (eher für deine IT)</summary>
               <div class="ga4-fields">
                 <label class="check">
                   <input type="checkbox" id="use-xff">
-                  <span>Echte Besucheradresse hinter Proxy verwenden</span>
+                  <span data-i18n="label.useXff">Echte Besucheradresse hinter Proxy verwenden</span>
                 </label>
-                <p class="helper">Nur sinnvoll, wenn Cloudflare, ein Cache oder ein anderer Proxy vor deiner Website sitzt. Dann steht vorne oft nur die Zwischenstation; die echte Besucheradresse steht in einem Zusatzfeld.</p>
+                <p class="helper" data-i18n="help.useXff">Nur sinnvoll, wenn Cloudflare, ein Cache oder ein anderer Proxy vor deiner Website sitzt. Dann steht vorne oft nur die Zwischenstation; die echte Besucheradresse steht in einem Zusatzfeld.</p>
                 <label class="check">
                   <input type="checkbox" id="trust-xff-source">
-                  <span>Proxy-Feld stammt aus einer vertrauenswürdigen Proxy-Kette</span>
+                  <span data-i18n="label.trustXff">Proxy-Feld stammt aus einer vertrauenswürdigen Proxy-Kette</span>
                 </label>
-                <p class="helper">Nur aktivieren, wenn die Datei aus deinem eigenen Proxy/CDN/Loadbalancer kommt und Besucher diese Zusatzadresse nicht selbst setzen können. Ohne diese Bestätigung bleibt die Besucherzahl trotz Proxy-Feld nur eingeschränkt belastbar.</p>
+                <p class="helper" data-i18n="help.trustXff">Nur aktivieren, wenn die Datei aus deinem eigenen Proxy/CDN/Loadbalancer kommt und Besucher diese Zusatzadresse nicht selbst setzen können. Ohne diese Bestätigung bleibt die Besucherzahl trotz Proxy-Feld nur eingeschränkt belastbar.</p>
                 <label class="check">
                   <input type="checkbox" id="strict-bot">
-                  <span>Strenger Bot-Filter (nur klare Browser zählen)</span>
+                  <span data-i18n="label.strictBot">Strenger Bot-Filter (nur klare Browser zählen)</span>
                 </label>
-                <p class="helper">Zählt nur Zugriffe mit eindeutigem Browser-Kennzeichen. Achtung: schließt echte Besucher mit exotischen Browsern oder Clients aus und kann die Zahlen senken.</p>
+                <p class="helper" data-i18n="help.strictBot">Zählt nur Zugriffe mit eindeutigem Browser-Kennzeichen. Achtung: schließt echte Besucher mit exotischen Browsern oder Clients aus und kann die Zahlen senken.</p>
                 <label>
-                  Adress-Zusätze behalten
+                  <span data-i18n="label.keepQuery">Adress-Zusätze behalten</span>
                   <input id="keep-query" placeholder="variant, product_id">
-                  <span class="helper">Optional. Standardmäßig zählt ServerStory eine Seite mit Werbe-Anhängseln in der Adresse (z. B. ?utm_source=…) trotzdem als dieselbe Seite. Trag hier nur Anhängsel ein, die wirklich verschiedene Seiten kennzeichnen.</span>
+                  <span class="helper" data-i18n="help.keepQuery">Optional. Standardmäßig zählt ServerStory eine Seite mit Werbe-Anhängseln in der Adresse (z. B. ?utm_source=…) trotzdem als dieselbe Seite. Trag hier nur Anhängsel ein, die wirklich verschiedene Seiten kennzeichnen.</span>
                 </label>
                 <div class="two">
                   <label>
-                    Bot-Verdacht ab Aufrufen
+                    <span data-i18n="label.botThreshold">Bot-Verdacht ab Aufrufen</span>
                     <input id="bot-hit-threshold" type="number" min="10" placeholder="100">
                   </label>
                   <label>
-                    Max. Anteil technischer Dateien in %
+                    <span data-i18n="label.assetShare">Max. Anteil technischer Dateien in %</span>
                     <input id="bot-asset-share" type="number" min="0" max="100" placeholder="5">
                   </label>
                 </div>
                 <label>
-                  Schutzgrenze für sehr große Dateien
+                  <span data-i18n="label.trackingCap">Schutzgrenze für sehr große Dateien</span>
                   <input id="tracking-cap" type="number" min="1000" placeholder="100000">
-                  <span class="helper">Bremst sehr große Dateien, damit dein Browser nicht überlastet wird. Wird die Grenze erreicht, weist ServerStory darauf hin.</span>
+                  <span class="helper" data-i18n="help.trackingCap">Bremst sehr große Dateien, damit dein Browser nicht überlastet wird. Wird die Grenze erreicht, weist ServerStory darauf hin.</span>
                 </label>
               </div>
             </details>
 
             <p id="message" class="message"></p>
-            <p id="offline-note" class="offline-note">Lieber ganz offline? Lade die fertige ServerStory-ZIP aus den <a href="https://github.com/NexaStack-Software/ServerStory/releases/latest" target="_blank" rel="noopener noreferrer">GitHub-Releases</a> herunter. Danach reicht ein Doppelklick auf START_HIER.html.</p>
+            <p id="offline-note" class="offline-note"><span data-i18n="offline.note">Lieber ganz offline? Lade die fertige ServerStory-ZIP aus den GitHub-Releases herunter. Danach reicht ein Doppelklick auf START_HIER.html.</span> <a href="https://github.com/NexaStack-Software/ServerStory/releases/latest" target="_blank" rel="noopener noreferrer">GitHub Releases</a></p>
           </div>
         </aside>
       </section>
 
       <section class="result hidden" id="result-panel">
-          <div id="demo-badge" class="demo-badge">Demo-Ergebnis mit Beispieldaten</div>
+          <div id="demo-badge" class="demo-badge" data-i18n="result.demoBadge">Demo-Ergebnis mit Beispieldaten</div>
           <div class="verdict">
             <div id="signal" class="signal">?</div>
             <div>
-              <span id="signal-label" class="signal-label">Noch nichts ausgewertet</span>
-              <h2 id="headline">Bereit für die Auswertung</h2>
-              <p id="subline">Lade links die Besuchsliste vom Webserver. Danach siehst du sofort, welche Seiten wie oft aufgerufen wurden und ungefähr, wie viele Besucher du hattest.</p>
+              <span id="signal-label" class="signal-label" data-i18n="result.signalInitial">Noch nichts ausgewertet</span>
+              <h2 id="headline" data-i18n="result.headlineInitial">Bereit für die Auswertung</h2>
+              <p id="subline" data-i18n="result.sublineInitial">Lade links die Besuchsliste vom Webserver. Danach siehst du sofort, welche Seiten wie oft aufgerufen wurden und ungefähr, wie viele Besucher du hattest.</p>
             </div>
           </div>
 
@@ -243,94 +249,94 @@
             <div id="recognition-hint" class="hint-box hidden"></div>
             <div id="chrono-hint" class="hint-box hidden"></div>
             <div class="hint-box">
-              <strong>Wie sicher sind die Zahlen?</strong>
+              <strong data-i18n="result.safetyTitle">Wie sicher sind die Zahlen?</strong>
               <ul id="precision-checklist" class="precision-checklist"></ul>
             </div>
             <div class="numbers">
               <div class="number">
-                <span>Besuche laut Webserver</span>
+                <span data-i18n="metric.visits">Besuche laut Webserver</span>
                 <strong id="n-visits">-</strong>
                 <em id="q-visits" class="quality-badge">-</em>
                 <p id="q-visits-reason" class="helper"></p>
-                <p class="helper">Grobe Schätzung: Aufrufe vom selben IP-Anschluss und Browser kurz nacheinander zählen wir als einen Besuch. Mehrere Personen hinter einer IP zählen als eine.</p>
+                <p class="helper" data-i18n="metric.visitsHelp">Grobe Schätzung: Aufrufe vom selben IP-Anschluss und Browser kurz nacheinander zählen wir als einen Besuch. Mehrere Personen hinter einer IP zählen als eine.</p>
               </div>
               <div class="number">
-                <span>Seitenaufrufe gesamt</span>
+                <span data-i18n="metric.views">Seitenaufrufe gesamt</span>
                 <strong id="n-views">-</strong>
                 <em id="q-views" class="quality-badge">-</em>
                 <p id="q-views-reason" class="helper"></p>
-                <p class="helper">Berücksichtigt werden nur echte Seiten — ohne Bilder und technische Dateien. Vergleichbar mit „Seitenaufrufen" in Google Analytics.</p>
+                <p class="helper" data-i18n="metric.viewsHelp">Berücksichtigt werden nur echte Seiten — ohne Bilder und technische Dateien. Vergleichbar mit „Seitenaufrufen" in Google Analytics.</p>
               </div>
               <div class="number purchase-only">
-                <span>Käufe laut Webserver</span>
+                <span data-i18n="metric.purchases">Käufe laut Webserver</span>
                 <strong id="n-purchases">-</strong>
                 <em id="q-purchases" class="quality-badge">-</em>
                 <p id="q-purchases-reason" class="helper"></p>
-                <p class="helper">So oft wurde die Danke-Seite gefunden.</p>
+                <p class="helper" data-i18n="metric.purchasesHelp">So oft wurde die Danke-Seite gefunden.</p>
               </div>
               <div class="number ga4-only">
-                <span>So viel von deinen Website-Aufrufen sieht Google Analytics</span>
+                <span data-i18n="metric.coverage">So viel von deinen Website-Aufrufen sieht Google Analytics</span>
                 <strong id="n-coverage">-</strong>
                 <em id="q-ga4" class="quality-badge">-</em>
                 <p id="q-ga4-reason" class="helper"></p>
-                <p class="helper">Das bedeutet: Von 100 Aufrufen, die dein Webserver zählt, meldet Google Analytics nur so viele.</p>
+                <p class="helper" data-i18n="metric.coverageHelp">Das bedeutet: Von 100 Aufrufen, die dein Webserver zählt, meldet Google Analytics nur so viele.</p>
               </div>
             </div>
 
             <div class="diagnostic-grid">
               <div class="diagnostic-item">
-                <span>Website-Auswahl</span>
+                <span data-i18n="diagnostic.host">Website-Auswahl</span>
                 <em id="q-host" class="quality-badge">-</em>
                 <p id="q-host-reason" class="helper"></p>
               </div>
               <div class="diagnostic-item">
-                <span>Export vollständig?</span>
+                <span data-i18n="diagnostic.export">Export vollständig?</span>
                 <em id="q-export" class="quality-badge">-</em>
                 <p id="q-export-reason" class="helper"></p>
               </div>
               <div class="diagnostic-item">
-                <span>Bots & Auffälligkeiten</span>
+                <span data-i18n="diagnostic.bot">Bots & Auffälligkeiten</span>
                 <em id="q-bot" class="quality-badge">-</em>
                 <p id="q-bot-reason" class="helper"></p>
               </div>
               <div class="diagnostic-item">
-                <span>Große Dateien</span>
+                <span data-i18n="diagnostic.tracking">Große Dateien</span>
                 <em id="q-tracking" class="quality-badge">-</em>
                 <p id="q-tracking-reason" class="helper"></p>
               </div>
             </div>
 
-            <p class="caption" style="margin-top: 14px;"><strong>Seitenaufrufe</strong> heißt: wie oft eine Seite geöffnet wurde. <strong>Besucher</strong> hingegen müssen immer geschätzt werden. Warum? Weil eine Person mehrfach dieselbe Seite öffnen kann, und mehrere Leute aus einer Firma gleich aussehen können, weil sie von derselben IP kommen. Der Vergleich kann in beide Richtungen abweichen: Google Analytics sieht oft weniger Seitenaufrufe wegen Cookies, Consent oder Ad-Blockern. Die Server-Datei kann weniger sehen, wenn ein Cache davor sitzt: Dann liefert zum Beispiel Cloudflare oder der Browser eine gespeicherte Kopie der Seite aus, ohne den Webserver erneut zu fragen. Dieser Aufruf erscheint dann nicht in der Server-Datei. Käufe sind meist stabiler, weil die Danke-Seite selten gecacht wird.</p>
-            <div id="action" class="action">Nach der Auswertung steht hier, was du als Nächstes tun solltest.</div>
+            <p class="caption" style="margin-top: 14px;" data-i18n="result.caption" data-i18n-mode="html"><strong>Seitenaufrufe</strong> heißt: wie oft eine Seite geöffnet wurde. <strong>Besucher</strong> hingegen müssen immer geschätzt werden. Warum? Weil eine Person mehrfach dieselbe Seite öffnen kann, und mehrere Leute aus einer Firma gleich aussehen können, weil sie von derselben IP kommen. Der Vergleich kann in beide Richtungen abweichen: Google Analytics sieht oft weniger Seitenaufrufe wegen Cookies, Consent oder Ad-Blockern. Die Server-Datei kann weniger sehen, wenn ein Cache davor sitzt: Dann liefert zum Beispiel Cloudflare oder der Browser eine gespeicherte Kopie der Seite aus, ohne den Webserver erneut zu fragen. Dieser Aufruf erscheint dann nicht in der Server-Datei. Käufe sind meist stabiler, weil die Danke-Seite selten gecacht wird.</p>
+            <div id="action" class="action" data-i18n="result.actionInitial">Nach der Auswertung steht hier, was du als Nächstes tun solltest.</div>
             <div id="guided-box" class="guided-box hidden">
               <div>
-                <strong>Aussagen aus der Prüfung, die zuverlässig sind</strong>
+                <strong data-i18n="guided.use">Aussagen aus der Prüfung, die zuverlässig sind</strong>
                 <ul id="guided-use"></ul>
               </div>
               <div>
-                <strong>Aussagen, bei denen du vorsichtig sein musst</strong>
+                <strong data-i18n="guided.limits">Aussagen, bei denen du vorsichtig sein musst</strong>
                 <ul id="guided-limits"></ul>
               </div>
               <div>
-                <strong>Was du als Nächstes tun solltest</strong>
+                <strong data-i18n="guided.next">Was du als Nächstes tun solltest</strong>
                 <ul id="guided-next"></ul>
               </div>
             </div>
 
             <div id="purchase-box" class="purchase-box hidden">
-              <span>Kauf-Check (Danke-Seite)</span>
+              <span data-i18n="purchase.check">Kauf-Check (Danke-Seite)</span>
               <div class="purchase-grid">
                 <div>
                   <strong id="pc-server">-</strong>
-                  <p>Käufe laut Webserver</p>
+                  <p data-i18n="purchase.server">Käufe laut Webserver</p>
                 </div>
                 <div>
                   <strong id="pc-ga4">-</strong>
-                  <p>Käufe laut Google Analytics</p>
+                  <p data-i18n="purchase.ga4">Käufe laut Google Analytics</p>
                 </div>
                 <div>
                   <strong id="pc-gap">-</strong>
-                  <p>Differenz (Webserver − Google Analytics)</p>
+                  <p data-i18n="purchase.diff">Differenz (Webserver − Google Analytics)</p>
                 </div>
               </div>
               <p id="purchase-note" class="purchase-note"></p>
@@ -342,7 +348,7 @@
               <div class="table-wrap">
                 <table class="mini-table">
                   <thead>
-                    <tr><th>Seite</th><th>Webserver</th><th class="ga4-col">Google Analytics</th><th class="ga4-col">Differenz</th><th class="ga4-col">Google Analytics sieht</th></tr>
+                    <tr><th data-i18n="table.page">Seite</th><th data-i18n="table.server">Webserver</th><th class="ga4-col" data-i18n="table.ga4">Google Analytics</th><th class="ga4-col" data-i18n="table.diff">Differenz</th><th class="ga4-col" data-i18n="table.ga4Sees">Google Analytics sieht</th></tr>
                   </thead>
                   <tbody id="page-table">
                     <tr><td>-</td><td>-</td><td class="ga4-col">-</td><td class="ga4-col">-</td><td class="ga4-col">-</td></tr>
@@ -353,40 +359,40 @@
             </div>
 
             <details>
-              <summary>Was aus der Datei gelesen wurde</summary>
+              <summary data-i18n="details.fileRead">Was aus der Datei gelesen wurde</summary>
               <div class="server-grid">
                 <div class="server-card">
-                  <span>Alle Einträge in der Datei</span>
+                  <span data-i18n="details.totalRows">Alle Einträge in der Datei</span>
                   <strong id="server-total">-</strong>
-                  <p class="helper">So viele Einträge standen in der Datei.</p>
+                  <p class="helper" data-i18n="details.totalRowsHelp">So viele Einträge standen in der Datei.</p>
                 </div>
                 <div class="server-card">
-                  <span>Verwendete Aufrufe</span>
+                  <span data-i18n="details.keptRows">Verwendete Aufrufe</span>
                   <strong id="server-kept">-</strong>
-                  <p class="helper">Echte Besucher-Aufrufe, die gezählt wurden.</p>
+                  <p class="helper" data-i18n="details.keptRowsHelp">Echte Besucher-Aufrufe, die gezählt wurden.</p>
                 </div>
                 <div class="server-card">
-                  <span>Nicht verwendet</span>
+                  <span data-i18n="details.filteredRows">Nicht verwendet</span>
                   <strong id="server-filtered">-</strong>
-                  <p class="helper">Bots, Fehler und Zeilen außerhalb des Zeitraums.</p>
+                  <p class="helper" data-i18n="details.filteredRowsHelp">Bots, Fehler und Zeilen außerhalb des Zeitraums.</p>
                 </div>
                 <div class="server-card">
-                  <span>Besuche aus Google Ads</span>
+                  <span data-i18n="details.adsVisits">Besuche aus Google Ads</span>
                   <strong id="server-ads">-</strong>
-                  <p class="helper">Besuche mit Google-Werbe-Kennzeichen in der Adresse.</p>
+                  <p class="helper" data-i18n="details.adsVisitsHelp">Besuche mit Google-Werbe-Kennzeichen in der Adresse.</p>
                 </div>
               </div>
               <dl>
-                <div><dt>Besuche im Webserver</dt><dd id="visits">-</dd></div>
-                <div><dt>Verwendete Aufrufe nach Filter</dt><dd id="kept">-</dd></div>
-                <div><dt>Verstandene Einträge</dt><dd id="parsed">-</dd></div>
-                <div><dt>Nicht verwendete Einträge</dt><dd id="filtered">-</dd></div>
-                <div><dt>Kaufrate im Webserver</dt><dd id="server-cr">-</dd></div>
-                <div><dt>Google-Ads-Besuche mit Kauf</dt><dd id="ads-success">-</dd></div>
+                <div><dt data-i18n="details.visits">Besuche im Webserver</dt><dd id="visits">-</dd></div>
+                <div><dt data-i18n="details.kept">Verwendete Aufrufe nach Filter</dt><dd id="kept">-</dd></div>
+                <div><dt data-i18n="details.parsed">Verstandene Einträge</dt><dd id="parsed">-</dd></div>
+                <div><dt data-i18n="details.filtered">Nicht verwendete Einträge</dt><dd id="filtered">-</dd></div>
+                <div><dt data-i18n="details.serverCr">Kaufrate im Webserver</dt><dd id="server-cr">-</dd></div>
+                <div><dt data-i18n="details.adsSuccess">Google-Ads-Besuche mit Kauf</dt><dd id="ads-success">-</dd></div>
               </dl>
               <table class="mini-table" style="margin-top: 14px;">
                 <thead>
-                  <tr><th>Aussortiert – Grund</th><th>Anzahl</th></tr>
+                  <tr><th data-i18n="details.filterReason">Aussortiert – Grund</th><th data-i18n="details.count">Anzahl</th></tr>
                 </thead>
                 <tbody id="filter-reasons">
                   <tr><td>-</td><td>-</td></tr>
@@ -395,12 +401,12 @@
             </details>
 
             <details>
-              <summary>Technische Details für IT oder Analytics</summary>
-              <button id="copy-report" class="secondary" type="button" style="margin-top: 14px;">Analyse-Protokoll kopieren</button>
+              <summary data-i18n="details.tech">Technische Details für IT oder Analytics</summary>
+              <button id="copy-report" class="secondary" type="button" style="margin-top: 14px;" data-i18n="details.copyReport">Analyse-Protokoll kopieren</button>
               <div class="table-wrap">
                 <table class="mini-table">
                   <thead>
-                    <tr><th>Typ</th><th>Anzahl</th></tr>
+                    <tr><th data-i18n="details.type">Typ</th><th data-i18n="details.count">Anzahl</th></tr>
                   </thead>
                   <tbody id="status-methods">
                     <tr><td>-</td><td>-</td></tr>
@@ -410,8 +416,8 @@
             </details>
 
             <details>
-              <summary>Nachricht an IT</summary>
-              <p class="hint">Bitte Access Log für den gewünschten Zeitraum exportieren. Format: Apache/Nginx Combined Log, als .log, .txt oder .gz. ServerStory zeigt nur Summen; IPs werden nicht ausgegeben.</p>
+              <summary data-i18n="details.messageIt">Nachricht an IT</summary>
+              <p class="hint" data-i18n="details.messageItHint">Bitte Access Log für den gewünschten Zeitraum exportieren. Format: Apache/Nginx Combined Log, als .log, .txt oder .gz. ServerStory zeigt nur Summen; IPs werden nicht ausgegeben.</p>
             </details>
           </div>
         </section>

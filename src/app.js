@@ -1,4 +1,441 @@
+      // @provides I18N, currentLang, t, setLanguage, translatePage, initI18n
 
+      const I18N = {
+        de: {
+          "meta.title": "ServerStory: Was hat deine Website wirklich gesehen?",
+          "meta.description": "Werte deine Server-Logs lokal im Browser aus: meistbesuchte Seiten, echte Aufrufe und die Lücke zu Google Analytics. Kostenlos, Open Source, kein Upload.",
+          "topnote": "Läuft nur in deinem Browser — deine Datei wird nirgendwohin hochgeladen",
+          "language.label": "Sprache",
+          "hero.kicker": "Finde es in drei Minuten selbst heraus",
+          "hero.title": "Wieviele Besuche hatte deine Website <span>wirklich?</span>",
+          "hero.lead1": "ServerStory liest die Besuchsliste deines Webservers (der Computer, auf dem deine Website läuft) und zeigt dir, welche Seiten wie oft aufgerufen wurden und ungefähr, wie viele Besucher du hattest — auch die, die ein Tracking-Tool wegen Cookie-Banner oder Ad-Blocker verpasst. Du siehst:",
+          "hero.point1": "Seitenaufrufe — direkt vom Server gezählt",
+          "hero.point2": "Welche deiner Seiten am meisten besucht wurde",
+          "hero.point3": "Die Differenz zwischen den Seitenaufrufen auf deinem Server und denen laut Google Analytics",
+          "hero.lead2": "Warum du das brauchst? Weil du so eine zusätzliche Perspektive auf deinen Traffic bekommst und damit noch genauer beurteilen kannst, wie viele Sitzungen und Conversions du tatsächlich hattest.",
+          "upload.title": "Datei prüfen",
+          "upload.fileLabel": "Besuchsliste vom Webserver auswählen",
+          "upload.fileHelp": "Datei-Endung meist .log, .txt oder .gz. Große Dateien werden mit Fortschrittsanzeige verarbeitet, ohne den Browser einzufrieren.",
+          "button.run": "Jetzt auswerten",
+          "button.runBusy": "Wird ausgewertet …",
+          "button.preflight": "Datei kurz prüfen",
+          "button.copyIt": "Text für deine IT/Agentur kopieren",
+          "button.copyHoster": "Text für deinen Hoster kopieren",
+          "button.sample": "Demo mit Beispieldaten starten",
+          "progress.idle": "Wird ausgewertet …",
+          "progress.percent": "Wird ausgewertet … {pct} %",
+          "opt.scope": "Optional: Zeitraum & Seiten eingrenzen",
+          "label.from": "Von",
+          "label.to": "Bis",
+          "label.compareUrls": "Bestimmte Seiten ansehen",
+          "help.compareUrls": "Eine Web-Adresse pro Zeile. Leer lassen — dann zeigt ServerStory automatisch deine meistbesuchten Seiten.",
+          "label.hostFilter": "Website eingrenzen",
+          "help.hostFilter": "Optional. Sinnvoll, wenn die Datei mehrere Websites oder Subdomains enthält.",
+          "opt.ga4": "Optional: Mit Google Analytics vergleichen",
+          "help.ga4Intro": "Nur ausfüllen, wenn du die Server-Zahlen direkt deinen Google-Analytics-Zahlen gegenüberstellen willst. Sonst einfach zuklappen lassen.",
+          "label.ga4Rows": "Google-Analytics-Zahlen pro Seite",
+          "help.ga4Rows": "Eine Seite pro Zeile, danach die Google-Analytics-Zahl. Beispiel: /preise,840. Semikolon, Tabs und deutsche Tausenderpunkte sind okay.",
+          "label.successUrl": "Danke-Seite nach dem Kauf",
+          "help.successUrl": "Die Seite, die nur nach einer echten Bestellung erscheint. Nötig, wenn du Käufe prüfen willst.",
+          "label.successPattern": "Kauf-URL-Muster",
+          "help.successPattern": "Optional. Schreib ein Sternchen (*) als Lückenfüller, wenn mehrere Danke-Seiten zählen sollen.",
+          "label.orderParam": "Bestellnummer-Parameter",
+          "help.orderParam": "Optional. Wenn die Danke-URL eine eindeutige Bestellnummer enthält, zählt ServerStory jeden Kauf nur einmal — auch wenn die Danke-Seite neu geladen wurde.",
+          "label.ga4Conversions": "Käufe laut Google Analytics",
+          "help.ga4Conversions": "Wie viele Käufe meldet Google Analytics im selben Zeitraum?",
+          "opt.calibration": "Optional: Setup kurz einordnen",
+          "help.calibrationIntro": "Wenn du es nicht sicher weißt, lass „Weiß ich nicht“ stehen. ServerStory wird dann vorsichtiger formulieren.",
+          "label.logPreset": "Woher kommt die Datei ungefähr?",
+          "option.unknown": "Weiß ich nicht",
+          "option.apacheNginx": "Normales Apache-/Nginx-Hosting",
+          "option.cloudflare": "Cloudflare-Datei",
+          "option.cloudfront": "Amazon-CloudFront-Datei",
+          "option.fastly": "Fastly-Datei",
+          "option.akamai": "Akamai-Datei",
+          "option.iis": "Microsoft-IIS-/Windows-Hosting",
+          "label.siteCache": "Sitzt Cloudflare, ein Cache oder ein Schutzdienst vor der Website?",
+          "option.no": "Nein",
+          "option.yes": "Ja",
+          "label.logSource": "Welche Datei wertest du aus?",
+          "option.origin": "Normale Server-Datei vom Hosting",
+          "option.edge": "Cloudflare-/CDN-Datei",
+          "label.exportComplete": "Ist der Zeitraum vollständig exportiert?",
+          "option.exportNo": "Nein / vielleicht fehlen Dateien",
+          "label.ga4MetricKind": "Was hast du aus Google Analytics eingetragen?",
+          "option.pageviews": "Seitenaufrufe / Views",
+          "option.usersSessions": "Nutzer oder Sitzungen",
+          "opt.advanced": "Optional: Feineinstellungen (eher für deine IT)",
+          "label.useXff": "Echte Besucheradresse hinter Proxy verwenden",
+          "help.useXff": "Nur sinnvoll, wenn Cloudflare, ein Cache oder ein anderer Proxy vor deiner Website sitzt. Dann steht vorne oft nur die Zwischenstation; die echte Besucheradresse steht in einem Zusatzfeld.",
+          "label.trustXff": "Proxy-Feld stammt aus einer vertrauenswürdigen Proxy-Kette",
+          "help.trustXff": "Nur aktivieren, wenn die Datei aus deinem eigenen Proxy/CDN/Loadbalancer kommt und Besucher diese Zusatzadresse nicht selbst setzen können. Ohne diese Bestätigung bleibt die Besucherzahl trotz Proxy-Feld nur eingeschränkt belastbar.",
+          "label.strictBot": "Strenger Bot-Filter (nur klare Browser zählen)",
+          "help.strictBot": "Zählt nur Zugriffe mit eindeutigem Browser-Kennzeichen. Achtung: schließt echte Besucher mit exotischen Browsern oder Clients aus und kann die Zahlen senken.",
+          "label.keepQuery": "Adress-Zusätze behalten",
+          "help.keepQuery": "Optional. Standardmäßig zählt ServerStory eine Seite mit Werbe-Anhängseln in der Adresse (z. B. ?utm_source=…) trotzdem als dieselbe Seite. Trag hier nur Anhängsel ein, die wirklich verschiedene Seiten kennzeichnen.",
+          "label.botThreshold": "Bot-Verdacht ab Aufrufen",
+          "label.assetShare": "Max. Anteil technischer Dateien in %",
+          "label.trackingCap": "Schutzgrenze für sehr große Dateien",
+          "help.trackingCap": "Bremst sehr große Dateien, damit dein Browser nicht überlastet wird. Wird die Grenze erreicht, weist ServerStory darauf hin.",
+          "offline.note": "Lieber ganz offline? Lade die fertige ServerStory-ZIP aus den GitHub-Releases herunter. Danach reicht ein Doppelklick auf START_HIER.html.",
+          "result.demoBadge": "Demo-Ergebnis mit Beispieldaten",
+          "result.signalInitial": "Noch nichts ausgewertet",
+          "result.headlineInitial": "Bereit für die Auswertung",
+          "result.sublineInitial": "Lade links die Besuchsliste vom Webserver. Danach siehst du sofort, welche Seiten wie oft aufgerufen wurden und ungefähr, wie viele Besucher du hattest.",
+          "message.noFile": "Bitte Logdatei auswählen oder „Demo mit Beispieldaten starten“ klicken.",
+          "message.preflightNoFile": "Bitte zuerst eine Logdatei auswählen.",
+          "message.gzPreflight": "Kurzprüfung für .gz-Dateien läuft über die vollständige Auswertung, weil komprimierte Dateien nicht sinnvoll angeschnitten werden können.",
+          "message.analysisFailed": "Auswertung fehlgeschlagen.",
+          "message.noReport": "Noch kein Analyse-Protokoll vorhanden.",
+          "message.demoStarted": "Demo gestartet — mit Beispieldaten, ohne echte Datei.",
+          "message.copyItOk": "Text für IT/Agentur kopiert — jetzt einfügen und abschicken.",
+          "message.copyHosterOk": "Text für Hoster-Support kopiert — Platzhalter [...] ersetzen, dann abschicken.",
+          "message.reportCopied": "Analyse-Protokoll kopiert.",
+          "copy.it": "Bitte exportiere mir das Access Log (die Besuchsliste des Webservers) für den gewünschten Zeitraum.\n\nBitte als .log-, .txt- oder .gz-Datei, idealerweise Apache/Nginx Combined Log.\n\nEs geht nur um Summen (Besuche, Seitenaufrufe), keine Auswertung einzelner Nutzer. Die Datei wird lokal im Browser ausgewertet und nicht in fremde Cloudtools hochgeladen.",
+          "copy.hoster": "Hallo, ich bin Inhaber bzw. berechtigt für das Hosting-Paket zur Domain [DEINE-DOMAIN.DE].\n\nBitte stellt mir das Access Log (die Server-Logdatei mit den Seitenaufrufen) für den Zeitraum [VON] bis [BIS] zum Download bereit oder schickt es mir per E-Mail. Falls ich es selbst im Kundenmenü herunterladen kann: Wo finde ich die Logdateien?\n\nFormat bitte als .log-, .txt- oder .gz-Datei (Apache/Nginx Combined Log). Es geht nur um aggregierte Zugriffszahlen, keine personenbezogene Auswertung.\n\nVielen Dank!",
+          "purchase.singular": "1 Kauf",
+          "purchase.plural": "{count} Käufe",
+          "table.chosen": "Deine ausgewählten Seiten",
+          "table.top": "Deine meistbesuchten Seiten",
+          "table.captionGa4": "Webserver gegen Google Analytics. Die letzte Spalte zeigt, wie viel Google Analytics im Vergleich zur Server-Datei sieht.",
+          "table.captionServer": "So oft hat dein Webserver diese Seiten gesehen. Trag oben optional Google-Analytics-Zahlen ein, um zu vergleichen.",
+          "result.safetyTitle": "Wie sicher sind die Zahlen?",
+          "metric.visits": "Besuche laut Webserver",
+          "metric.visitsHelp": "Grobe Schätzung: Aufrufe vom selben IP-Anschluss und Browser kurz nacheinander zählen wir als einen Besuch. Mehrere Personen hinter einer IP zählen als eine.",
+          "metric.views": "Seitenaufrufe gesamt",
+          "metric.viewsHelp": "Berücksichtigt werden nur echte Seiten — ohne Bilder und technische Dateien. Vergleichbar mit „Seitenaufrufen\" in Google Analytics.",
+          "metric.purchases": "Käufe laut Webserver",
+          "metric.purchasesHelp": "So oft wurde die Danke-Seite gefunden.",
+          "metric.coverage": "So viel von deinen Website-Aufrufen sieht Google Analytics",
+          "metric.coverageHelp": "Das bedeutet: Von 100 Aufrufen, die dein Webserver zählt, meldet Google Analytics nur so viele.",
+          "diagnostic.host": "Website-Auswahl",
+          "diagnostic.export": "Export vollständig?",
+          "diagnostic.bot": "Bots & Auffälligkeiten",
+          "diagnostic.tracking": "Große Dateien",
+          "result.caption": "<strong>Seitenaufrufe</strong> heißt: wie oft eine Seite geöffnet wurde. <strong>Besucher</strong> hingegen müssen immer geschätzt werden. Warum? Weil eine Person mehrfach dieselbe Seite öffnen kann, und mehrere Leute aus einer Firma gleich aussehen können, weil sie von derselben IP kommen. Der Vergleich kann in beide Richtungen abweichen: Google Analytics sieht oft weniger Seitenaufrufe wegen Cookies, Consent oder Ad-Blockern. Die Server-Datei kann weniger sehen, wenn ein Cache davor sitzt: Dann liefert zum Beispiel Cloudflare oder der Browser eine gespeicherte Kopie der Seite aus, ohne den Webserver erneut zu fragen. Dieser Aufruf erscheint dann nicht in der Server-Datei. Käufe sind meist stabiler, weil die Danke-Seite selten gecacht wird.",
+          "result.actionInitial": "Nach der Auswertung steht hier, was du als Nächstes tun solltest.",
+          "guided.use": "Aussagen aus der Prüfung, die zuverlässig sind",
+          "guided.limits": "Aussagen, bei denen du vorsichtig sein musst",
+          "guided.next": "Was du als Nächstes tun solltest",
+          "purchase.check": "Kauf-Check (Danke-Seite)",
+          "purchase.server": "Käufe laut Webserver",
+          "purchase.ga4": "Käufe laut Google Analytics",
+          "purchase.diff": "Differenz (Webserver − Google Analytics)",
+          "table.page": "Seite",
+          "table.server": "Webserver",
+          "table.ga4": "Google Analytics",
+          "table.diff": "Differenz",
+          "table.ga4Sees": "Google Analytics sieht",
+          "details.fileRead": "Was aus der Datei gelesen wurde",
+          "details.totalRows": "Alle Einträge in der Datei",
+          "details.totalRowsHelp": "So viele Einträge standen in der Datei.",
+          "details.keptRows": "Verwendete Aufrufe",
+          "details.keptRowsHelp": "Echte Besucher-Aufrufe, die gezählt wurden.",
+          "details.filteredRows": "Nicht verwendet",
+          "details.filteredRowsHelp": "Bots, Fehler und Zeilen außerhalb des Zeitraums.",
+          "details.adsVisits": "Besuche aus Google Ads",
+          "details.adsVisitsHelp": "Besuche mit Google-Werbe-Kennzeichen in der Adresse.",
+          "details.visits": "Besuche im Webserver",
+          "details.kept": "Verwendete Aufrufe nach Filter",
+          "details.parsed": "Verstandene Einträge",
+          "details.filtered": "Nicht verwendete Einträge",
+          "details.serverCr": "Kaufrate im Webserver",
+          "details.adsSuccess": "Google-Ads-Besuche mit Kauf",
+          "details.filterReason": "Aussortiert – Grund",
+          "details.count": "Anzahl",
+          "details.tech": "Technische Details für IT oder Analytics",
+          "details.copyReport": "Analyse-Protokoll kopieren",
+          "details.type": "Typ",
+          "details.messageIt": "Nachricht an IT",
+          "details.messageItHint": "Bitte Access Log für den gewünschten Zeitraum exportieren. Format: Apache/Nginx Combined Log, als .log, .txt oder .gz. ServerStory zeigt nur Summen; IPs werden nicht ausgegeben.",
+          "quality.high": "Gut nutzbar",
+          "quality.medium": "Mit Vorsicht",
+          "quality.limited": "Nicht verlässlich",
+          "quality.none": "Nicht geprüft",
+          "quality.qVisitsHigh": "Gut identifizierbar",
+          "quality.qHostHigh": "Konnte zuverlässig ausgewertet werden",
+          "quality.qExportHigh": "Konnte zuverlässig ausgewertet werden",
+          "quality.qBotHigh": "Konnte zuverlässig ausgewertet werden",
+          "quality.qTrackingHigh": "Die Größe der Log-Datei ist in Ordnung",
+          "signal.done": "Ausgewertet",
+          "signal.warning": "Achtung",
+          "signal.smallGap": "Kleine Lücke",
+          "signal.matches": "Passt",
+          "signal.ga4More": "Google Analytics zählt mehr",
+          "verdict.noGa4.headline": "Das hat dein Webserver gesehen",
+          "range.file": "deiner Datei",
+          "range.fromTo": "{from} bis {to}",
+          "range.start": "Anfang",
+          "range.end": "Ende",
+          "visits.notDeterminable": "eine mit diesen Daten nicht verlässlich bestimmbare Besucherzahl",
+          "visits.count": "{count} Besuche",
+          "verdict.noGa4.subline": "In {range} zählt dein Webserver {visits} und {views} Seitenaufrufe.",
+          "verdict.noGa4.sublinePurchases": " Davon {purchases} auf der Danke-Seite.",
+          "verdict.noGa4.action": "Nächster Schritt: Das sind die echten Server-Zahlen. Vergleiche sie mit Google Analytics — oder trag oben optional deine Google-Analytics-Zahlen ein, dann zeigt ServerStory die Lücke direkt.",
+          "verdict.ga4Low.headline": "Dein Server zählt deutlich mehr Seitenaufrufe als Google Analytics",
+          "verdict.ga4Low.subline": "In deiner Server-Datei stehen für deine ausgewählten Seiten deutlich mehr Seitenaufrufe als in deinem Google Analytics-Dashboard. Deine Server-Datei verzeichnet insgesamt {gap} mehr Seitenaufrufe als Google Analytics.{worst}",
+          "verdict.ga4Low.worst": " Den größten Unterschied hat deine Unterseite {path}: Dort verzeichnet dein Server {gap} mehr Seitenaufrufe als Google Analytics.",
+          "verdict.ga4Low.action": "Nächster Schritt: Du solltest aus den Ergebnissen jetzt noch keine strategischen Entscheidungen ableiten. Prüfe zuerst: Hast du wirklich den gleichen Zeitraum und die richtige Website geprüft? Stimmen die Seitenaufrufe in Google Analytics? Hast du geprüft, ob Cookie-Banner, Ad-Blocker oder ein Cache die Differenz erklären können?",
+          "verdict.ga4Small.headline": "Kleine Abweichung",
+          "verdict.ga4Small.subline": "Google Analytics findet {coverage} der Aufrufe aus der Server-Datei. Eine kleine Lücke ist normal.{worst}",
+          "verdict.ga4Small.worst": " Am wenigsten auf {path} ({coverage}).",
+          "verdict.ga4Small.action": "Nächster Schritt: Im Auge behalten, aber keine große Entscheidung nur wegen dieser kleinen Abweichung treffen.",
+          "verdict.ga4Match.headline": "Die Zahlen passen zusammen",
+          "verdict.ga4Match.subline": "Google Analytics und die Server-Datei liegen nah beieinander ({coverage}).",
+          "verdict.ga4Match.action": "Nächster Schritt: Kurz Zeitraum und Seiten prüfen — danach wirken die Google-Analytics-Zahlen verlässlich.",
+          "verdict.ga4High.headline": "Google Analytics liegt über der Server-Datei",
+          "verdict.ga4High.subline": "Für die verglichenen Seiten meldet Google Analytics mehr als die Server-Datei ({coverage}). Häufige Ursache: Cache/CDN — ein Teil der Aufrufe landet dann nicht in dieser Server-Datei. Auch Mehrfachzählung oder Bots können Google Analytics aufblähen.",
+          "verdict.ga4High.action": "Nächster Schritt: Prüfen, ob Cloudflare oder ein anderer Cache vor der Seite sitzt — dann fehlen Aufrufe in dieser Server-Datei. Sonst Bots oder Mehrfachzählung in Google Analytics prüfen."
+        },
+        en: {
+          "meta.title": "ServerStory: What did your website really see?",
+          "meta.description": "Analyze server logs locally in your browser: top pages, real server-side views, visits, purchases, and the gap to Google Analytics. Free, open source, no upload.",
+          "topnote": "Runs only in your browser — your file is never uploaded",
+          "language.label": "Language",
+          "hero.kicker": "Find out yourself in three minutes",
+          "hero.title": "How many visits did your website <span>really</span> have?",
+          "hero.lead1": "ServerStory reads your web server's access log and shows which pages were requested, roughly how many visits you had, and what tracking tools may have missed because of consent banners or ad blockers. You see:",
+          "hero.point1": "Page views — counted directly from the server",
+          "hero.point2": "Which pages were visited most often",
+          "hero.point3": "The gap between server-side page views and Google Analytics",
+          "hero.lead2": "This gives you an independent traffic perspective, so you can judge sessions and conversions more carefully.",
+          "upload.title": "Check a file",
+          "upload.fileLabel": "Choose your web server access log",
+          "upload.fileHelp": "Usually a .log, .txt, or .gz file. Large files are processed with progress feedback without freezing the browser.",
+          "button.run": "Analyze now",
+          "button.runBusy": "Analyzing …",
+          "button.preflight": "Quick file check",
+          "button.copyIt": "Copy text for your IT/team",
+          "button.copyHoster": "Copy text for your hosting provider",
+          "button.sample": "Run demo data",
+          "progress.idle": "Analyzing …",
+          "progress.percent": "Analyzing … {pct}%",
+          "opt.scope": "Optional: limit date range & pages",
+          "label.from": "From",
+          "label.to": "To",
+          "label.compareUrls": "Specific pages to inspect",
+          "help.compareUrls": "One URL path per line. Leave empty and ServerStory will show your most visited pages automatically.",
+          "label.hostFilter": "Limit to website",
+          "help.hostFilter": "Optional. Useful when the file contains multiple websites or subdomains.",
+          "opt.ga4": "Optional: compare with Google Analytics",
+          "help.ga4Intro": "Fill this in only if you want to compare server numbers directly with Google Analytics. Otherwise leave it closed.",
+          "label.ga4Rows": "Google Analytics views by page",
+          "help.ga4Rows": "One page per line, followed by the Google Analytics number. Example: /pricing,840. Semicolons, tabs, and thousands separators are okay.",
+          "label.successUrl": "Thank-you page after purchase",
+          "help.successUrl": "The page that appears only after a real order. Needed if you want to check purchases.",
+          "label.successPattern": "Purchase URL pattern",
+          "help.successPattern": "Optional. Use an asterisk (*) as a wildcard if several thank-you pages should count.",
+          "label.orderParam": "Order ID parameter",
+          "help.orderParam": "Optional. If the thank-you URL contains a unique order ID, ServerStory counts each purchase once even if the page is reloaded.",
+          "label.ga4Conversions": "Purchases in Google Analytics",
+          "help.ga4Conversions": "How many purchases does Google Analytics report for the same period?",
+          "opt.calibration": "Optional: describe your setup",
+          "help.calibrationIntro": "If you are not sure, leave “I don't know” selected. ServerStory will phrase results more cautiously.",
+          "label.logPreset": "Where does this file roughly come from?",
+          "option.unknown": "I don't know",
+          "option.apacheNginx": "Regular Apache/Nginx hosting",
+          "option.cloudflare": "Cloudflare file",
+          "option.cloudfront": "Amazon CloudFront file",
+          "option.fastly": "Fastly file",
+          "option.akamai": "Akamai file",
+          "option.iis": "Microsoft IIS / Windows hosting",
+          "label.siteCache": "Is Cloudflare, a cache, or a security service in front of the website?",
+          "option.no": "No",
+          "option.yes": "Yes",
+          "label.logSource": "Which file are you analyzing?",
+          "option.origin": "Regular server file from hosting",
+          "option.edge": "Cloudflare/CDN file",
+          "label.exportComplete": "Was the full period exported?",
+          "option.exportNo": "No / files may be missing",
+          "label.ga4MetricKind": "What did you enter from Google Analytics?",
+          "option.pageviews": "Page views / Views",
+          "option.usersSessions": "Users or sessions",
+          "opt.advanced": "Optional: fine-tuning for technical teams",
+          "label.useXff": "Use real visitor address behind proxy",
+          "help.useXff": "Only useful when Cloudflare, a cache, or another proxy sits in front of the website. Then the first address is often the intermediary, and the real visitor address is in an extra field.",
+          "label.trustXff": "Proxy field comes from a trusted proxy chain",
+          "help.trustXff": "Enable only if the file comes from your own proxy/CDN/load balancer and visitors cannot set this extra address themselves. Without this confirmation, visits remain limited even when the proxy field is readable.",
+          "label.strictBot": "Strict bot filter (clear browsers only)",
+          "help.strictBot": "Counts only requests with a clear browser signature. This can exclude real visitors using unusual browsers or clients.",
+          "label.keepQuery": "Keep URL parameters",
+          "help.keepQuery": "Optional. By default, marketing parameters such as ?utm_source= are folded into the same page. Enter only parameters that really identify different pages.",
+          "label.botThreshold": "Flag bot suspicion after requests",
+          "label.assetShare": "Max. technical-file share in %",
+          "label.trackingCap": "Safety cap for very large files",
+          "help.trackingCap": "Limits very large files so your browser does not run out of memory. ServerStory will tell you if the cap is reached.",
+          "offline.note": "Prefer fully offline? Download the finished ServerStory ZIP from GitHub Releases. Then double-click START_HIER.html.",
+          "result.demoBadge": "Demo result with sample data",
+          "result.signalInitial": "Nothing analyzed yet",
+          "result.headlineInitial": "Ready for analysis",
+          "result.sublineInitial": "Choose your web server access log on the left. Then you will see which pages were requested and roughly how many visits you had.",
+          "message.noFile": "Choose a log file or click “Run demo data”.",
+          "message.preflightNoFile": "Choose a log file first.",
+          "message.gzPreflight": "Quick checks for .gz files run through the full analysis because compressed files cannot be sampled usefully.",
+          "message.analysisFailed": "Analysis failed.",
+          "message.noReport": "No analysis protocol available yet.",
+          "message.demoStarted": "Demo started — using sample data, no real file.",
+          "message.copyItOk": "Text for your IT/team copied — paste and send it.",
+          "message.copyHosterOk": "Text for your hosting provider copied — replace the [...] placeholders, then send it.",
+          "message.reportCopied": "Analysis protocol copied.",
+          "copy.it": "Please export the web server access log for the requested period.\n\nPlease provide it as a .log, .txt, or .gz file, ideally in Apache/Nginx Combined Log format.\n\nI only need aggregate counts such as visits and page views, not an analysis of individual users. The file will be analyzed locally in the browser and will not be uploaded to a third-party cloud tool.",
+          "copy.hoster": "Hello, I own or am authorized for the hosting package for [YOUR-DOMAIN.COM].\n\nPlease provide the web server access log with page requests for the period [FROM] to [TO], either as a download or by email. If I can download it from the customer portal myself, where can I find the log files?\n\nPreferred format: .log, .txt, or .gz, ideally Apache/Nginx Combined Log. I only need aggregate access counts, not personal user-level analysis.\n\nThank you.",
+          "purchase.singular": "1 purchase",
+          "purchase.plural": "{count} purchases",
+          "table.chosen": "Your selected pages",
+          "table.top": "Your most visited pages",
+          "table.captionGa4": "Web server compared with Google Analytics. The last column shows how much Google Analytics sees compared with the server file.",
+          "table.captionServer": "How often your web server saw these pages. Optionally enter Google Analytics numbers above to compare.",
+          "result.safetyTitle": "How reliable are the numbers?",
+          "metric.visits": "Visits according to the web server",
+          "metric.visitsHelp": "Rough estimate: requests from the same IP connection and browser close together count as one visit. Several people behind one IP can look like one.",
+          "metric.views": "Total page views",
+          "metric.viewsHelp": "Only real pages are counted, without images and technical files. Comparable to page views in Google Analytics.",
+          "metric.purchases": "Purchases according to the web server",
+          "metric.purchasesHelp": "How often the thank-you page was found.",
+          "metric.coverage": "How much of your website traffic Google Analytics sees",
+          "metric.coverageHelp": "Meaning: for every 100 requests counted by your server, Google Analytics reports this many.",
+          "diagnostic.host": "Website scope",
+          "diagnostic.export": "Complete export?",
+          "diagnostic.bot": "Bots & anomalies",
+          "diagnostic.tracking": "Large files",
+          "result.caption": "<strong>Page views</strong> means how often a page was opened. <strong>Visitors</strong> always have to be estimated. Why? One person can open the same page multiple times, and several people from one company can look the same because they share an IP. The comparison can differ in both directions: Google Analytics often sees fewer page views because of cookies, consent, or ad blockers. The server file can see fewer requests when a cache sits in front of it. For example, Cloudflare or the browser may serve a cached copy without asking the web server again. That request will not appear in the server file. Purchases are usually more stable because thank-you pages are rarely cached.",
+          "result.actionInitial": "After analysis, this area will tell you what to do next.",
+          "guided.use": "Findings you can use",
+          "guided.limits": "Findings to treat carefully",
+          "guided.next": "What to do next",
+          "purchase.check": "Purchase check (thank-you page)",
+          "purchase.server": "Purchases according to the web server",
+          "purchase.ga4": "Purchases in Google Analytics",
+          "purchase.diff": "Difference (web server - Google Analytics)",
+          "table.page": "Page",
+          "table.server": "Web server",
+          "table.ga4": "Google Analytics",
+          "table.diff": "Difference",
+          "table.ga4Sees": "Google Analytics sees",
+          "details.fileRead": "What was read from the file",
+          "details.totalRows": "All rows in the file",
+          "details.totalRowsHelp": "How many rows the file contained.",
+          "details.keptRows": "Used requests",
+          "details.keptRowsHelp": "Real visitor requests that were counted.",
+          "details.filteredRows": "Not used",
+          "details.filteredRowsHelp": "Bots, errors, and rows outside the date range.",
+          "details.adsVisits": "Visits from Google Ads",
+          "details.adsVisitsHelp": "Visits with a Google ad marker in the URL.",
+          "details.visits": "Visits in the web server",
+          "details.kept": "Used requests after filtering",
+          "details.parsed": "Rows understood",
+          "details.filtered": "Rows not used",
+          "details.serverCr": "Server-side purchase rate",
+          "details.adsSuccess": "Google Ads visits with purchase",
+          "details.filterReason": "Filtered out - reason",
+          "details.count": "Count",
+          "details.tech": "Technical details for IT or Analytics",
+          "details.copyReport": "Copy analysis protocol",
+          "details.type": "Type",
+          "details.messageIt": "Message to IT",
+          "details.messageItHint": "Please export the access log for the requested period. Format: Apache/Nginx Combined Log, as .log, .txt, or .gz. ServerStory shows only aggregates; IPs are not displayed.",
+          "quality.high": "Good to use",
+          "quality.medium": "Use with caution",
+          "quality.limited": "Not reliable",
+          "quality.none": "Not checked",
+          "quality.qVisitsHigh": "Easy to identify",
+          "quality.qHostHigh": "Evaluated reliably",
+          "quality.qExportHigh": "Evaluated reliably",
+          "quality.qBotHigh": "Evaluated reliably",
+          "quality.qTrackingHigh": "File size is fine",
+          "signal.done": "Analyzed",
+          "signal.warning": "Warning",
+          "signal.smallGap": "Small gap",
+          "signal.matches": "Matches",
+          "signal.ga4More": "Google Analytics counts more",
+          "verdict.noGa4.headline": "What your web server saw",
+          "range.file": "your file",
+          "range.fromTo": "{from} to {to}",
+          "range.start": "start",
+          "range.end": "end",
+          "visits.notDeterminable": "a visit count that is not reliable with this data",
+          "visits.count": "{count} visits",
+          "verdict.noGa4.subline": "For {range}, your web server counts {visits} and {views} page views.",
+          "verdict.noGa4.sublinePurchases": " Of those, {purchases} reached the thank-you page.",
+          "verdict.noGa4.action": "Next step: These are the real server-side numbers. Compare them with Google Analytics, or enter your Google Analytics numbers above and ServerStory will show the gap directly.",
+          "verdict.ga4Low.headline": "Your server counts clearly more page views than Google Analytics",
+          "verdict.ga4Low.subline": "For the selected pages, your server file shows clearly more page views than your Google Analytics dashboard. Overall, the server file shows {gap} more page views than Google Analytics.{worst}",
+          "verdict.ga4Low.worst": " The biggest gap is on {path}: your server shows {gap} more page views there than Google Analytics.",
+          "verdict.ga4Low.action": "Next step: Do not make strategic decisions from this result yet. First check whether the period, website, and pages really match, whether Google Analytics contains page views, and whether consent banners, ad blockers, or caching explain the difference.",
+          "verdict.ga4Small.headline": "Small discrepancy",
+          "verdict.ga4Small.subline": "Google Analytics sees {coverage} of the requests in the server file. A small gap is normal.{worst}",
+          "verdict.ga4Small.worst": " Lowest coverage is on {path} ({coverage}).",
+          "verdict.ga4Small.action": "Next step: Keep an eye on it, but do not make a major decision based only on this small discrepancy.",
+          "verdict.ga4Match.headline": "The numbers match",
+          "verdict.ga4Match.subline": "Google Analytics and the server file are close ({coverage}).",
+          "verdict.ga4Match.action": "Next step: Quickly check period and pages. After that, the Google Analytics numbers look plausible.",
+          "verdict.ga4High.headline": "Google Analytics is above the server file",
+          "verdict.ga4High.subline": "For the compared pages, Google Analytics reports more than the server file ({coverage}). A common cause is cache/CDN: some requests may never reach this server file. Duplicate counting or bots can also inflate Google Analytics.",
+          "verdict.ga4High.action": "Next step: Check whether Cloudflare or another cache sits in front of the site. If so, this server file can miss requests. Otherwise check bots or duplicate counting in Google Analytics."
+        }
+      };
+
+      let currentLang = "de";
+
+      function interpolate(text, vars) {
+        return String(text || "").replace(/\{(\w+)\}/g, (_, key) => vars && vars[key] !== undefined ? vars[key] : "");
+      }
+
+      function t(key, vars) {
+        const dict = I18N[currentLang] || I18N.de;
+        return interpolate(dict[key] || I18N.de[key] || key, vars);
+      }
+
+      function preferredLanguage() {
+        try {
+          const stored = localStorage.getItem("serverstory.lang");
+          if (stored === "de" || stored === "en") return stored;
+        } catch (_) {}
+        const lang = typeof navigator !== "undefined" && navigator.language ? navigator.language.toLowerCase() : "de";
+        return lang.startsWith("de") ? "de" : "en";
+      }
+
+      function setI18nValue(el, value, mode) {
+        if (!el) return;
+        if (mode === "html") el.innerHTML = value;
+        else el.textContent = value;
+      }
+
+      function translatePage() {
+        if (document && document.documentElement) document.documentElement.lang = currentLang;
+        if (document && document.title !== undefined) document.title = t("meta.title");
+        const desc = document.querySelector ? document.querySelector('meta[name="description"]') : null;
+        if (desc) desc.setAttribute("content", t("meta.description"));
+        const ogTitle = document.querySelector ? document.querySelector('meta[property="og:title"]') : null;
+        const ogDescription = document.querySelector ? document.querySelector('meta[property="og:description"]') : null;
+        if (ogTitle) ogTitle.setAttribute("content", t("meta.title"));
+        if (ogDescription) ogDescription.setAttribute("content", t("meta.description"));
+        document.querySelectorAll("[data-i18n]").forEach((el) => setI18nValue(el, t(el.dataset.i18n), el.dataset.i18nMode));
+        document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => el.setAttribute("placeholder", t(el.dataset.i18nPlaceholder)));
+        document.querySelectorAll("[data-i18n-aria]").forEach((el) => el.setAttribute("aria-label", t(el.dataset.i18nAria)));
+        document.querySelectorAll("[data-lang-button]").forEach((el) => {
+          const active = el.dataset.langButton === currentLang;
+          el.classList.toggle("active", active);
+          el.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+      }
+
+      function setLanguage(lang) {
+        currentLang = lang === "en" ? "en" : "de";
+        try { localStorage.setItem("serverstory.lang", currentLang); } catch (_) {}
+        translatePage();
+      }
+
+      function initI18n() {
+        currentLang = preferredLanguage();
+        document.querySelectorAll("[data-lang-button]").forEach((el) => {
+          el.addEventListener("click", () => setLanguage(el.dataset.langButton));
+        });
+        translatePage();
+      }
+
+
+      // @requires currentLang, t
       // @provides sample, sampleMode, analyzed, lastResult, lastGa4Import, ASSET_RE, id, number, format, percent, signed, kauf, escapeHtml, normalizePath, compareUrls, parseMetricNumber, splitMetricLine
 
 
@@ -43,11 +480,12 @@
       }
       function format(value) {
         if (value === null || value === undefined || Number.isNaN(value)) return "-";
-        return new Intl.NumberFormat("de-DE").format(value);
+        return new Intl.NumberFormat(currentLang === "en" ? "en-US" : "de-DE").format(value);
       }
       function percent(value) {
         if (value === null || value === undefined || Number.isNaN(value)) return "-";
-        return `${Number(value).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+        const locale = currentLang === "en" ? "en-US" : "de-DE";
+        return `${Number(value).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
       }
       function signed(value) {
         if (value === null || value === undefined || Number.isNaN(value)) return "-";
@@ -57,7 +495,7 @@
       }
       function kauf(n) {
         if (n === null || n === undefined || Number.isNaN(n)) return "-";
-        return n === 1 ? "1 Kauf" : `${format(n)} Käufe`;
+        return n === 1 ? t("purchase.singular") : t("purchase.plural", { count: format(n) });
       }
       function escapeHtml(value) {
         return String(value)
@@ -785,14 +1223,14 @@
         return { processLine, finalize };
       }
 
-      // @requires id, percent, ASSET_RE, makeAggregator, topEntries
+      // @requires id, percent, ASSET_RE, makeAggregator, topEntries, t
       // @provides zeitraumText, formatDateTime, preflightLogSample
 
       function zeitraumText() {
         const from = id("date-from").value;
         const to = id("date-to").value;
-        if (!from && !to) return "deiner Datei";
-        return `${from || "Anfang"} bis ${to || "Ende"}`;
+        if (!from && !to) return t("range.file");
+        return t("range.fromTo", { from: from || t("range.start"), to: to || t("range.end") });
       }
       function formatDateTime(ms) {
         if (!ms) return "-";
@@ -1706,7 +2144,7 @@
         };
       }
 
-      // @requires id, format, percent, signed, kauf, escapeHtml, formatDateTime, zeitraumText, preflightLogSample, buildResult, readConfig, processFile, sample, sampleMode, analyzed, lastResult, lastGa4Import
+      // @requires id, format, percent, signed, kauf, escapeHtml, formatDateTime, zeitraumText, preflightLogSample, buildResult, readConfig, processFile, sample, sampleMode, analyzed, lastResult, lastGa4Import, t, initI18n
       // @provides setSignal, showHint, setQuality, setQualityReason, unique, qualityReason, setPrecisionChecklist, buildGuidedDiagnosis, renderGuidedDiagnosis, preflightGuidance, render, convNote, diffNote, setVerdict, renderRows, renderPageTable, setBusy, updateProgress, runAnalysis, copyText
 
       function setSignal(state, icon, label) {
@@ -1721,13 +2159,13 @@
         else { el.textContent = ""; el.classList.add("hidden"); }
       }
       function setQuality(elId, state) {
-        const labels = { high: "Gut nutzbar", medium: "Mit Vorsicht", limited: "Nicht verlässlich", none: "Nicht geprüft" };
+        const labels = { high: t("quality.high"), medium: t("quality.medium"), limited: t("quality.limited"), none: t("quality.none") };
         const highLabels = {
-          "q-visits": "Gut identifizierbar",
-          "q-host": "Konnte zuverlässig ausgewertet werden",
-          "q-export": "Konnte zuverlässig ausgewertet werden",
-          "q-bot": "Konnte zuverlässig ausgewertet werden",
-          "q-tracking": "Die Größe der Log-Datei ist in Ordnung"
+          "q-visits": t("quality.qVisitsHigh"),
+          "q-host": t("quality.qHostHigh"),
+          "q-export": t("quality.qExportHigh"),
+          "q-bot": t("quality.qBotHigh"),
+          "q-tracking": t("quality.qTrackingHigh")
         };
         const el = id(elId);
         el.className = `quality-badge ${state || "none"}`;
@@ -1968,10 +2406,8 @@
         id("purchase-note").textContent = hasConv ? convNote(data.convDiff) : "";
 
         // Seiten-Tabelle
-        id("table-title").textContent = data.hasChosen ? "Deine ausgewählten Seiten" : "Deine meistbesuchten Seiten";
-        id("table-caption").textContent = hasGa4
-          ? "Webserver gegen Google Analytics. Die letzte Spalte zeigt, wie viel Google Analytics im Vergleich zur Server-Datei sieht."
-          : "So oft hat dein Webserver diese Seiten gesehen. Trag oben optional Google-Analytics-Zahlen ein, um zu vergleichen.";
+        id("table-title").textContent = data.hasChosen ? t("table.chosen") : t("table.top");
+        id("table-caption").textContent = hasGa4 ? t("table.captionGa4") : t("table.captionServer");
         id("compare-note").textContent = hasGa4 ? diffNote(data.overall.difference) : "";
         renderPageTable(data.tableRows);
 
@@ -2099,15 +2535,15 @@
       }
       function setVerdict(data, hasGa4, hasConv) {
         if (!hasGa4 && !hasConv) {
-          setSignal("good", "✓", "Ausgewertet");
-          id("headline").textContent = "Das hat dein Webserver gesehen";
+          setSignal("good", "✓", t("signal.done"));
+          id("headline").textContent = t("verdict.noGa4.headline");
           const visitText = data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable"
-            ? "eine mit diesen Daten nicht verlässlich bestimmbare Besucherzahl"
-            : `${format(data.visits)} Besuche`;
-          let sub = `In ${zeitraumText()} zählt dein Webserver ${visitText} und ${format(data.pageViews)} Seitenaufrufe.`;
-          if (data.hasSuccessUrl) sub += ` Davon ${kauf(data.success)} auf der Danke-Seite.`;
+            ? t("visits.notDeterminable")
+            : t("visits.count", { count: format(data.visits) });
+          let sub = t("verdict.noGa4.subline", { range: zeitraumText(), visits: visitText, views: format(data.pageViews) });
+          if (data.hasSuccessUrl) sub += t("verdict.noGa4.sublinePurchases", { purchases: kauf(data.success) });
           id("subline").textContent = sub;
-          id("action").textContent = "Nächster Schritt: Das sind die echten Server-Zahlen. Vergleiche sie mit Google Analytics — oder trag oben optional deine Google-Analytics-Zahlen ein, dann zeigt ServerStory die Lücke direkt.";
+          id("action").textContent = t("verdict.noGa4.action");
           return;
         }
 
@@ -2119,30 +2555,30 @@
           // kein XSS. WICHTIG: bleibt das so. Wer diese Ausgabe je auf innerHTML umstellt, MUSS
           // worst.name durch escapeHtml() schicken.
           if (cov < 85) {
-            setSignal("warn", "!", "Achtung");
-            id("headline").textContent = "Dein Server zählt deutlich mehr Seitenaufrufe als Google Analytics";
+            setSignal("warn", "!", t("signal.warning"));
+            id("headline").textContent = t("verdict.ga4Low.headline");
             const serverGap = cov > 0 ? percent((10000 / cov) - 100) : "deutlich";
             const worstGapText = worst && worst.coverage < 85
-              ? ` Den größten Unterschied hat deine Unterseite ${worst.name}: Dort verzeichnet dein Server ${worst.coverage > 0 ? percent((10000 / worst.coverage) - 100) : "deutlich"} mehr Seitenaufrufe als Google Analytics.`
+              ? t("verdict.ga4Low.worst", { path: worst.name, gap: worst.coverage > 0 ? percent((10000 / worst.coverage) - 100) : "deutlich" })
               : "";
-            id("subline").textContent = `In deiner Server-Datei stehen für deine ausgewählten Seiten deutlich mehr Seitenaufrufe als in deinem Google Analytics-Dashboard. Deine Server-Datei verzeichnet insgesamt ${serverGap} mehr Seitenaufrufe als Google Analytics.${worstGapText}`;
-            id("action").textContent = "Nächster Schritt: Du solltest aus den Ergebnissen jetzt noch keine strategischen Entscheidungen ableiten. Prüfe zuerst: Hast du wirklich den gleichen Zeitraum und die richtige Website geprüft? Stimmen die Seitenaufrufe in Google Analytics? Hast du geprüft, ob Cookie-Banner, Ad-Blocker oder ein Cache die Differenz erklären können?";
+            id("subline").textContent = t("verdict.ga4Low.subline", { gap: serverGap, worst: worstGapText });
+            id("action").textContent = t("verdict.ga4Low.action");
           } else if (cov < 95) {
-            setSignal("medium", "~", "Kleine Lücke");
-            id("headline").textContent = "Kleine Abweichung";
-            const worstText = worst && worst.coverage < 85 ? ` Am wenigsten auf ${worst.name} (${percent(worst.coverage)}).` : "";
-            id("subline").textContent = `Google Analytics findet ${percent(cov)} der Aufrufe aus der Server-Datei. Eine kleine Lücke ist normal.${worstText}`;
-            id("action").textContent = "Nächster Schritt: Im Auge behalten, aber keine große Entscheidung nur wegen dieser kleinen Abweichung treffen.";
+            setSignal("medium", "~", t("signal.smallGap"));
+            id("headline").textContent = t("verdict.ga4Small.headline");
+            const worstText = worst && worst.coverage < 85 ? t("verdict.ga4Small.worst", { path: worst.name, coverage: percent(worst.coverage) }) : "";
+            id("subline").textContent = t("verdict.ga4Small.subline", { coverage: percent(cov), worst: worstText });
+            id("action").textContent = t("verdict.ga4Small.action");
           } else if (cov <= 110) {
-            setSignal("good", "✓", "Passt");
-            id("headline").textContent = "Die Zahlen passen zusammen";
-            id("subline").textContent = `Google Analytics und die Server-Datei liegen nah beieinander (${percent(cov)}).`;
-            id("action").textContent = "Nächster Schritt: Kurz Zeitraum und Seiten prüfen — danach wirken die Google-Analytics-Zahlen verlässlich.";
+            setSignal("good", "✓", t("signal.matches"));
+            id("headline").textContent = t("verdict.ga4Match.headline");
+            id("subline").textContent = t("verdict.ga4Match.subline", { coverage: percent(cov) });
+            id("action").textContent = t("verdict.ga4Match.action");
           } else {
-            setSignal("medium", "~", "Google Analytics zählt mehr");
-            id("headline").textContent = "Google Analytics liegt über der Server-Datei";
-            id("subline").textContent = `Für die verglichenen Seiten meldet Google Analytics mehr als die Server-Datei (${percent(cov)}). Häufige Ursache: Cache/CDN — ein Teil der Aufrufe landet dann nicht in dieser Server-Datei. Auch Mehrfachzählung oder Bots können Google Analytics aufblähen.`;
-            id("action").textContent = "Nächster Schritt: Prüfen, ob Cloudflare oder ein anderer Cache vor der Seite sitzt — dann fehlen Aufrufe in dieser Server-Datei. Sonst Bots oder Mehrfachzählung in Google Analytics prüfen.";
+            setSignal("medium", "~", t("signal.ga4More"));
+            id("headline").textContent = t("verdict.ga4High.headline");
+            id("subline").textContent = t("verdict.ga4High.subline", { coverage: percent(cov) });
+            id("action").textContent = t("verdict.ga4High.action");
           }
           return;
         }
@@ -2195,18 +2631,18 @@
 
       function setBusy(busy) {
         id("run").disabled = busy;
-        id("run").textContent = busy ? "Wird ausgewertet …" : "Jetzt auswerten";
+        id("run").textContent = busy ? t("button.runBusy") : t("button.run");
         id("progress").classList.toggle("hidden", !busy);
       }
       function updateProgress(done, total) {
         if (!total) {
           id("progress-bar").style.width = "100%";
-          id("progress-label").textContent = "Wird ausgewertet …";
+          id("progress-label").textContent = t("progress.idle");
           return;
         }
         const pct = Math.max(0, Math.min(100, (done / total) * 100));
         id("progress-bar").style.width = pct.toFixed(1) + "%";
-        id("progress-label").textContent = `Wird ausgewertet … ${Math.round(pct)} %`;
+        id("progress-label").textContent = t("progress.percent", { pct: Math.round(pct) });
       }
       async function runAnalysis(blob, isSample) {
         sampleMode = !!isSample;
@@ -2221,7 +2657,7 @@
           updateProgress(progressTotal || 1, progressTotal || 1);
           render(buildResult(agg, config));
         } catch (error) {
-          id("message").textContent = error && error.message ? error.message : "Auswertung fehlgeschlagen.";
+          id("message").textContent = error && error.message ? error.message : t("message.analysisFailed");
         } finally {
           setBusy(false);
         }
@@ -2231,7 +2667,7 @@
         id("message").textContent = "";
         const file = id("log-file").files[0];
         if (!file) {
-          id("message").textContent = "Bitte Logdatei auswählen oder „Demo mit Beispieldaten starten“ klicken.";
+          id("message").textContent = t("message.noFile");
           return;
         }
         runAnalysis(file, false);
@@ -2240,11 +2676,11 @@
         id("message").textContent = "";
         const file = id("log-file").files[0];
         if (!file) {
-          id("message").textContent = "Bitte zuerst eine Logdatei auswählen.";
+          id("message").textContent = t("message.preflightNoFile");
           return;
         }
         if (/\.gz$/i.test(file.name || "")) {
-          id("message").textContent = "Kurzprüfung für .gz-Dateien läuft über die vollständige Auswertung, weil komprimierte Dateien nicht sinnvoll angeschnitten werden können.";
+          id("message").textContent = t("message.gzPreflight");
           return;
         }
         try {
@@ -2271,7 +2707,7 @@
         id("ga4-conversions").value = "185";
         id("date-from").value = "2026-06-05";
         id("date-to").value = "2026-06-05";
-        id("message").textContent = "Demo gestartet — mit Beispieldaten, ohne echte Datei.";
+        id("message").textContent = t("message.demoStarted");
         runAnalysis(new Blob([sample], { type: "text/plain" }), true);
       });
       async function copyText(text, okMsg) {
@@ -2283,16 +2719,16 @@
         }
       }
       id("copy-it").addEventListener("click", () => copyText(
-        `Bitte exportiere mir das Access Log (die Besuchsliste des Webservers) für den gewünschten Zeitraum.\n\nBitte als .log-, .txt- oder .gz-Datei, idealerweise Apache/Nginx Combined Log.\n\nEs geht nur um Summen (Besuche, Seitenaufrufe), keine Auswertung einzelner Nutzer. Die Datei wird lokal im Browser ausgewertet und nicht in fremde Cloudtools hochgeladen.`,
-        "Text für IT/Agentur kopiert — jetzt einfügen und abschicken."
+        t("copy.it"),
+        t("message.copyItOk")
       ));
       id("copy-hoster").addEventListener("click", () => copyText(
-        `Hallo, ich bin Inhaber bzw. berechtigt für das Hosting-Paket zur Domain [DEINE-DOMAIN.DE].\n\nBitte stellt mir das Access Log (die Server-Logdatei mit den Seitenaufrufen) für den Zeitraum [VON] bis [BIS] zum Download bereit oder schickt es mir per E-Mail. Falls ich es selbst im Kundenmenü herunterladen kann: Wo finde ich die Logdateien?\n\nFormat bitte als .log-, .txt- oder .gz-Datei (Apache/Nginx Combined Log). Es geht nur um aggregierte Zugriffszahlen, keine personenbezogene Auswertung.\n\nVielen Dank!`,
-        "Text für Hoster-Support kopiert — Platzhalter [...] ersetzen, dann abschicken."
+        t("copy.hoster"),
+        t("message.copyHosterOk")
       ));
       id("copy-report").addEventListener("click", () => {
         if (!lastResult) {
-          id("message").textContent = "Noch kein Analyse-Protokoll vorhanden.";
+          id("message").textContent = t("message.noReport");
           return;
         }
         const report = {
@@ -2383,10 +2819,11 @@
           },
           topPages: lastResult.tableRows
         };
-        copyText(JSON.stringify(report, null, 2), "Analyse-Protokoll kopiert.");
+        copyText(JSON.stringify(report, null, 2), t("message.reportCopied"));
       });
       id("log-file").addEventListener("change", () => {
         sampleMode = false;
         id("demo-badge").classList.remove("visible");
       });
       if (location.protocol === "file:") id("offline-note").classList.add("hidden");
+      initI18n();

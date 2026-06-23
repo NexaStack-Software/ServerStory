@@ -1,4 +1,4 @@
-      // @requires id, format, percent, signed, kauf, escapeHtml, formatDateTime, zeitraumText, preflightLogSample, buildResult, readConfig, processFile, sample, sampleMode, analyzed, lastResult, lastGa4Import
+      // @requires id, format, percent, signed, kauf, escapeHtml, formatDateTime, zeitraumText, preflightLogSample, buildResult, readConfig, processFile, sample, sampleMode, analyzed, lastResult, lastGa4Import, t, initI18n
       // @provides setSignal, showHint, setQuality, setQualityReason, unique, qualityReason, setPrecisionChecklist, buildGuidedDiagnosis, renderGuidedDiagnosis, preflightGuidance, render, convNote, diffNote, setVerdict, renderRows, renderPageTable, setBusy, updateProgress, runAnalysis, copyText
 
       function setSignal(state, icon, label) {
@@ -13,13 +13,13 @@
         else { el.textContent = ""; el.classList.add("hidden"); }
       }
       function setQuality(elId, state) {
-        const labels = { high: "Gut nutzbar", medium: "Mit Vorsicht", limited: "Nicht verlässlich", none: "Nicht geprüft" };
+        const labels = { high: t("quality.high"), medium: t("quality.medium"), limited: t("quality.limited"), none: t("quality.none") };
         const highLabels = {
-          "q-visits": "Gut identifizierbar",
-          "q-host": "Konnte zuverlässig ausgewertet werden",
-          "q-export": "Konnte zuverlässig ausgewertet werden",
-          "q-bot": "Konnte zuverlässig ausgewertet werden",
-          "q-tracking": "Die Größe der Log-Datei ist in Ordnung"
+          "q-visits": t("quality.qVisitsHigh"),
+          "q-host": t("quality.qHostHigh"),
+          "q-export": t("quality.qExportHigh"),
+          "q-bot": t("quality.qBotHigh"),
+          "q-tracking": t("quality.qTrackingHigh")
         };
         const el = id(elId);
         el.className = `quality-badge ${state || "none"}`;
@@ -260,10 +260,8 @@
         id("purchase-note").textContent = hasConv ? convNote(data.convDiff) : "";
 
         // Seiten-Tabelle
-        id("table-title").textContent = data.hasChosen ? "Deine ausgewählten Seiten" : "Deine meistbesuchten Seiten";
-        id("table-caption").textContent = hasGa4
-          ? "Webserver gegen Google Analytics. Die letzte Spalte zeigt, wie viel Google Analytics im Vergleich zur Server-Datei sieht."
-          : "So oft hat dein Webserver diese Seiten gesehen. Trag oben optional Google-Analytics-Zahlen ein, um zu vergleichen.";
+        id("table-title").textContent = data.hasChosen ? t("table.chosen") : t("table.top");
+        id("table-caption").textContent = hasGa4 ? t("table.captionGa4") : t("table.captionServer");
         id("compare-note").textContent = hasGa4 ? diffNote(data.overall.difference) : "";
         renderPageTable(data.tableRows);
 
@@ -391,15 +389,15 @@
       }
       function setVerdict(data, hasGa4, hasConv) {
         if (!hasGa4 && !hasConv) {
-          setSignal("good", "✓", "Ausgewertet");
-          id("headline").textContent = "Das hat dein Webserver gesehen";
+          setSignal("good", "✓", t("signal.done"));
+          id("headline").textContent = t("verdict.noGa4.headline");
           const visitText = data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable"
-            ? "eine mit diesen Daten nicht verlässlich bestimmbare Besucherzahl"
-            : `${format(data.visits)} Besuche`;
-          let sub = `In ${zeitraumText()} zählt dein Webserver ${visitText} und ${format(data.pageViews)} Seitenaufrufe.`;
-          if (data.hasSuccessUrl) sub += ` Davon ${kauf(data.success)} auf der Danke-Seite.`;
+            ? t("visits.notDeterminable")
+            : t("visits.count", { count: format(data.visits) });
+          let sub = t("verdict.noGa4.subline", { range: zeitraumText(), visits: visitText, views: format(data.pageViews) });
+          if (data.hasSuccessUrl) sub += t("verdict.noGa4.sublinePurchases", { purchases: kauf(data.success) });
           id("subline").textContent = sub;
-          id("action").textContent = "Nächster Schritt: Das sind die echten Server-Zahlen. Vergleiche sie mit Google Analytics — oder trag oben optional deine Google-Analytics-Zahlen ein, dann zeigt ServerStory die Lücke direkt.";
+          id("action").textContent = t("verdict.noGa4.action");
           return;
         }
 
@@ -411,30 +409,30 @@
           // kein XSS. WICHTIG: bleibt das so. Wer diese Ausgabe je auf innerHTML umstellt, MUSS
           // worst.name durch escapeHtml() schicken.
           if (cov < 85) {
-            setSignal("warn", "!", "Achtung");
-            id("headline").textContent = "Dein Server zählt deutlich mehr Seitenaufrufe als Google Analytics";
+            setSignal("warn", "!", t("signal.warning"));
+            id("headline").textContent = t("verdict.ga4Low.headline");
             const serverGap = cov > 0 ? percent((10000 / cov) - 100) : "deutlich";
             const worstGapText = worst && worst.coverage < 85
-              ? ` Den größten Unterschied hat deine Unterseite ${worst.name}: Dort verzeichnet dein Server ${worst.coverage > 0 ? percent((10000 / worst.coverage) - 100) : "deutlich"} mehr Seitenaufrufe als Google Analytics.`
+              ? t("verdict.ga4Low.worst", { path: worst.name, gap: worst.coverage > 0 ? percent((10000 / worst.coverage) - 100) : "deutlich" })
               : "";
-            id("subline").textContent = `In deiner Server-Datei stehen für deine ausgewählten Seiten deutlich mehr Seitenaufrufe als in deinem Google Analytics-Dashboard. Deine Server-Datei verzeichnet insgesamt ${serverGap} mehr Seitenaufrufe als Google Analytics.${worstGapText}`;
-            id("action").textContent = "Nächster Schritt: Du solltest aus den Ergebnissen jetzt noch keine strategischen Entscheidungen ableiten. Prüfe zuerst: Hast du wirklich den gleichen Zeitraum und die richtige Website geprüft? Stimmen die Seitenaufrufe in Google Analytics? Hast du geprüft, ob Cookie-Banner, Ad-Blocker oder ein Cache die Differenz erklären können?";
+            id("subline").textContent = t("verdict.ga4Low.subline", { gap: serverGap, worst: worstGapText });
+            id("action").textContent = t("verdict.ga4Low.action");
           } else if (cov < 95) {
-            setSignal("medium", "~", "Kleine Lücke");
-            id("headline").textContent = "Kleine Abweichung";
-            const worstText = worst && worst.coverage < 85 ? ` Am wenigsten auf ${worst.name} (${percent(worst.coverage)}).` : "";
-            id("subline").textContent = `Google Analytics findet ${percent(cov)} der Aufrufe aus der Server-Datei. Eine kleine Lücke ist normal.${worstText}`;
-            id("action").textContent = "Nächster Schritt: Im Auge behalten, aber keine große Entscheidung nur wegen dieser kleinen Abweichung treffen.";
+            setSignal("medium", "~", t("signal.smallGap"));
+            id("headline").textContent = t("verdict.ga4Small.headline");
+            const worstText = worst && worst.coverage < 85 ? t("verdict.ga4Small.worst", { path: worst.name, coverage: percent(worst.coverage) }) : "";
+            id("subline").textContent = t("verdict.ga4Small.subline", { coverage: percent(cov), worst: worstText });
+            id("action").textContent = t("verdict.ga4Small.action");
           } else if (cov <= 110) {
-            setSignal("good", "✓", "Passt");
-            id("headline").textContent = "Die Zahlen passen zusammen";
-            id("subline").textContent = `Google Analytics und die Server-Datei liegen nah beieinander (${percent(cov)}).`;
-            id("action").textContent = "Nächster Schritt: Kurz Zeitraum und Seiten prüfen — danach wirken die Google-Analytics-Zahlen verlässlich.";
+            setSignal("good", "✓", t("signal.matches"));
+            id("headline").textContent = t("verdict.ga4Match.headline");
+            id("subline").textContent = t("verdict.ga4Match.subline", { coverage: percent(cov) });
+            id("action").textContent = t("verdict.ga4Match.action");
           } else {
-            setSignal("medium", "~", "Google Analytics zählt mehr");
-            id("headline").textContent = "Google Analytics liegt über der Server-Datei";
-            id("subline").textContent = `Für die verglichenen Seiten meldet Google Analytics mehr als die Server-Datei (${percent(cov)}). Häufige Ursache: Cache/CDN — ein Teil der Aufrufe landet dann nicht in dieser Server-Datei. Auch Mehrfachzählung oder Bots können Google Analytics aufblähen.`;
-            id("action").textContent = "Nächster Schritt: Prüfen, ob Cloudflare oder ein anderer Cache vor der Seite sitzt — dann fehlen Aufrufe in dieser Server-Datei. Sonst Bots oder Mehrfachzählung in Google Analytics prüfen.";
+            setSignal("medium", "~", t("signal.ga4More"));
+            id("headline").textContent = t("verdict.ga4High.headline");
+            id("subline").textContent = t("verdict.ga4High.subline", { coverage: percent(cov) });
+            id("action").textContent = t("verdict.ga4High.action");
           }
           return;
         }
@@ -487,18 +485,18 @@
 
       function setBusy(busy) {
         id("run").disabled = busy;
-        id("run").textContent = busy ? "Wird ausgewertet …" : "Jetzt auswerten";
+        id("run").textContent = busy ? t("button.runBusy") : t("button.run");
         id("progress").classList.toggle("hidden", !busy);
       }
       function updateProgress(done, total) {
         if (!total) {
           id("progress-bar").style.width = "100%";
-          id("progress-label").textContent = "Wird ausgewertet …";
+          id("progress-label").textContent = t("progress.idle");
           return;
         }
         const pct = Math.max(0, Math.min(100, (done / total) * 100));
         id("progress-bar").style.width = pct.toFixed(1) + "%";
-        id("progress-label").textContent = `Wird ausgewertet … ${Math.round(pct)} %`;
+        id("progress-label").textContent = t("progress.percent", { pct: Math.round(pct) });
       }
       async function runAnalysis(blob, isSample) {
         sampleMode = !!isSample;
@@ -513,7 +511,7 @@
           updateProgress(progressTotal || 1, progressTotal || 1);
           render(buildResult(agg, config));
         } catch (error) {
-          id("message").textContent = error && error.message ? error.message : "Auswertung fehlgeschlagen.";
+          id("message").textContent = error && error.message ? error.message : t("message.analysisFailed");
         } finally {
           setBusy(false);
         }
@@ -523,7 +521,7 @@
         id("message").textContent = "";
         const file = id("log-file").files[0];
         if (!file) {
-          id("message").textContent = "Bitte Logdatei auswählen oder „Demo mit Beispieldaten starten“ klicken.";
+          id("message").textContent = t("message.noFile");
           return;
         }
         runAnalysis(file, false);
@@ -532,11 +530,11 @@
         id("message").textContent = "";
         const file = id("log-file").files[0];
         if (!file) {
-          id("message").textContent = "Bitte zuerst eine Logdatei auswählen.";
+          id("message").textContent = t("message.preflightNoFile");
           return;
         }
         if (/\.gz$/i.test(file.name || "")) {
-          id("message").textContent = "Kurzprüfung für .gz-Dateien läuft über die vollständige Auswertung, weil komprimierte Dateien nicht sinnvoll angeschnitten werden können.";
+          id("message").textContent = t("message.gzPreflight");
           return;
         }
         try {
@@ -563,7 +561,7 @@
         id("ga4-conversions").value = "185";
         id("date-from").value = "2026-06-05";
         id("date-to").value = "2026-06-05";
-        id("message").textContent = "Demo gestartet — mit Beispieldaten, ohne echte Datei.";
+        id("message").textContent = t("message.demoStarted");
         runAnalysis(new Blob([sample], { type: "text/plain" }), true);
       });
       async function copyText(text, okMsg) {
@@ -575,16 +573,16 @@
         }
       }
       id("copy-it").addEventListener("click", () => copyText(
-        `Bitte exportiere mir das Access Log (die Besuchsliste des Webservers) für den gewünschten Zeitraum.\n\nBitte als .log-, .txt- oder .gz-Datei, idealerweise Apache/Nginx Combined Log.\n\nEs geht nur um Summen (Besuche, Seitenaufrufe), keine Auswertung einzelner Nutzer. Die Datei wird lokal im Browser ausgewertet und nicht in fremde Cloudtools hochgeladen.`,
-        "Text für IT/Agentur kopiert — jetzt einfügen und abschicken."
+        t("copy.it"),
+        t("message.copyItOk")
       ));
       id("copy-hoster").addEventListener("click", () => copyText(
-        `Hallo, ich bin Inhaber bzw. berechtigt für das Hosting-Paket zur Domain [DEINE-DOMAIN.DE].\n\nBitte stellt mir das Access Log (die Server-Logdatei mit den Seitenaufrufen) für den Zeitraum [VON] bis [BIS] zum Download bereit oder schickt es mir per E-Mail. Falls ich es selbst im Kundenmenü herunterladen kann: Wo finde ich die Logdateien?\n\nFormat bitte als .log-, .txt- oder .gz-Datei (Apache/Nginx Combined Log). Es geht nur um aggregierte Zugriffszahlen, keine personenbezogene Auswertung.\n\nVielen Dank!`,
-        "Text für Hoster-Support kopiert — Platzhalter [...] ersetzen, dann abschicken."
+        t("copy.hoster"),
+        t("message.copyHosterOk")
       ));
       id("copy-report").addEventListener("click", () => {
         if (!lastResult) {
-          id("message").textContent = "Noch kein Analyse-Protokoll vorhanden.";
+          id("message").textContent = t("message.noReport");
           return;
         }
         const report = {
@@ -675,13 +673,14 @@
           },
           topPages: lastResult.tableRows
         };
-        copyText(JSON.stringify(report, null, 2), "Analyse-Protokoll kopiert.");
+        copyText(JSON.stringify(report, null, 2), t("message.reportCopied"));
       });
       id("log-file").addEventListener("change", () => {
         sampleMode = false;
         id("demo-badge").classList.remove("visible");
       });
       if (location.protocol === "file:") id("offline-note").classList.add("hidden");
+      initI18n();
     
     
     
