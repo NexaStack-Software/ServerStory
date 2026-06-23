@@ -378,8 +378,9 @@ function createElement() {
   };
 }
 
-function createRenderContext() {
+function createRenderContext(options = {}) {
   const elements = new Map();
+  const storedLang = Object.prototype.hasOwnProperty.call(options, "storedLang") ? options.storedLang : "de";
   const get = (name) => {
     if (!elements.has(name)) elements.set(name, createElement());
     return elements.get(name);
@@ -397,6 +398,10 @@ function createRenderContext() {
     document: {
       getElementById: get,
       querySelectorAll: () => []
+    },
+    localStorage: {
+      getItem: (key) => key === "serverstory.lang" ? storedLang : null,
+      setItem: () => {}
     },
     navigator: { clipboard: { writeText: async (text) => { renderCtx.__clipboard = text; } } },
     __clipboard: ""
@@ -2987,6 +2992,13 @@ test("separate Source-Dateien fuer Build existieren", () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   assert.strictEqual(pkg.scripts.test, "node tests/serverstory.test.js");
   assert.match(pkg.scripts.build, /scripts\/build/);
+});
+
+test("Sprachumschalter startet ohne gespeicherte Auswahl auf Englisch", () => {
+  const english = createRenderContext({ storedLang: null });
+  assert.strictEqual(english.ctx.t("button.run"), "Analyze now");
+  const german = createRenderContext({ storedLang: "de" });
+  assert.strictEqual(german.ctx.t("button.run"), "Jetzt auswerten");
 });
 
 test("CSP blockiert Netzwerkverbindungen und breite Default-Quellen", () => {

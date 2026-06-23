@@ -174,8 +174,9 @@ den Inline-Worker und die VM-basierten Tests gemeinsam lösen.
 
 Die App ist als eine Codebasis mit Sprachumschalter aufgebaut. `src/modules/00-i18n.js`
 enthält die Übersetzungstabelle, `t()` für dynamische Texte und `data-i18n`-Attribute
-für statische UI-Elemente. Die Standardsprache richtet sich nach der Browsersprache;
-eine manuelle Auswahl (`DE`/`EN`) wird in `localStorage` gespeichert.
+für statische UI-Elemente. Die Standardsprache ist Englisch, weil der öffentliche
+Marktauftritt international ausgerichtet ist. Eine manuelle Auswahl (`DE`/`EN`) wird in
+`localStorage` gespeichert.
 
 Maschinenlesbare Report-Felder, Statuswerte und Claim-IDs bleiben sprachneutral stabil.
 Sichtbare UI-Texte werden lokalisiert; fachliche Reporttexte können später schrittweise

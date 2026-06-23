@@ -15,9 +15,9 @@ Google Analytics. Die Logdatei wird nicht hochgeladen.
 4. Optional Google-Analytics-Seitenaufrufe und Kaufzahlen eintragen.
 5. `Datei kurz prüfen` oder `Jetzt auswerten` klicken.
 
-ServerStory erkennt Deutsch oder Englisch anhand der Browsersprache. Oben rechts kann
-die Sprache jederzeit zwischen `DE` und `EN` umgeschaltet werden; die Auswahl bleibt
-lokal im Browser gespeichert.
+ServerStory startet standardmäßig auf Englisch. Oben rechts kann die Sprache jederzeit
+zwischen `DE` und `EN` umgeschaltet werden; die Auswahl bleibt lokal im Browser
+gespeichert.
 
 Die ZIP-Datei enthält auf der obersten Ebene nur `START_HIER.html` und den Ordner
 `serverstory-app/`. Zum Start reicht ein Doppelklick auf `START_HIER.html`.

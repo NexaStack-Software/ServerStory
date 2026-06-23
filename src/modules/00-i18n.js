@@ -391,8 +391,7 @@
           const stored = localStorage.getItem("serverstory.lang");
           if (stored === "de" || stored === "en") return stored;
         } catch (_) {}
-        const lang = typeof navigator !== "undefined" && navigator.language ? navigator.language.toLowerCase() : "de";
-        return lang.startsWith("de") ? "de" : "en";
+        return "en";
       }
 
       function setI18nValue(el, value, mode) {
