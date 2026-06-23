@@ -187,7 +187,12 @@
                   <input type="checkbox" id="use-xff">
                   <span>Echte Besucheradresse hinter Proxy verwenden</span>
                 </label>
-                <p class="helper">Nur sinnvoll, wenn Cloudflare, ein Cache oder ein anderer Proxy vor deiner Website sitzt. Dann steht vorne oft nur die Zwischenstation; die echte Besucheradresse steht in einem Zusatzfeld. Achtung: Dieser Wert ist fälschbar.</p>
+                <p class="helper">Nur sinnvoll, wenn Cloudflare, ein Cache oder ein anderer Proxy vor deiner Website sitzt. Dann steht vorne oft nur die Zwischenstation; die echte Besucheradresse steht in einem Zusatzfeld.</p>
+                <label class="check">
+                  <input type="checkbox" id="trust-xff-source">
+                  <span>Proxy-Feld stammt aus einer vertrauenswürdigen Proxy-Kette</span>
+                </label>
+                <p class="helper">Nur aktivieren, wenn die Datei aus deinem eigenen Proxy/CDN/Loadbalancer kommt und Besucher diese Zusatzadresse nicht selbst setzen können. Ohne diese Bestätigung bleibt die Besucherzahl trotz Proxy-Feld nur eingeschränkt belastbar.</p>
                 <label class="check">
                   <input type="checkbox" id="strict-bot">
                   <span>Strenger Bot-Filter (nur klare Browser zählen)</span>

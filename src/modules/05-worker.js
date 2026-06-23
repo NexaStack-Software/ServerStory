@@ -1,3 +1,6 @@
+      // @requires makeAggregator, id, number, normalizePath, ASSET_RE
+      // @provides WORKER_SRC, processViaWorker, processOnMainThread, processFile, readConfig
+
       // Worker-Quelle: makeAggregator wird per toString() eingebettet, damit alles inline
       // bleibt (keine externen Skripte, läuft auch unter file://).
       const WORKER_SRC = `
@@ -124,6 +127,7 @@
           dateFrom: id("date-from").value,
           dateTo: id("date-to").value,
           useXff: id("use-xff").checked,
+          trustXffSource: id("trust-xff-source").checked,
           strictBot: id("strict-bot").checked,
           keptQueryParams: id("keep-query").value.split(/\s*,\s*/),
           hostFilter: id("host-filter").value.split(/\s*,\s*/),
@@ -142,4 +146,3 @@
           assetRe: ASSET_RE
         };
       }
-

@@ -1,3 +1,6 @@
+      // @requires id, format, percent, signed, kauf, escapeHtml, formatDateTime, zeitraumText, preflightLogSample, buildResult, readConfig, processFile, sample, sampleMode, analyzed, lastResult, lastGa4Import
+      // @provides setSignal, showHint, setQuality, setQualityReason, unique, qualityReason, setPrecisionChecklist, buildGuidedDiagnosis, renderGuidedDiagnosis, preflightGuidance, render, convNote, diffNote, setVerdict, renderRows, renderPageTable, setBusy, updateProgress, runAnalysis, copyText
+
       function setSignal(state, icon, label) {
         const signal = id("signal");
         signal.className = "signal" + (state ? ` ${state}` : "");
@@ -41,6 +44,7 @@
         if (metric === "visits") {
           if (data.evidence && data.evidence.visits && data.evidence.visits.type === "not_determinable") return "Nicht verlässlich bestimmbar: Die Datei zeigt vor allem Proxy-/CDN-Adressen, nicht echte Besucher.";
           if (data.diagnostics.visitorReliability === "high") return data.xffUsed ? "Wir konnten diese Zahl zuverlässig bestimmen: Echte Besucher-IPs aus einem feldgenau erkannten Proxy-Feld wurden genutzt." : "Wir konnten diese Zahl zuverlässig bestimmen: Keine starke Proxy-Verzerrung sichtbar.";
+          if (data.xffUsed && !data.xffTrusted) return "Nur Richtwert: Das Proxy-Feld wurde gelesen, aber die Proxy-Kette wurde nicht als vertrauenswürdig bestätigt.";
           if (data.proxyKind) return "Nur Spanne: Proxy oder CDN erkannt. Besucher nicht als exakte Zahl lesen.";
           if (data.xffUsed && data.xffExactUsed !== data.xffUsed) return "Das Proxy-Feld wurde nicht feldgenau erkannt. Besucheradressen nur vorsichtig verwenden.";
           if (data.xffMissing || data.xffPrivate) return "Das Proxy-Feld enthält keine brauchbaren Besucher-IPs.";
@@ -133,6 +137,10 @@
         if (data.proxyKind && !data.xffUsed) {
           limits.push("Besucheradressen wirken durch Cache oder Zwischenstation verdeckt.");
           next.push("Falls Cloudflare, Proxy oder Cache davor sitzt: echte Besucheradresse aktivieren und erneut auswerten.");
+        }
+        if (data.xffUsed && !data.xffTrusted) {
+          limits.push("Das Proxy-Feld wurde genutzt, aber die Proxy-Kette ist nicht als vertrauenswürdig bestätigt.");
+          next.push("Proxy-Feld nur als belastbar behandeln, wenn es aus dem eigenen Proxy/CDN/Loadbalancer stammt.");
         }
         if (data.calibration && data.calibration.cache === "yes" && data.calibration.logSource !== "edge") {
           limits.push("Ein Cache oder Schutzdienst kann Aufrufe aus dieser Server-Datei heraushalten.");
@@ -292,6 +300,8 @@
           recognitionText += (recognitionText ? " " : "") + "Das Proxy-Feld wurde aktiviert, aber ServerStory hat dort keine brauchbaren Besucheradressen gefunden. Die Besucherzahl nutzt deshalb weiter die erste Adresse in der Zeile.";
         } else if (data.xffPrivate > 0 && data.xffUsed === 0) {
           recognitionText += (recognitionText ? " " : "") + "Das Proxy-Feld enthält nur interne Adressen. Die Besucherzahl kann deshalb weiter verzerrt sein.";
+        } else if (data.xffUsed > 0 && !data.xffTrusted) {
+          recognitionText += (recognitionText ? " " : "") + "Das Proxy-Feld wurde gelesen, aber nicht als vertrauenswürdige Proxy-Kette bestätigt. Die Besucherzahl bleibt deshalb nur ein Richtwert.";
         } else if (data.diagnostics.visitorReliability === "limited") {
           recognitionText += (recognitionText ? " " : "") + "Die Besucherzahl ist eingeschränkt belastbar; Seitenaufrufe sind hier die robustere Kennzahl.";
         }
@@ -617,7 +627,8 @@
             used: lastResult.xffUsed,
             exactUsed: lastResult.xffExactUsed,
             missing: lastResult.xffMissing,
-            privateOnly: lastResult.xffPrivate
+            privateOnly: lastResult.xffPrivate,
+            trustedSourceConfirmed: !!lastResult.xffTrusted
           },
           suspiciousClients: lastResult.suspiciousClients,
           scanRequests: lastResult.scanRequests,

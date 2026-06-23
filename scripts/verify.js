@@ -26,13 +26,16 @@ function assertFileExcludes(file, forbidden) {
   }
 }
 
-const indexBeforeBuild = fs.existsSync(path.join(root, "index.html"))
-  ? fs.readFileSync(path.join(root, "index.html"), "utf8")
-  : "";
+const generatedBeforeBuild = new Map(["index.html", "src/app.js"].map((file) => [
+  file,
+  fs.existsSync(path.join(root, file)) ? fs.readFileSync(path.join(root, file), "utf8") : ""
+]));
 run("npm", ["run", "build"]);
-const indexAfterBuild = fs.readFileSync(path.join(root, "index.html"), "utf8");
-if (indexBeforeBuild !== indexAfterBuild) {
-  throw new Error("verify failed: npm run build changed index.html; run build and commit the updated artifact");
+for (const [file, before] of generatedBeforeBuild) {
+  const after = fs.readFileSync(path.join(root, file), "utf8");
+  if (before !== after) {
+    throw new Error(`verify failed: npm run build changed ${file}; run build and commit the updated artifact`);
+  }
 }
 run("node", ["--check", "src/app.js"]);
 run("node", ["--check", "src/modules/01-core.js"]);

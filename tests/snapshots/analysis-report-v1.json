@@ -335,6 +335,7 @@
       "hostFilterRequested": false,
       "hostFilterNoHost": 0,
       "proxyKind": "none",
+      "xffTrusted": false,
       "scanRequests": 0,
       "probeRequests": 0,
       "probeClients": 0,
@@ -403,7 +404,8 @@
     "used": 0,
     "exactUsed": 0,
     "missing": 0,
-    "privateOnly": 0
+    "privateOnly": 0,
+    "trustedSourceConfirmed": false
   },
   "suspiciousClients": 0,
   "scanRequests": 0,

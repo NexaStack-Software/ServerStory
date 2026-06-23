@@ -17,7 +17,7 @@ Stabile Kernfelder:
 - `calibration`: Nutzer- oder Preset-Angaben zu Dateiquelle, Cache/CDN,
   Export-Vollstaendigkeit und Google-Analytics-Zahl.
 - `timeRange`: erkannter Logzeitraum und groesste Luecke.
-- `xForwardedFor`: XFF-Nutzung, feldgenau erkannte XFF-Werte, fehlende oder nur private XFF-Werte.
+- `xForwardedFor`: XFF-Nutzung, feldgenau erkannte XFF-Werte, fehlende oder nur private XFF-Werte und ob die Proxy-Kette als vertrauenswürdig bestätigt wurde.
 - `hostFilter`: ob ein Website-Filter gesetzt wurde und ob Zeilen ohne Host-Angabe
   seine Wirkung begrenzen.
 - `pathCountCapped`, `queryVariantCapped`, `queryVariantCount`: ob Detailtabellen
@@ -55,7 +55,7 @@ Diagnosefelder:
 - `parser.hosts`
 - `parser.statusCounts`, `parser.methodCounts`
 - `parser.filterReasonPct`
-- `xForwardedFor.used`, `exactUsed`, `missing`, `privateOnly`
+- `xForwardedFor.used`, `exactUsed`, `missing`, `privateOnly`, `trustedSourceConfirmed`
 - `hostFilter.requested`, `rowsWithoutHost`, `unverifiable`
 - `pathCountCapped`, `queryVariantCapped`, `queryVariantCount`
 - `scanRequests`, `scanShare`: bekannte Admin-/Exploit-/Proxy-Scan-Ziele.

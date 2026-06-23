@@ -2813,7 +2813,7 @@ test("Copy-Report macht Proxy-XFF-Risiko mit Besucher-Bandbreite sichtbar", asyn
   assert.match(report.claims.visits.forbiddenConclusions.join(" "), /Conversion-Rate/i);
   assert.strictEqual(report.evidence.pageViews.type, "lower_bound");
   assert.match(report.claims.pageViews.forbiddenConclusions.join(" "), /alle Aufrufe/i);
-  assert.deepStrictEqual(report.xForwardedFor, { used: 0, exactUsed: 0, missing: 0, privateOnly: 0 });
+  assert.deepStrictEqual(report.xForwardedFor, { used: 0, exactUsed: 0, missing: 0, privateOnly: 0, trustedSourceConfirmed: false });
   assert.strictEqual(report.totals.visits, 1);
   assert.ok(report.totals.visitorRange.high > report.totals.visits);
   assert.match(report.accuracyNotes.visits, /Nicht verlässlich bestimmbar/i);

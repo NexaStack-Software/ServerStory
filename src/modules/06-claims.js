@@ -1,3 +1,6 @@
+      // @requires compareUrls, buildRows, topEntries, number, format, percent, lastGa4Import
+      // @provides buildResult
+
       function buildResult(agg, config) {
         const preset = (config.calibration && config.calibration.preset) || "unknown";
         const presetDefaults = {
@@ -74,10 +77,12 @@
         const hostFilterUnverifiable = hostFilterRequested && hostFilterNoHost > 0;
         const hostReliability = (hosts.total > 1 && !hostFilterRequested) || hostFilterUnverifiable ? "limited" : "high";
         const isLegacyArchive = agg.formatKind === "legacy_http_archive";
+        const xffStructurallyGood = agg.xffUsed > 0 && agg.xffMissing === 0 && agg.xffExactUsed === agg.xffUsed;
+        const xffTrusted = !!config.trustXffSource;
         const visitorReliability = isLegacyArchive
           ? "medium"
           : config.useXff
-          ? (agg.xffUsed > 0 && agg.xffMissing === 0 && agg.xffExactUsed === agg.xffUsed ? "high" : "limited")
+          ? (xffStructurallyGood ? (xffTrusted ? "high" : "medium") : "limited")
           : (proxyKind ? "limited" : (chronologyIssue ? "medium" : "high"));
         const edgeKinds = new Set(["cloudflare", "cloudfront", "fastly", "akamai"]);
         const structuredKinds = new Set([...edgeKinds, "iis", "alb", "elb", "legacy_http_archive"]);
@@ -233,9 +238,10 @@
             range: { low: visitorLow, high: visitorHigh },
             reason: proxyKind && !config.useXff
               ? "Diese Datei zeigt vor allem Proxy-/CDN-Adressen. Echte Besucher sind damit nicht verlaesslich bestimmbar."
+              : (config.useXff && xffStructurallyGood && !xffTrusted ? "Das Proxy-Feld ist technisch lesbar, aber die Proxy-Kette wurde nicht als vertrauenswürdig bestätigt."
               : (isLegacyArchive ? "Altes Archivformat ohne Browserkennung. Besucher werden nur aus Host und 30-Minuten-Fenster geschaetzt."
               : "Besucher werden aus Adresse, Browserkennung und 30-Minuten-Fenster geschaetzt."
-              )
+              ))
           },
           conversions: {
             type: config.hasSuccessUrl ? (config.orderParam ? "measured" : "estimated") : "not_determinable",
@@ -309,6 +315,7 @@
               ...(exportCompleteness.reliability === "limited" ? ["Der Export ist nicht vollständig genug für feste Besucher-Aussagen."] : []),
               ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; Besucher werden nur grob aus Host und Zeitfenster abgeleitet."] : []),
               ...(proxyKind && !config.useXff ? ["Proxy oder Cache verdeckt echte Besucheradressen."] : []),
+              ...(config.useXff && xffStructurallyGood && !xffTrusted ? ["Das Proxy-Feld wurde gelesen, aber die Quelle wurde nicht als vertrauenswürdige Proxy-Kette bestätigt."] : []),
               ...(scanTrafficRisk ? [scanTrafficText] : []),
               ...(chronologyIssue ? ["Die Datei ist nicht sauber zeitlich sortiert."] : []),
               ...(config.useXff && visitorReliability === "limited" ? [agg.xffUsed > 0 && agg.xffExactUsed !== agg.xffUsed ? "Das Proxy-Feld wurde nicht feldgenau erkannt; Besucheradressen sind damit nur eingeschränkt vertrauenswürdig." : "Das Proxy-Feld enthält keine durchgehend brauchbaren Besucheradressen."] : [])
@@ -317,6 +324,7 @@
               ...exportCompleteness.recommendedChecks,
               ...(isLegacyArchive ? ["Besucherzahl bei alten Archivlogs nur als grobe Plausibilitätsgröße nutzen."] : []),
               ...(proxyKind && !config.useXff ? ["Echte Besucheradresse hinter Proxy verwenden, falls der Proxy vertrauenswürdig ist."] : []),
+              ...(config.useXff && xffStructurallyGood && !xffTrusted ? ["Bestätigen, dass das Proxy-Feld aus dem eigenen Proxy/CDN/Loadbalancer stammt und nicht vom Besucher gesetzt werden kann."] : []),
               ...(scanTrafficRisk ? ["Security-/Scan-Traffic getrennt vom Besucher-Traffic auswerten."] : []),
               ...(chronologyIssue ? ["Logdateien vor der Analyse zeitlich sortieren oder einzeln auswerten."] : [])
             ],
@@ -431,6 +439,7 @@
             ...(exportCompleteness.reliability === "limited" ? ["Der Export ist nicht vollständig genug für feste Besucher-Aussagen."] : []),
             ...(proxyKind && !config.useXff ? ["Proxy oder Cache verdeckt echte Besucheradressen."] : []),
             ...(isLegacyArchive ? ["Altes Archivformat ohne Browserkennung; Besucher-Sessions sind nur grob ableitbar."] : []),
+            ...(config.useXff && xffStructurallyGood && !xffTrusted ? ["Das Proxy-Feld ist technisch lesbar, aber seine Quelle wurde nicht als vertrauenswürdig bestätigt."] : []),
             ...(scanTrafficRisk ? [scanTrafficText] : []),
             ...(config.useXff && visitorReliability === "limited" ? [agg.xffUsed > 0 && agg.xffExactUsed !== agg.xffUsed ? "Das Proxy-Feld wurde nicht feldgenau erkannt; Besucheradressen sind damit nur eingeschränkt vertrauenswürdig." : "Das Proxy-Feld enthält keine durchgehend brauchbaren Besucheradressen."] : []),
             ...(chronologyIssue ? ["Die Datei ist nicht sauber zeitlich sortiert."] : [])
@@ -524,6 +533,7 @@
             hostFilterRequested,
             hostFilterNoHost,
             proxyKind: proxyKind || "none",
+            xffTrusted,
             scanRequests: agg.scanRequests || 0,
             probeRequests,
             probeClients,
@@ -544,6 +554,7 @@
           adVisitors: agg.adVisitors, adSuccess: agg.adSuccess, timeRegressions: agg.timeRegressions,
           formatKind: agg.formatKind, formatChecked: agg.formatChecked, formatCombined: agg.formatCombined,
           xffUsed: agg.xffUsed, xffMissing: agg.xffMissing, xffPrivate: agg.xffPrivate, xffExactUsed: agg.xffExactUsed || 0,
+          xffTrusted,
           legacyNoUserAgent: agg.legacyNoUserAgent || 0,
           suspiciousClients: agg.suspiciousClients,
           scanRequests: agg.scanRequests || 0,

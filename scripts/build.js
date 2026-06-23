@@ -11,12 +11,41 @@ const templatePath = path.join(srcDir, "index.template.html");
 const moduleFiles = [
   "01-core.js",
   "02-ga4.js",
-  "03-preflight.js",
   "04-parser-aggregator.js",
+  "03-preflight.js",
   "05-worker.js",
   "06-claims.js",
   "07-render.js"
 ];
+
+function parseModuleContract(file, text) {
+  const header = text.slice(0, 1200);
+  const provides = [];
+  const requires = [];
+  for (const match of header.matchAll(/\/\/\s*@(provides|requires)\s+([^\n]+)/g)) {
+    const target = match[1] === "provides" ? provides : requires;
+    target.push(...match[2].split(",").map((item) => item.trim()).filter(Boolean));
+  }
+  if (!provides.length) throw new Error(`${file} is missing // @provides module metadata`);
+  return { provides, requires };
+}
+
+function validateModuleContracts(modules) {
+  const allProvided = new Set(modules.flatMap((module) => module.contract.provides));
+  for (const module of modules) {
+    const missing = module.contract.requires.filter((name) => !allProvided.has(name));
+    if (missing.length) throw new Error(`${module.file} requires unknown globals: ${missing.join(", ")}`);
+  }
+  const providedSoFar = new Set();
+  for (const module of modules) {
+    const outOfOrder = module.contract.requires.filter((name) => !providedSoFar.has(name));
+    if (outOfOrder.length) throw new Error(`${module.file} is ordered before required globals: ${outOfOrder.join(", ")}`);
+    for (const name of module.contract.provides) {
+      if (providedSoFar.has(name)) throw new Error(`${module.file} provides duplicate global: ${name}`);
+      providedSoFar.add(name);
+    }
+  }
+}
 
 function extractBetween(text, start, end) {
   const a = text.indexOf(start);
@@ -54,9 +83,12 @@ if (!fs.existsSync(templatePath) || !fs.existsSync(stylePath) || !fs.existsSync(
 if (fs.existsSync(modulesDir)) {
   const missing = moduleFiles.filter((file) => !fs.existsSync(path.join(modulesDir, file)));
   if (missing.length) throw new Error(`Missing src/modules files: ${missing.join(", ")}`);
-  const bundledScript = moduleFiles
-    .map((file) => fs.readFileSync(path.join(modulesDir, file), "utf8").replace(/\s+$/g, ""))
-    .join("\n\n");
+  const modules = moduleFiles.map((file) => {
+    const text = fs.readFileSync(path.join(modulesDir, file), "utf8").replace(/\s+$/g, "");
+    return { file, text, contract: parseModuleContract(file, text) };
+  });
+  validateModuleContracts(modules);
+  const bundledScript = modules.map((module) => module.text).join("\n\n");
   fs.writeFileSync(scriptPath, bundledScript + "\n");
 }
 

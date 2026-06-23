@@ -1,3 +1,6 @@
+      // @requires id, percent, ASSET_RE, makeAggregator, topEntries
+      // @provides zeitraumText, formatDateTime, preflightLogSample
+
       function zeitraumText() {
         const from = id("date-from").value;
         const to = id("date-to").value;
@@ -173,4 +176,3 @@
           warnings
         };
       }
-

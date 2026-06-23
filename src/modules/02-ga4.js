@@ -1,3 +1,6 @@
+      // @requires id, lastGa4Import, splitMetricLine, normalizePath, parseMetricNumber, ASSET_RE
+      // @provides ga4UrlViews, topEntries, buildRows
+
       function ga4UrlViews() {
         const values = new Map();
         lastGa4Import = { warning: "", rows: 0, duplicateCount: 0, duplicatePaths: [] };

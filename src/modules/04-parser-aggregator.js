@@ -1,3 +1,5 @@
+      // @provides makeAggregator
+
       // ---- Parser/Aggregator: läuft entweder im Worker oder (Fallback) im Hauptthread ----
       // Vollständig in sich geschlossen, damit er per toString() in den Inline-Worker
       // serialisiert werden kann (keine externen Referenzen, keine DOM-Zugriffe).

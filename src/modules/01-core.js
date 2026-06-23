@@ -1,4 +1,6 @@
 
+      // @provides sample, sampleMode, analyzed, lastResult, lastGa4Import, ASSET_RE, id, number, format, percent, signed, kauf, escapeHtml, normalizePath, compareUrls, parseMetricNumber, splitMetricLine
+
 
 
       const sample = (() => {
