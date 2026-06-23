@@ -1,76 +1,73 @@
 # ServerStory
 
-ServerStory wertet die Besuchsliste deiner Website lokal im Browser aus. Das Tool zeigt
-Seitenaufrufe, grobe Besucher-Schätzungen, Käufe und optional den Vergleich mit
-Google Analytics. Die Logdatei wird nicht hochgeladen.
+ServerStory analyzes your website access logs locally in the browser. It shows
+server-side page views, rough visit estimates, purchases, and optional comparisons with
+Google Analytics. Your log file is not uploaded.
 
-![ServerStory: Logdatei auswählen, auswerten, Ergebnis ansehen](screenshot.png)
+[Deutsche README](README.de.md)
 
-## Nutzung
+![ServerStory: choose a log file, analyze it, review the result](screenshot.png)
 
-1. Die ServerStory-ZIP-Datei aus den GitHub-Releases herunterladen, nicht den
-   GitHub-Code-ZIP.
-2. `START_HIER.html` im Browser öffnen.
-3. Die Server-Logdatei auswählen (`.log`, `.txt`, `.gz`).
-4. Optional Google-Analytics-Seitenaufrufe und Kaufzahlen eintragen.
-5. `Datei kurz prüfen` oder `Jetzt auswerten` klicken.
+## Usage
 
-ServerStory startet standardmäßig auf Englisch. Oben rechts kann die Sprache jederzeit
-zwischen `DE` und `EN` umgeschaltet werden; die Auswahl bleibt lokal im Browser
-gespeichert.
+1. Download the ServerStory ZIP file from GitHub Releases, not the GitHub source-code ZIP.
+2. Open `START_HIER.html` in your browser.
+3. Choose your server log file (`.log`, `.txt`, `.gz`).
+4. Optionally enter Google Analytics page views and purchase counts.
+5. Click `Quick file check` or `Analyze now`.
 
-Die ZIP-Datei enthält auf der obersten Ebene nur `START_HIER.html` und den Ordner
-`serverstory-app/`. Zum Start reicht ein Doppelklick auf `START_HIER.html`.
+ServerStory starts in English by default. Use the `DE` / `EN` switch in the top right to
+change languages; the choice is stored locally in your browser.
 
-Moderne Browser können gzip-komprimierte Logs direkt verarbeiten. Sehr große Dateien
-werden gestreamt; bei internen Schutzgrenzen markiert ServerStory die betroffenen
-Befunde als eingeschränkt.
+The release ZIP contains only `START_HIER.html` and the `serverstory-app/` folder at the
+top level. A double-click on `START_HIER.html` is enough to start.
 
-## Unterstützte Logdaten
+Modern browsers can process gzip-compressed logs directly. Very large files are streamed;
+if internal safety caps are reached, ServerStory marks the affected findings as limited.
 
-ServerStory erkennt aktuell unter anderem:
+## Supported Log Data
+
+ServerStory currently recognizes, among others:
 
 - Apache/Nginx Combined Logs
 - IIS/W3C Logs
-- CloudFront W3C/Standard-nahe Logs
-- Cloudflare Logpush-nahe JSON Logs
-- Fastly-nahe JSON Logs
-- Akamai-nahe JSON Logs
-- alte ITA-HTTP-Archivlogs ohne User-Agent
+- CloudFront W3C / standard-like logs
+- Cloudflare Logpush-like JSON logs
+- Fastly-like JSON logs
+- Akamai-like JSON logs
+- old ITA HTTP archive logs without a user agent
 
-Die Kurzprüfung klassifiziert Dateien vor der Analyse als Access Log, Legacy-Access-Log
-oder als wahrscheinliches Nicht-Access-Log, zum Beispiel Analytics CSV, Error Log,
-WAF-/Security-Log oder Monitoring-Log.
+The quick file check classifies files before the full analysis as access log,
+legacy access log, or likely non-access-log data such as analytics CSV, error log,
+WAF/security log, or monitoring log.
 
-## Belastbarkeit
+## Reliability
 
-ServerStory soll keine falsche Sicherheit erzeugen. Deshalb bewertet das Tool jede
-wichtige Zahl einzeln: gut nutzbar, nur mit Vorsicht nutzbar oder mit diesen Daten nicht
-verlässlich bestimmbar. Sichtbare Ampeln und der Copy-Report verwenden dieselbe
-Entscheidungslogik.
+ServerStory is designed not to create false confidence. It evaluates each important
+number separately: good to use, use with caution, or not reliably determinable with the
+available data. The visible badges and the copyable report use the same decision logic.
 
-Typische Gründe für eingeschränkte Befunde:
+Typical reasons for limited findings:
 
-- mehrere Hosts oder Subdomains in einer Datei
-- Proxy/CDN verdeckt echte Besucheradressen
-- Origin-Logs enthalten keine CDN-Cache-Hits
-- fehlendes oder unplausibles X-Forwarded-For
-- viele nicht erkannte Zeilen
-- unsortierte Logs
-- altes Format ohne User-Agent
-- falsche Google-Analytics-Metrik, falscher Zeitraum oder falsche Seitenauswahl
-- Conversion-Seite ohne Order-ID oder Reload-Risiko
+- multiple hosts or subdomains in one file
+- proxy/CDN hides real visitor addresses
+- origin logs miss CDN cache hits
+- missing or implausible `X-Forwarded-For`
+- many unrecognized rows
+- unsorted logs
+- old format without user agents
+- wrong Google Analytics metric, period, or page selection
+- conversion page without order ID or reload risk
 
-Seitenaufrufe sind meist am belastbarsten, sofern die Datei lesbar ist und alle
-relevanten Aufrufe in der Logdatei landen. Besucher bleiben eine Schätzung, weil
-Serverlogs keine Personen-ID enthalten. Google-Analytics-Vergleiche sind nur sinnvoll,
-wenn Zeitraum, Website, Seitenpfade und Metrik wirklich zusammenpassen.
+Page views are usually the most reliable metric when the file is readable and all
+relevant requests reach the log. Visits remain an estimate because server logs do not
+contain a person ID. Google Analytics comparisons are useful only when period, website,
+page paths, and metric really match.
 
-## Copy-Report
+## Copy Report
 
-Der Copy-Report exportiert ein versioniertes JSON-Protokoll
-`serverstory.analysis.v1`. Es enthält neben den Zahlen auch technische Prüfhinweise,
-zum Beispiel:
+The copy report exports versioned JSON with `schema: "serverstory.analysis.v1"`. It
+contains the numbers and technical evidence, for example:
 
 - `quality`
 - `evidence`
@@ -82,69 +79,67 @@ zum Beispiel:
 - `parser`
 - `accuracyNotes`
 
-Das Schema ist in [docs/report-schema-v1.md](docs/report-schema-v1.md) beschrieben.
-Bekannte Genauigkeitsgrenzen stehen in [docs/accuracy-limits.md](docs/accuracy-limits.md).
+The schema is documented in [docs/report-schema-v1.md](docs/report-schema-v1.md).
+Known accuracy limits are documented in [docs/accuracy-limits.md](docs/accuracy-limits.md).
 
-## Datenschutz
+## Privacy
 
-Die Auswertung läuft ausschließlich lokal im Browser. ServerStory sendet keine Logs an
-einen Server. Im UI und im Report werden aggregierte Befunde ausgegeben, keine
-Nutzerlisten.
+The analysis runs entirely in your browser. ServerStory does not send logs to a server.
+The UI and report output aggregate findings, not user lists.
 
-Echte Logs können trotzdem personenbezogene Daten enthalten. Lege sie nicht ins Repo.
-Der Ordner `serverstory-logs/` ist für lokale Dateien vorgesehen und per `.gitignore`
-ausgeschlossen.
+Real logs can still contain personal data. Do not commit them to the repository. The
+`serverstory-logs/` folder is intended for local files and is excluded via `.gitignore`.
 
-Anonymisierte Snippets lassen sich so erzeugen:
+Create anonymized snippets like this:
 
 ```bash
 node scripts/sanitize-log.js serverstory-logs/original.log serverstory-logs/anonymized.log
 ```
 
-Der Sanitizer ersetzt IPs und Hosts durch Dokumentationswerte, maskiert E-Mails und
-entfernt riskante Query-Parameter wie `email`, `name`, `user`, `token` oder `session`.
-Vor dem Commit trotzdem manuell prüfen.
+The sanitizer replaces IPs and hosts with documentation values, masks emails, and
+removes risky query parameters such as `email`, `name`, `user`, `token`, or `session`.
+Still review anonymized snippets manually before committing them.
 
-## Entwicklung
+## Development
 
-Die Source of Truth liegt in `src/`:
+The source of truth lives in `src/`:
 
-- `src/modules/`: Quellmodule für Parser, Aggregator, Diagnose-, Report-,
-  Worker- und Render-Logik
-- `src/app.js`: aus `src/modules/` gebündeltes Browser-Script für Tests und Build
-- `src/styles.css`: Styling
-- `src/index.template.html`: HTML-Template mit Platzhaltern
+- `src/modules/`: source fragments for parser, aggregator, diagnostics, report, worker,
+  i18n, and render logic
+- `src/app.js`: browser script built from `src/modules/` for tests and build
+- `src/styles.css`: styling
+- `src/index.template.html`: HTML template with placeholders
 
-Der Build bündelt zuerst `src/modules/` nach `src/app.js` und erzeugt daraus die
-portable Einzeldatei `index.html`:
+The build first bundles `src/modules/` into `src/app.js`, then creates the portable
+single-file `index.html`:
 
 ```bash
 npm run build
 ```
 
-Das vollständige Qualitätsgate:
+Full quality gate:
 
 ```bash
 npm run verify
 ```
 
-`verify` baut `index.html` aus `src/` und prüft danach per Git-Diff, ob das Artefakt
-zum Quellstand passt. Wenn `index.html` und `src/` auseinanderlaufen, schlägt der Lauf
-fehl.
+`verify` rebuilds `index.html` and `src/app.js` from `src/` and then checks that the
+committed artifacts still match the source. If generated artifacts drift from the source,
+the run fails.
 
-Wichtige Einzelbefehle:
+Important commands:
 
 ```bash
-npm test              # Parser-, Diagnose-, Report-, Snapshot- und Render-Tests
-npm run test:e2e      # Browserflow mit Upload, Preflight, Report, Demo, XFF, Hostfilter, .gz
-npm run test:sanitize # Log-Sanitizer prüfen
-npm run audit:repo    # Repo-Hygiene gegen echte Logs/Archive/PII
-npm run test:realworld # optional, wenn Real-World-Logs lokal im Cache liegen
-npm run test:access-realworld # optional, wenn echte Combined-Access-Logs lokal liegen
-npm run test:local-logs # optionaler Corpus unter ~/test-logs oder SERVERSTORY_LOCAL_LOG_DIR
+npm test              # parser, diagnostics, report, snapshot, and render tests
+npm run test:e2e      # browser flow with upload, preflight, report, demo, XFF, host filter, .gz
+npm run test:sanitize # log sanitizer tests
+npm run audit:repo    # repo hygiene against real logs, archives, and obvious PII
+npm run test:realworld # optional, when real-world logs are available locally
+npm run test:access-realworld # optional, when real Combined access logs are available locally
+npm run test:local-logs # optional corpus under ~/test-logs or SERVERSTORY_LOCAL_LOG_DIR
 ```
 
-Optionale Real-World-Fixtures:
+Optional real-world fixtures:
 
 ```bash
 npm run download:realworld -- epa,nasa
@@ -154,18 +149,18 @@ npm run test:access-realworld
 npm run test:local-logs
 ```
 
-Die heruntergeladenen Dateien liegen unter `tests/realworld-cache/` bzw.
-`tests/access-cache/` und werden nicht committet.
+Downloaded files stay under `tests/realworld-cache/` and `tests/access-cache/` and are
+not committed.
 
-Interne Designentscheidungen, No-False-Confidence-Regeln und weitere Roadmap-Notizen
-stehen in [docs/design-rationale.md](docs/design-rationale.md).
+Internal design decisions, no-false-confidence rules, and roadmap notes live in
+[docs/design-rationale.md](docs/design-rationale.md).
 
 ## Release
 
-Release-Schritte stehen in [docs/release-checklist.md](docs/release-checklist.md).
-Die Download-ZIP wird mit `npm run build:release` erzeugt und mit `npm run audit:release`
-geprüft.
+Release steps are documented in [docs/release-checklist.md](docs/release-checklist.md).
+Build the downloadable ZIP with `npm run build:release` and verify it with
+`npm run audit:release`.
 
-## Lizenz
+## License
 
-MIT - siehe [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).

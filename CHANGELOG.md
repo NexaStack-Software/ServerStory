@@ -4,20 +4,34 @@
 
 ## 1.0.1 - 2026-06-19
 
-- Multi-Format-Parser für Apache/Nginx Combined, JSON, IIS/W3C, Cloudflare, CloudFront, Fastly und Akamai-nahe Logs erweitert.
-- No-False-Confidence-Schicht ergänzt: Befunde werden lieber als eingeschränkt/unsicher markiert, statt falsche Präzision zu behaupten.
-- Evidence-/Claim-Safety-Schicht im Analyse-Protokoll ergänzt: Kennzahlen werden als `measured`, `estimated`, `lower_bound`, `comparison` oder `not_determinable` klassifiziert.
-- UI zeigt Besucher hinter Proxy/CDN ohne belastbare XFF-Auswertung als nicht bestimmbar statt als präzise Zahl.
-- Sichtbare Belastbarkeits-Ampeln und konkrete Gründe für Seitenaufrufe, Besucher, Conversions, GA4-Abgleich, Host-Scope, Bot-/Anomalie-Erkennung und Tracking-Speicher ergänzt.
-- Große Golden-Corpus-Tests mit 1.250 Besuchern für Combined, Cloudflare, CloudFront, Fastly, Akamai und IIS/W3C ergänzt.
-- Störfalltests für Proxy/XFF, Host-Mix, unsortierte Logs, kaputte Zeilen, Tracking-Cap und Report-Unsicherheiten ergänzt.
-- Preflight nutzt dieselbe Parser-/Recognition-Logik wie die Vollanalyse und warnt früh bei Formatproblemen, Host-Mix, fehlendem XFF und niedriger Recognition-Rate.
-- GA4 CSV/TSV Import robuster gegen BOM, Metazeilen, Summenzeilen und falsche Metriken.
-- GA4 Import warnt jetzt auch bei nicht lesbaren Eingaben statt still fehlende Werte anzunehmen.
-- Conversion-Deduplizierung per Muster und Order-ID abgesichert.
-- Analyse-Protokoll `serverstory.analysis.v1` mit Snapshot-Test, Parser-Diagnostik, `visitorRange`, `proxyKind`, Reliability-Feldern und Accuracy-Notes eingeführt.
-- Browser-E2E für Upload, Preflight, Report, Demo, Hostfilter, XFF, falsche GA4-Metrik, Tracking-Cap und `.gz`-Upload ergänzt.
-- Sanitizer für echte Log-Snippets eingeführt und gegen IPs, Hosts, E-Mails, Cookies, Authorization-Header, Tokens und lange IDs gehärtet.
-- Provider-nahe Fixtures für CloudFront, Cloudflare Logpush, IIS/W3C, Fastly und Akamai-Matrix ergänzt.
-- Release-ZIP Build und Release-Audit eingeführt.
-- Repo-Audit gegen versehentlich commitete echte Logs, Archive, große Dateien und offensichtliche PII ergänzt.
+- Extended the multi-format parser for Apache/Nginx Combined, JSON, IIS/W3C,
+  Cloudflare, CloudFront, Fastly, and Akamai-like logs.
+- Added the no-false-confidence layer: findings are marked as limited or uncertain
+  instead of presenting false precision.
+- Added evidence and claim safety to the analysis protocol: metrics are classified as
+  `measured`, `estimated`, `lower_bound`, `comparison`, or `not_determinable`.
+- The UI now marks visits behind proxy/CDN without reliable XFF evidence as not
+  determinable instead of showing a precise number.
+- Added visible reliability badges and concrete reasons for page views, visits,
+  conversions, GA4 comparison, host scope, bot/anomaly detection, and tracking memory.
+- Added large golden-corpus tests with 1,250 visitors for Combined, Cloudflare,
+  CloudFront, Fastly, Akamai, and IIS/W3C.
+- Added failure-mode tests for proxy/XFF, host mix, unsorted logs, broken rows,
+  tracking cap, and report uncertainty.
+- Preflight now uses the same parser and recognition logic as the full analysis and
+  warns early about format problems, host mix, missing XFF, and low recognition rate.
+- Made GA4 CSV/TSV import more robust against BOMs, metadata rows, total rows, and
+  wrong metrics.
+- GA4 import now warns on unreadable input instead of silently assuming missing values.
+- Hardened conversion deduplication by pattern and order ID.
+- Introduced analysis protocol `serverstory.analysis.v1` with snapshot test, parser
+  diagnostics, `visitorRange`, `proxyKind`, reliability fields, and accuracy notes.
+- Added browser E2E coverage for upload, preflight, report, demo, host filter, XFF,
+  wrong GA4 metric, tracking cap, and `.gz` upload.
+- Introduced the log sanitizer and hardened it against IPs, hosts, emails, cookies,
+  authorization headers, tokens, and long IDs.
+- Added provider-like fixtures for CloudFront, Cloudflare Logpush, IIS/W3C, Fastly, and
+  Akamai Matrix.
+- Introduced release ZIP build and release audit.
+- Added repo audit against accidentally committed real logs, archives, large files, and
+  obvious PII.
